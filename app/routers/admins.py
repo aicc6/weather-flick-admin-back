@@ -2,7 +2,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.auth import get_current_active_admin, get_current_superuser
+from app.auth import get_current_active_admin
 from app.crud import (
     get_admins, get_admin, create_admin, update_admin,
     delete_admin, get_admin_by_email, get_admin_by_username
@@ -16,10 +16,9 @@ router = APIRouter(prefix="/admins", tags=["admins"])
 async def read_admins(
     skip: int = 0,
     limit: int = 100,
-    current_admin: AdminResponse = Depends(get_current_superuser),
     db: Session = Depends(get_db)
 ):
-    """Get all admins (superuser only)"""
+    """Get all admins (no authentication required)"""
     admins = get_admins(db, skip=skip, limit=limit)
     return admins
 
@@ -52,10 +51,10 @@ async def create_new_admin(
 @router.get("/{admin_id}", response_model=AdminResponse)
 async def read_admin(
     admin_id: int,
-    current_admin: AdminResponse = Depends(get_current_superuser),
+    current_admin: AdminResponse = Depends(get_current_active_admin),
     db: Session = Depends(get_db)
 ):
-    """Get a specific admin by ID (superuser only)"""
+    """Get a specific admin by ID (authenticated admin only)"""
     db_admin = get_admin(db, admin_id=admin_id)
     if db_admin is None:
         raise HTTPException(
@@ -69,10 +68,10 @@ async def read_admin(
 async def update_admin_info(
     admin_id: int,
     admin_update: AdminUpdate,
-    current_admin: AdminResponse = Depends(get_current_superuser),
+    current_admin: AdminResponse = Depends(get_current_active_admin),
     db: Session = Depends(get_db)
 ):
-    """Update admin information (superuser only)"""
+    """Update admin information (authenticated admin only)"""
     db_admin = update_admin(db, admin_id=admin_id, admin_update=admin_update)
     if db_admin is None:
         raise HTTPException(
@@ -85,10 +84,10 @@ async def update_admin_info(
 @router.delete("/{admin_id}")
 async def delete_admin_user(
     admin_id: int,
-    current_admin: AdminResponse = Depends(get_current_superuser),
+    current_admin: AdminResponse = Depends(get_current_active_admin),
     db: Session = Depends(get_db)
 ):
-    """Delete an admin (superuser only)"""
+    """Delete an admin (authenticated admin only)"""
     success = delete_admin(db, admin_id=admin_id)
     if not success:
         raise HTTPException(
@@ -101,10 +100,10 @@ async def delete_admin_user(
 @router.put("/{admin_id}/activate")
 async def activate_admin(
     admin_id: int,
-    current_admin: AdminResponse = Depends(get_current_superuser),
+    current_admin: AdminResponse = Depends(get_current_active_admin),
     db: Session = Depends(get_db)
 ):
-    """Activate an admin account (superuser only)"""
+    """Activate an admin account (authenticated admin only)"""
     admin_update = AdminUpdate(is_active=True)
     db_admin = update_admin(db, admin_id=admin_id, admin_update=admin_update)
     if db_admin is None:
@@ -118,10 +117,10 @@ async def activate_admin(
 @router.put("/{admin_id}/deactivate")
 async def deactivate_admin(
     admin_id: int,
-    current_admin: AdminResponse = Depends(get_current_superuser),
+    current_admin: AdminResponse = Depends(get_current_active_admin),
     db: Session = Depends(get_db)
 ):
-    """Deactivate an admin account (superuser only)"""
+    """Deactivate an admin account (authenticated admin only)"""
     admin_update = AdminUpdate(is_active=False)
     db_admin = update_admin(db, admin_id=admin_id, admin_update=admin_update)
     if db_admin is None:

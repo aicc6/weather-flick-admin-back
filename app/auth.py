@@ -71,12 +71,3 @@ async def get_current_active_admin(current_admin: Admin = Depends(get_current_ad
     if not current_admin.is_active:
         raise HTTPException(status_code=400, detail="Inactive admin")
     return current_admin
-
-
-async def get_current_superuser(current_admin: Admin = Depends(get_current_active_admin)) -> Admin:
-    if not current_admin.is_superuser:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="The admin doesn't have enough privileges"
-        )
-    return current_admin

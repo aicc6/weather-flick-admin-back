@@ -57,18 +57,3 @@ def delete_admin(db: Session, admin_id: int) -> bool:
     db.delete(db_admin)
     db.commit()
     return True
-
-
-def create_superuser(db: Session, email: str, username: str, password: str, full_name: str = None) -> Admin:
-    hashed_password = get_password_hash(password)
-    db_admin = Admin(
-        email=email,
-        username=username,
-        hashed_password=hashed_password,
-        full_name=full_name,
-        is_superuser=True
-    )
-    db.add(db_admin)
-    db.commit()
-    db.refresh(db_admin)
-    return db_admin

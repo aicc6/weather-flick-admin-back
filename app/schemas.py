@@ -22,13 +22,11 @@ class AdminUpdate(BaseModel):
     username: Optional[str] = None
     full_name: Optional[str] = None
     is_active: Optional[bool] = None
-    is_superuser: Optional[bool] = None
 
 
 class Admin(AdminBase):
     id: int
     is_active: bool
-    is_superuser: bool
     created_at: datetime
     updated_at: Optional[datetime] = None
 
@@ -56,7 +54,6 @@ class AdminResponse(BaseModel):
     username: str
     full_name: Optional[str] = None
     is_active: bool
-    is_superuser: bool
     created_at: datetime
 
     class Config:
