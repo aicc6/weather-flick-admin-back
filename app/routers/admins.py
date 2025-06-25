@@ -14,7 +14,7 @@ def read_admins(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    current_admin: schemas.Admin = Depends(auth.get_current_superuser)
+    current_admin: schemas.Admin = Depends(auth.get_current_active_admin)
 ):
     admins = crud.get_admins(db, skip=skip, limit=limit)
     return admins
@@ -49,7 +49,7 @@ def create_admin(
 def read_admin(
     admin_id: int,
     db: Session = Depends(get_db),
-    current_admin: schemas.Admin = Depends(auth.get_current_superuser)
+    current_admin: schemas.Admin = Depends(auth.get_current_active_admin)
 ):
     db_admin = crud.get_admin(db, admin_id=admin_id)
     if db_admin is None:

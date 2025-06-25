@@ -2,12 +2,14 @@
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .routers import auth, admins, weather
+from .routers import auth, admins, weather, users
 from .database import engine
 from . import models
+from .init_db import init_db
 
-# Create database tables
+# Create database tables and initialize data
 models.Base.metadata.create_all(bind=engine)
+init_db()
 
 app = FastAPI(
     title="Weather Flick Admin API",
@@ -28,6 +30,7 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/auth", tags=["authentication"])
 app.include_router(admins.router, prefix="/admins", tags=["admin management"])
 app.include_router(weather.router, prefix="/weather", tags=["weather data"])
+app.include_router(users.router, prefix="/users", tags=["user management"])
 
 
 @app.get("/")

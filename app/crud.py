@@ -24,6 +24,7 @@ def get_admins(db: Session, skip: int = 0, limit: int = 100):
 def create_admin(db: Session, admin: schemas.AdminCreate):
     hashed_password = get_password_hash(admin.password)
     db_admin = models.Admin(
+        full_name=admin.full_name,
         email=admin.email,
         username=admin.username,
         hashed_password=hashed_password
@@ -79,3 +80,30 @@ def deactivate_admin(db: Session, admin_id: int):
         db.refresh(db_admin)
         return db_admin
     return None
+
+
+def get_users(db: Session, skip: int = 0, limit: int = 100):
+    return db.query(models.User).offset(skip).limit(limit).all()
+
+
+def create_user(db: Session, user: schemas.UserCreate):
+    hashed_password = get_password_hash(user.password)
+    db_user = models.User(
+        full_name=user.full_name,
+        email=user.email,
+        username=user.username,
+        hashed_password=hashed_password
+    )
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
+
+
+def delete_user(db: Session, user_id: int):
+    db_user = db.query(models.User).filter(models.User.id == user_id).first()
+    if db_user:
+        db.delete(db_user)
+        db.commit()
+        return True
+    return False

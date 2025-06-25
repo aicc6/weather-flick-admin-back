@@ -6,6 +6,7 @@ from datetime import datetime
 
 
 class AdminBase(BaseModel):
+    full_name: Optional[str] = None
     email: EmailStr
     username: str
 
@@ -15,6 +16,7 @@ class AdminCreate(AdminBase):
 
 
 class AdminUpdate(BaseModel):
+    full_name: Optional[str] = None
     email: Optional[EmailStr] = None
     username: Optional[str] = None
     password: Optional[str] = None
@@ -45,3 +47,23 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     email: Optional[str] = None
+
+
+class UserBase(BaseModel):
+    full_name: Optional[str] = None
+    email: EmailStr
+    username: str
+
+
+class UserCreate(UserBase):
+    password: str
+
+
+class User(UserBase):
+    id: int
+    is_active: bool
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
