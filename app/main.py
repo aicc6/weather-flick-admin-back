@@ -1,42 +1,40 @@
+# FastAPI 앱 및 라우터 등록
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.database import engine
-from app.models import Base
-from app.routers import auth, admins
-from app.config import settings
+from .routers import auth, admins, weather
+from .database import engine
+from . import models
 
 # Create database tables
-Base.metadata.create_all(bind=engine)
+models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
-    title="Weather Flick Admin Backend",
-    description="Admin panel backend for Weather Flick application",
+    title="Weather Flick Admin API",
+    description="관리자 페이지를 위한 FastAPI 기반 백엔드 애플리케이션",
     version="1.0.0"
 )
 
-# CORS middleware
+# CORS 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_origins=["http://localhost:3000", "http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # Include routers
-app.include_router(auth.router)
-app.include_router(admins.router)
+app.include_router(auth.router, prefix="/auth", tags=["authentication"])
+app.include_router(admins.router, prefix="/admins", tags=["admin management"])
+app.include_router(weather.router, prefix="/weather", tags=["weather data"])
 
 
 @app.get("/")
-async def root():
-    return {
-        "message": "Weather Flick Admin Backend",
-        "version": "1.0.0",
-        "docs": "/docs"
-    }
+def read_root():
+    return {"message": "Weather Flick Admin API"}
 
 
 @app.get("/health")
-async def health_check():
+def health_check():
     return {"status": "healthy"}

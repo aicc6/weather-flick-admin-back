@@ -1,34 +1,39 @@
+# 최초 실행 시 슈퍼유저(admin@weatherflick.com/admin123) 자동 생성
+
 from sqlalchemy.orm import Session
-from app.database import SessionLocal, engine
-from app.models import Base
-from app.crud import create_admin, get_admin_by_email
-from app.schemas import AdminCreate
-from app.config import settings
+from .database import SessionLocal, engine
+from . import models, crud, schemas
+
+# Create database tables
+models.Base.metadata.create_all(bind=engine)
 
 
 def init_db():
-    # Create tables
-    Base.metadata.create_all(bind=engine)
-
     db = SessionLocal()
     try:
-        # Check if default admin already exists
-        default_admin = get_admin_by_email(db, settings.ADMIN_EMAIL)
-        if not default_admin:
-            # Create default admin
-            admin_data = AdminCreate(
-                email=settings.ADMIN_EMAIL,
+        # Check if superuser already exists
+        superuser = crud.get_admin_by_email(db, email="admin@weatherflick.com")
+        if not superuser:
+            # Create superuser
+            superuser_data = schemas.AdminCreate(
+                email="admin@weatherflick.com",
                 username="admin",
-                password=settings.ADMIN_PASSWORD,
-                full_name="System Administrator"
+                password="admin123"
             )
-            create_admin(db=db, admin=admin_data)
-            print(f"Default admin created: {settings.ADMIN_EMAIL}")
+            superuser = crud.create_admin(db, admin=superuser_data)
+
+            # Make superuser
+            superuser.is_superuser = True
+            db.commit()
+            db.refresh(superuser)
+            print("Superuser created successfully!")
         else:
-            print(f"Default admin already exists: {settings.ADMIN_EMAIL}")
+            print("Superuser already exists!")
     finally:
         db.close()
 
 
 if __name__ == "__main__":
+    print("Creating initial data...")
     init_db()
+    print("Initial data created!")

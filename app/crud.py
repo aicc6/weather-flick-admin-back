@@ -1,33 +1,32 @@
+# DB CRUD(Create, Read, Update, Delete) 함수
+
 from sqlalchemy.orm import Session
-from app.models import Admin
-from app.schemas import AdminCreate, AdminUpdate, AdminRegister
-from app.auth import get_password_hash
-from typing import Union
+from . import models, schemas
+from .auth import get_password_hash
 
 
-def get_admin(db: Session, admin_id: int) -> Admin:
-    return db.query(Admin).filter(Admin.id == admin_id).first()
+def get_admin(db: Session, admin_id: int):
+    return db.query(models.Admin).filter(models.Admin.id == admin_id).first()
 
 
-def get_admin_by_email(db: Session, email: str) -> Admin:
-    return db.query(Admin).filter(Admin.email == email).first()
+def get_admin_by_email(db: Session, email: str):
+    return db.query(models.Admin).filter(models.Admin.email == email).first()
 
 
-def get_admin_by_username(db: Session, username: str) -> Admin:
-    return db.query(Admin).filter(Admin.username == username).first()
+def get_admin_by_username(db: Session, username: str):
+    return db.query(models.Admin).filter(models.Admin.username == username).first()
 
 
 def get_admins(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(Admin).offset(skip).limit(limit).all()
+    return db.query(models.Admin).offset(skip).limit(limit).all()
 
 
-def create_admin(db: Session, admin: Union[AdminCreate, AdminRegister]) -> Admin:
+def create_admin(db: Session, admin: schemas.AdminCreate):
     hashed_password = get_password_hash(admin.password)
-    db_admin = Admin(
+    db_admin = models.Admin(
         email=admin.email,
         username=admin.username,
-        hashed_password=hashed_password,
-        full_name=admin.full_name
+        hashed_password=hashed_password
     )
     db.add(db_admin)
     db.commit()
@@ -35,12 +34,16 @@ def create_admin(db: Session, admin: Union[AdminCreate, AdminRegister]) -> Admin
     return db_admin
 
 
-def update_admin(db: Session, admin_id: int, admin_update: AdminUpdate) -> Admin:
+def update_admin(db: Session, admin_id: int, admin_update: schemas.AdminUpdate):
     db_admin = get_admin(db, admin_id)
     if not db_admin:
         return None
 
     update_data = admin_update.dict(exclude_unset=True)
+
+    if "password" in update_data:
+        update_data["hashed_password"] = get_password_hash(update_data.pop("password"))
+
     for field, value in update_data.items():
         setattr(db_admin, field, value)
 
@@ -49,11 +52,30 @@ def update_admin(db: Session, admin_id: int, admin_update: AdminUpdate) -> Admin
     return db_admin
 
 
-def delete_admin(db: Session, admin_id: int) -> bool:
+def delete_admin(db: Session, admin_id: int):
     db_admin = get_admin(db, admin_id)
-    if not db_admin:
-        return False
+    if db_admin:
+        db.delete(db_admin)
+        db.commit()
+        return True
+    return False
 
-    db.delete(db_admin)
-    db.commit()
-    return True
+
+def activate_admin(db: Session, admin_id: int):
+    db_admin = get_admin(db, admin_id)
+    if db_admin:
+        db_admin.is_active = True
+        db.commit()
+        db.refresh(db_admin)
+        return db_admin
+    return None
+
+
+def deactivate_admin(db: Session, admin_id: int):
+    db_admin = get_admin(db, admin_id)
+    if db_admin:
+        db_admin.is_active = False
+        db.commit()
+        db.refresh(db_admin)
+        return db_admin
+    return None

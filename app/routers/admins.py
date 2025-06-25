@@ -1,36 +1,34 @@
+# 관리자 관리 API
+
+
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from app.database import get_db
-from app.auth import get_current_active_admin
-from app.crud import (
-    get_admins, get_admin, create_admin, update_admin,
-    delete_admin, get_admin_by_email, get_admin_by_username
-)
-from app.schemas import AdminCreate, AdminUpdate, AdminResponse
+from .. import crud, schemas, auth
+from ..database import get_db
 
-router = APIRouter(prefix="/admins", tags=["admins"])
+router = APIRouter()
 
 
-@router.get("/", response_model=List[AdminResponse])
-async def read_admins(
+@router.get("/", response_model=List[schemas.Admin])
+def read_admins(
     skip: int = 0,
     limit: int = 100,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_admin: schemas.Admin = Depends(auth.get_current_superuser)
 ):
-    """Get all admins (no authentication required)"""
-    admins = get_admins(db, skip=skip, limit=limit)
+    admins = crud.get_admins(db, skip=skip, limit=limit)
     return admins
 
 
-@router.post("/", response_model=AdminResponse)
-async def create_new_admin(
-    admin: AdminCreate,
-    db: Session = Depends(get_db)
+@router.post("/", response_model=schemas.Admin)
+def create_admin(
+    admin: schemas.AdminCreate,
+    db: Session = Depends(get_db),
+    current_admin: schemas.Admin = Depends(auth.get_current_superuser)
 ):
-    """Create a new admin (registration endpoint - no authentication required)"""
     # Check if email already exists
-    db_admin = get_admin_by_email(db, email=admin.email)
+    db_admin = crud.get_admin_by_email(db, email=admin.email)
     if db_admin:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -38,94 +36,72 @@ async def create_new_admin(
         )
 
     # Check if username already exists
-    db_admin = get_admin_by_username(db, username=admin.username)
+    db_admin = crud.get_admin_by_username(db, username=admin.username)
     if db_admin:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Username already taken"
         )
 
-    return create_admin(db=db, admin=admin)
+    return crud.create_admin(db=db, admin=admin)
 
 
-@router.get("/{admin_id}", response_model=AdminResponse)
-async def read_admin(
+@router.get("/{admin_id}", response_model=schemas.Admin)
+def read_admin(
     admin_id: int,
-    current_admin: AdminResponse = Depends(get_current_active_admin),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_admin: schemas.Admin = Depends(auth.get_current_superuser)
 ):
-    """Get a specific admin by ID (authenticated admin only)"""
-    db_admin = get_admin(db, admin_id=admin_id)
+    db_admin = crud.get_admin(db, admin_id=admin_id)
     if db_admin is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Admin not found"
-        )
+        raise HTTPException(status_code=404, detail="Admin not found")
     return db_admin
 
 
-@router.put("/{admin_id}", response_model=AdminResponse)
-async def update_admin_info(
+@router.put("/{admin_id}", response_model=schemas.Admin)
+def update_admin(
     admin_id: int,
-    admin_update: AdminUpdate,
-    current_admin: AdminResponse = Depends(get_current_active_admin),
-    db: Session = Depends(get_db)
+    admin_update: schemas.AdminUpdate,
+    db: Session = Depends(get_db),
+    current_admin: schemas.Admin = Depends(auth.get_current_superuser)
 ):
-    """Update admin information (authenticated admin only)"""
-    db_admin = update_admin(db, admin_id=admin_id, admin_update=admin_update)
+    db_admin = crud.update_admin(db, admin_id=admin_id, admin_update=admin_update)
     if db_admin is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Admin not found"
-        )
+        raise HTTPException(status_code=404, detail="Admin not found")
     return db_admin
 
 
 @router.delete("/{admin_id}")
-async def delete_admin_user(
+def delete_admin(
     admin_id: int,
-    current_admin: AdminResponse = Depends(get_current_active_admin),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_admin: schemas.Admin = Depends(auth.get_current_superuser)
 ):
-    """Delete an admin (authenticated admin only)"""
-    success = delete_admin(db, admin_id=admin_id)
+    success = crud.delete_admin(db, admin_id=admin_id)
     if not success:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Admin not found"
-        )
+        raise HTTPException(status_code=404, detail="Admin not found")
     return {"message": "Admin deleted successfully"}
 
 
-@router.put("/{admin_id}/activate")
-async def activate_admin(
+@router.put("/{admin_id}/activate", response_model=schemas.Admin)
+def activate_admin(
     admin_id: int,
-    current_admin: AdminResponse = Depends(get_current_active_admin),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_admin: schemas.Admin = Depends(auth.get_current_superuser)
 ):
-    """Activate an admin account (authenticated admin only)"""
-    admin_update = AdminUpdate(is_active=True)
-    db_admin = update_admin(db, admin_id=admin_id, admin_update=admin_update)
+    db_admin = crud.activate_admin(db, admin_id=admin_id)
     if db_admin is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Admin not found"
-        )
-    return {"message": "Admin activated successfully"}
+        raise HTTPException(status_code=404, detail="Admin not found")
+    return db_admin
 
 
-@router.put("/{admin_id}/deactivate")
-async def deactivate_admin(
+@router.put("/{admin_id}/deactivate", response_model=schemas.Admin)
+def deactivate_admin(
     admin_id: int,
-    current_admin: AdminResponse = Depends(get_current_active_admin),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_admin: schemas.Admin = Depends(auth.get_current_superuser)
 ):
-    """Deactivate an admin account (authenticated admin only)"""
-    admin_update = AdminUpdate(is_active=False)
-    db_admin = update_admin(db, admin_id=admin_id, admin_update=admin_update)
+    db_admin = crud.deactivate_admin(db, admin_id=admin_id)
     if db_admin is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Admin not found"
-        )
-    return {"message": "Admin deactivated successfully"}
+        raise HTTPException(status_code=404, detail="Admin not found")
+    return db_admin

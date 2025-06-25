@@ -9,3 +9,4 @@ alembic
 pydantic[email]
 python-dotenv
 pydantic-settings
+requests
