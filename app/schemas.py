@@ -1,3 +1,5 @@
+# Pydantic 스키마
+
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 from datetime import datetime
