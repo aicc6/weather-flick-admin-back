@@ -8,6 +8,9 @@ router = APIRouter()
 
 @router.get("/", response_model=List[schemas.User])
 def read_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), current_admin: schemas.Admin = Depends(auth.get_current_active_admin)):
+    # 슈퍼유저 또는 활성 관리자만 접근 가능
+    if not current_admin.is_superuser and not current_admin.is_active:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
     return crud.get_users(db, skip=skip, limit=limit)
 
 @router.post("/", response_model=schemas.User)

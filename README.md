@@ -16,8 +16,16 @@
 
 ### 1. 의존성 설치
 
+**Python/pip 사용:**
+
 ```bash
 pip install -r requirements.txt
+```
+
+**Windows 사용자를 위한 배치 파일:**
+
+```bash
+install_requirements.bat
 ```
 
 ### 2. 환경 변수 설정
@@ -36,15 +44,73 @@ python -m app.init_db
 
 ### 4. 서버 실행
 
+**방법 1: 개선된 run.py 사용 (권장)**
+
 ```bash
-uvicorn app.main:app --reload
+python run.py
+# uvicorn app.main:app --reload
+```
+
+**방법 2: Windows 배치 파일 사용**
+
+```bash
+start_server.bat
+```
+
+**방법 3: uvicorn 직접 사용**
+
+```bash
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+서버가 실행되면 다음과 같은 메시지가 표시됩니다:
+
+```
+🚀 Starting Weather Flick Admin Backend Server...
+📍 Server will be available at: http://localhost:8000
+📊 Admin API Documentation: http://localhost:8000/docs
+🔄 Auto-reload enabled for development
 ```
 
 서버가 실행되면 다음 URL에서 접근할 수 있습니다:
 
-- API 문서: http://localhost:8000/docs
-- 대안 문서: http://localhost:8000/redoc
-- 헬스 체크: http://localhost:8000/health
+- **API 문서**: http://localhost:8000/docs
+- **대안 문서**: http://localhost:8000/redoc
+- **헬스 체크**: http://localhost:8000/health
+- **기본 엔드포인트**: http://localhost:8000/
+
+## 문제 해결
+
+### 서버가 시작되지 않는 경우
+
+1. **포트 충돌 확인**
+
+   ```bash
+   netstat -an | findstr :8000
+   ```
+
+   8000번 포트가 이미 사용 중이면 다른 포트를 사용하세요.
+
+2. **의존성 확인**
+
+   ```bash
+   pip list | findstr fastapi
+   pip list | findstr uvicorn
+   ```
+
+3. **데이터베이스 연결 확인**
+   `app/config.py`에서 데이터베이스 URL이 올바른지 확인하세요.
+
+4. **Python 버전 확인**
+   Python 3.8 이상이 필요합니다.
+
+### 일반적인 오류
+
+- **"You must pass the application as an import string to enable 'reload'"**:
+  이 경고는 이제 수정되었습니다. `python run.py`를 사용하세요.
+
+- **데이터베이스 연결 오류**:
+  PostgreSQL 서버가 실행 중인지 확인하고 `app/config.py`의 설정을 확인하세요.
 
 ## API 엔드포인트
 
@@ -62,6 +128,14 @@ uvicorn app.main:app --reload
 - `DELETE /admins/{admin_id}` - 관리자 삭제 (슈퍼유저만)
 - `PUT /admins/{admin_id}/activate` - 관리자 계정 활성화 (슈퍼유저만)
 - `PUT /admins/{admin_id}/deactivate` - 관리자 계정 비활성화 (슈퍼유저만)
+
+### 날씨 데이터 (Weather Data)
+
+- `GET /weather/` - 날씨 데이터 조회
+
+### 사용자 관리 (User Management)
+
+- `GET /users/` - 사용자 목록 조회
 
 ## 기본 계정
 
@@ -92,8 +166,17 @@ app/
 ├── auth.py              # 인증 관련 함수
 ├── crud.py              # 데이터베이스 CRUD 작업
 ├── init_db.py           # 초기 데이터베이스 설정
-└── routers/
-    ├── __init__.py
-    ├── auth.py          # 인증 라우터
-    └── admins.py        # 관리자 관리 라우터
+├── routers/
+│   ├── __init__.py
+│   ├── auth.py          # 인증 라우터
+│   ├── admins.py        # 관리자 관리 라우터
+│   ├── weather.py       # 날씨 데이터 라우터
+│   └── users.py         # 사용자 관리 라우터
+└── services/            # 비즈니스 로직 서비스
 ```
+
+### 개발 도구
+
+- **run.py**: 개선된 서버 시작 스크립트
+- **start_server.bat**: Windows용 서버 시작 배치 파일
+- **install_requirements.bat**: Windows용 의존성 설치 배치 파일
