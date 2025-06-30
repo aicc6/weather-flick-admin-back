@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 
 class AdminLogin(BaseModel):
@@ -9,22 +9,35 @@ class AdminLogin(BaseModel):
 class AdminCreate(BaseModel):
     email: EmailStr
     password: str
-    name: str
+    name: Optional[str] = None
     phone: Optional[str] = None
 
 class AdminResponse(BaseModel):
-    id: int
+    admin_id: int
     email: str
-    name: str
+    name: Optional[str]
     phone: Optional[str]
-    status: str
+    status: Optional[str]
     last_login_at: Optional[datetime]
-    login_count: Optional[int]
     created_at: datetime
-    updated_at: Optional[datetime]
 
     class Config:
         from_attributes = True
+
+class AdminListResponse(BaseModel):
+    admins: List[AdminResponse]
+    total: int
+    page: int
+    size: int
+    total_pages: int
+
+class AdminStatusUpdate(BaseModel):
+    status: str
+
+class AdminUpdate(BaseModel):
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    status: Optional[str] = None
 
 class Token(BaseModel):
     access_token: str

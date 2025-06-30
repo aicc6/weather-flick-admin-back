@@ -33,13 +33,13 @@ def get_current_admin(
     if admin_id is None or email is None or token_type != "admin":
         raise credentials_exception
 
-    # 데이터베이스에서 관리자 정보 조회 (id 컬럼 사용)
-    admin = db.query(Admin).filter(Admin.id == int(admin_id)).first()
+    # 데이터베이스에서 관리자 정보 조회 (admin_id 컬럼 사용)
+    admin = db.query(Admin).filter(Admin.admin_id == int(admin_id)).first()
     if admin is None:
         raise credentials_exception
 
-    # 관리자 계정 상태 확인 (문자열로 비교)
-    if admin.status != "ACTIVE":
+    # 관리자 계정 상태 확인 (None 체크 추가)
+    if admin.status and admin.status != "ACTIVE":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="비활성화된 계정입니다"
@@ -51,7 +51,7 @@ def get_current_active_admin(
     current_admin: Admin = Depends(get_current_admin)
 ) -> Admin:
     """현재 활성화된 관리자 정보 가져오기"""
-    if current_admin.status != "ACTIVE":
+    if current_admin.status and current_admin.status != "ACTIVE":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="비활성화된 관리자입니다"

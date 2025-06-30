@@ -64,16 +64,14 @@ class User(Base):
 
 class Admin(Base):
     __tablename__ = "admins"
-    id = Column(Integer, primary_key=True, index=True)
+    admin_id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
-    name = Column(String, nullable=False)
+    name = Column(String)
     phone = Column(String)
-    status = Column(String, default="ACTIVE")
+    status = Column(String)
     last_login_at = Column(DateTime)
-    login_count = Column(Integer)
     created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
     roles = relationship("AdminRole", back_populates="admin")
 
@@ -91,7 +89,7 @@ class Role(Base):
 
 class AdminRole(Base):
     __tablename__ = "admin_roles"
-    admin_id = Column(Integer, ForeignKey("admins.id"), primary_key=True)
+    admin_id = Column(Integer, ForeignKey("admins.admin_id"), primary_key=True)
     role_id = Column(Integer, ForeignKey("roles.role_id"), primary_key=True)
     assigned_at = Column(DateTime, server_default=func.now())
     is_active = Column(Boolean, default=True)
