@@ -197,3 +197,37 @@ class SystemLog(Base):
     message = Column(Text, nullable=False)
     context = Column(JSONB)
     created_at = Column(DateTime, server_default=func.now())
+
+
+class CityWeatherData(Base):
+    __tablename__ = "city_weather_data"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    city_name = Column(String, nullable=False, index=True)
+    nx = Column(Integer, nullable=False)  # 기상청 격자 X좌표
+    ny = Column(Integer, nullable=False)  # 기상청 격자 Y좌표
+    latitude = Column(DECIMAL(10, 8))     # 위도
+    longitude = Column(DECIMAL(11, 8))    # 경도
+
+    # 날씨 데이터
+    temperature = Column(Float)           # 기온 (°C)
+    humidity = Column(Integer)            # 습도 (%)
+    precipitation = Column(Float)         # 강수량 (mm)
+    wind_speed = Column(Float)           # 풍속 (m/s)
+    wind_direction = Column(Integer)     # 풍향 (deg)
+    sky_condition = Column(String)       # 하늘상태
+    precipitation_type = Column(String)  # 강수형태
+    weather_description = Column(String) # 날씨 설명
+
+    # 메타데이터
+    forecast_time = Column(DateTime, nullable=False)  # 예보 시각
+    base_date = Column(String)           # 발표일자 (YYYYMMDD)
+    base_time = Column(String)           # 발표시각 (HHMM)
+    data_source = Column(String, default="KMA")  # 데이터 출처
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    # 유니크 제약 조건 (도시명 + 예보시각 조합으로 중복 방지)
+    __table_args__ = (
+        UniqueConstraint('city_name', 'forecast_time', name='_city_forecast_time_uc'),
+    )
