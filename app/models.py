@@ -43,19 +43,34 @@ class TravelPlanStatus(enum.Enum):
     CANCELLED = "CANCELLED"
 
 
+class UserRole(enum.Enum):
+    USER = "USER"
+    ADMIN = "ADMIN"
+
+
 class User(Base):
     __tablename__ = "users"
+    __table_args__ = {"extend_existing": True, "autoload_replace": False}
     user_id = Column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
     )
     email = Column(String, unique=True, index=True, nullable=False)
-    password_hash = Column(String, nullable=False)
+    hashed_password = Column(String, nullable=False)
     nickname = Column(String)
     profile_image = Column(String)
     preferences = Column(JSONB)
-    account_type = Column(Enum(AccountType), default=AccountType.USER)
+    is_active = Column(Boolean, default=True)
+    is_email_verified = Column(Boolean, default=False)
+    role = Column(Enum(UserRole), default=UserRole.USER)
+    last_login = Column(DateTime)
+    login_count = Column(Integer, default=0)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    # id 속성을 user_id의 별칭으로 추가
+    @property
+    def id(self):
+        return self.user_id
 
     travel_plans = relationship("TravelPlan", back_populates="user")
     reviews = relationship("Review", back_populates="user")
@@ -69,7 +84,7 @@ class Admin(Base):
     password_hash = Column(String, nullable=False)
     name = Column(String)
     phone = Column(String)
-    status = Column(String)
+    status = Column(Enum(AdminStatus), default=AdminStatus.ACTIVE)
     last_login_at = Column(DateTime)
     created_at = Column(DateTime, server_default=func.now())
 
