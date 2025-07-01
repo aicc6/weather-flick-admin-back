@@ -42,18 +42,18 @@ async def login(
             detail="이메일 또는 비밀번호가 올바르지 않습니다"
         )
 
-    # 계정 상태 확인 (None 체크 추가)
-    if admin.status and admin.status != "ACTIVE":
+    # 계정 상태 확인 - INACTIVE나 LOCKED 상태일 때만 차단
+    if admin.status and admin.status in ["INACTIVE", "LOCKED"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="비활성화된 계정입니다"
         )
 
-    # 마지막 로그인 시간 업데이트 (login_count와 updated_at 제거)
+    # 마지막 로그인 시간 업데이트
     admin.last_login_at = datetime.now(timezone.utc)
     db.commit()
 
-    # JWT 토큰 생성 (admin_id 사용)
+    # JWT 토큰 생성
     access_token = create_admin_token(admin.admin_id, admin.email)
 
     return LoginResponse(
@@ -292,13 +292,14 @@ async def login_for_access_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    if admin.status and admin.status != "ACTIVE":
+    # 계정 상태 확인 - INACTIVE나 LOCKED 상태일 때만 차단
+    if admin.status and admin.status in ["INACTIVE", "LOCKED"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="비활성화된 계정입니다"
         )
 
-    # 마지막 로그인 시간 업데이트 (login_count와 updated_at 제거)
+    # 마지막 로그인 시간 업데이트
     admin.last_login_at = datetime.now(timezone.utc)
     db.commit()
 

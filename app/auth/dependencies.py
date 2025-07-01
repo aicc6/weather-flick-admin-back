@@ -38,8 +38,8 @@ def get_current_admin(
     if admin is None:
         raise credentials_exception
 
-    # 관리자 계정 상태 확인 (None 체크 추가)
-    if admin.status and admin.status != "ACTIVE":
+    # 계정 상태 확인 - INACTIVE나 LOCKED 상태일 때만 차단
+    if admin.status and admin.status in ["INACTIVE", "LOCKED"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="비활성화된 계정입니다"
@@ -51,9 +51,5 @@ def get_current_active_admin(
     current_admin: Admin = Depends(get_current_admin)
 ) -> Admin:
     """현재 활성화된 관리자 정보 가져오기"""
-    if current_admin.status and current_admin.status != "ACTIVE":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="비활성화된 관리자입니다"
-        )
+    # get_current_admin에서 이미 상태 체크를 했으므로 중복 체크 제거
     return current_admin

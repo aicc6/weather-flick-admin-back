@@ -19,6 +19,7 @@ from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship, declarative_base
 from sqlalchemy.sql import func
 import enum
+from datetime import datetime
 
 
 Base = declarative_base()
@@ -66,6 +67,9 @@ class User(Base):
     login_count = Column(Integer, default=0)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    preferred_region = Column(String, nullable=True)
+    preferred_theme = Column(String, nullable=True)
+    bio = Column(Text, nullable=True)
 
     # id 속성을 user_id의 별칭으로 추가
     @property
@@ -75,6 +79,9 @@ class User(Base):
     travel_plans = relationship("TravelPlan", back_populates="user")
     reviews = relationship("Review", back_populates="user")
     activity_logs = relationship("UserActivityLog", back_populates="user")
+
+    def __repr__(self):
+        return f"<User(user_id='{self.user_id}', email='{self.email}', nickname='{self.nickname}')>"
 
 
 class Admin(Base):
