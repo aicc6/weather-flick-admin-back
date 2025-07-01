@@ -4,6 +4,8 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 import logging
 import math
+import uuid
+from passlib.context import CryptContext
 from fastapi import Depends
 
 from ..models import User, UserRole as DBUserRole
@@ -15,12 +17,57 @@ from ..database import get_db
 
 logger = logging.getLogger(__name__)
 
+# 비밀번호 해싱을 위한 설정
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
 
 class UserService:
     """사용자 관리 서비스"""
 
     def __init__(self, db: Session):
         self.db = db
+
+    def create_user(self, user_create: UserCreate) -> User:
+        """새 사용자 생성"""
+        try:
+            # 이메일 중복 확인
+            existing_user = self.get_user_by_email(user_create.email)
+            if existing_user:
+                raise ValueError("이미 사용 중인 이메일입니다.")
+
+            # 비밀번호 해싱
+            hashed_password = pwd_context.hash(user_create.password)
+
+            # 새 사용자 생성
+            new_user = User(
+                user_id=uuid.uuid4(),
+                email=user_create.email,
+                hashed_password=hashed_password,
+                nickname=user_create.nickname,
+                profile_image=user_create.profile_image,
+                preferences=user_create.preferences,
+                preferred_region=user_create.preferred_region,
+                preferred_theme=user_create.preferred_theme,
+                bio=user_create.bio,
+                is_active=True,
+                is_email_verified=False,
+                role=DBUserRole.USER if user_create.role == UserRole.USER else DBUserRole.ADMIN,
+                login_count=0,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
+            )
+
+            self.db.add(new_user)
+            self.db.commit()
+            self.db.refresh(new_user)
+
+            logger.info(f"새 사용자 생성 완료: {new_user.email}")
+            return new_user
+
+        except Exception as e:
+            logger.error(f"사용자 생성 실패: {e}")
+            self.db.rollback()
+            raise
 
     def get_user_by_id(self, user_id: str) -> Optional[User]:
         """사용자 ID로 사용자 조회"""
@@ -208,6 +255,28 @@ class UserService:
 
         except Exception as e:
             logger.error(f"사용자 삭제 실패 (ID: {user_id}): {e}")
+            self.db.rollback()
+            raise
+
+    def reset_user_password(self, user_id: str, new_password: str = "123456789a") -> bool:
+        """사용자 비밀번호 초기화"""
+        try:
+            user = self.get_user_by_id(user_id)
+            if not user:
+                return False
+
+            # 새 비밀번호 해싱
+            hashed_password = pwd_context.hash(new_password)
+            user.hashed_password = hashed_password
+            user.updated_at = datetime.utcnow()
+
+            self.db.commit()
+
+            logger.info(f"사용자 비밀번호 초기화 완료: {user_id}")
+            return True
+
+        except Exception as e:
+            logger.error(f"사용자 비밀번호 초기화 실패 (ID: {user_id}): {e}")
             self.db.rollback()
             raise
 

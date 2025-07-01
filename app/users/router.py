@@ -5,7 +5,7 @@ import logging
 
 from .service import get_user_service, UserService
 from .schemas import (
-    UserResponse, UserListResponse, UserStats, UserUpdate,
+    UserCreate, UserResponse, UserListResponse, UserStats, UserUpdate,
     UserSearchParams, UserRole
 )
 from ..database import get_db
@@ -51,6 +51,29 @@ async def get_users(
         raise HTTPException(status_code=500, detail="사용자 목록 조회 중 오류가 발생했습니다.")
 
 
+@router.post("/", response_model=UserResponse)
+async def create_user(
+    user_create: UserCreate,
+    user_service: UserService = Depends(get_user_service)
+):
+    """
+    새 사용자 생성
+
+    - **email**: 이메일 주소 (고유해야 함)
+    - **nickname**: 사용자 닉네임
+    - **password**: 비밀번호 (최소 8자)
+    - **role**: 사용자 역할 (USER 또는 ADMIN)
+    """
+    try:
+        return user_service.create_user(user_create)
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"사용자 생성 실패: {e}")
+        raise HTTPException(status_code=500, detail="사용자 생성 중 오류가 발생했습니다.")
+
+
 @router.get("/stats", response_model=UserStats)
 async def get_user_statistics(
     user_service: UserService = Depends(get_user_service)
@@ -71,6 +94,46 @@ async def get_user_statistics(
     except Exception as e:
         logger.error(f"사용자 통계 조회 실패: {e}")
         raise HTTPException(status_code=500, detail="사용자 통계 조회 중 오류가 발생했습니다.")
+
+
+@router.get("/search")
+async def search_users(
+    keyword: str = Query(..., description="검색 키워드"),
+    limit: int = Query(20, ge=1, le=100, description="결과 제한"),
+    user_service: UserService = Depends(get_user_service)
+):
+    """
+    키워드로 사용자 검색
+
+    - **keyword**: 이메일 또는 닉네임 검색 키워드
+    - **limit**: 결과 개수 제한 (1-100)
+    """
+    try:
+        users = user_service.search_users_by_keyword(keyword, limit)
+        return {"users": users, "count": len(users)}
+
+    except Exception as e:
+        logger.error(f"사용자 검색 실패 (키워드: {keyword}): {e}")
+        raise HTTPException(status_code=500, detail="사용자 검색 중 오류가 발생했습니다.")
+
+
+@router.get("/region/{region}")
+async def get_users_by_region(
+    region: str = Path(..., description="지역명"),
+    user_service: UserService = Depends(get_user_service)
+):
+    """
+    지역별 사용자 조회
+
+    - **region**: 선호 지역명
+    """
+    try:
+        users = user_service.get_users_by_region(region)
+        return {"users": users, "count": len(users), "region": region}
+
+    except Exception as e:
+        logger.error(f"지역별 사용자 조회 실패 (지역: {region}): {e}")
+        raise HTTPException(status_code=500, detail="지역별 사용자 조회 중 오류가 발생했습니다.")
 
 
 @router.get("/health")
@@ -105,3 +168,127 @@ async def get_user_by_id(
     except Exception as e:
         logger.error(f"사용자 조회 실패 (ID: {user_id}): {e}")
         raise HTTPException(status_code=500, detail="사용자 조회 중 오류가 발생했습니다.")
+
+
+@router.put("/{user_id}", response_model=UserResponse)
+async def update_user(
+    user_update: UserUpdate,
+    user_id: str = Path(..., description="사용자 ID"),
+    user_service: UserService = Depends(get_user_service)
+):
+    """
+    사용자 정보 수정
+
+    - **user_id**: 수정할 사용자의 UUID
+    - 수정 가능한 필드: nickname, profile_image, preferences, preferred_region, preferred_theme, bio
+    """
+    try:
+        user = user_service.update_user(user_id, user_update)
+        if not user:
+            raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
+
+        return user
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"사용자 정보 수정 실패 (ID: {user_id}): {e}")
+        raise HTTPException(status_code=500, detail="사용자 정보 수정 중 오류가 발생했습니다.")
+
+
+@router.post("/{user_id}/activate")
+async def activate_user(
+    user_id: str = Path(..., description="사용자 ID"),
+    user_service: UserService = Depends(get_user_service)
+):
+    """
+    사용자 활성화
+
+    - **user_id**: 활성화할 사용자의 UUID
+    """
+    try:
+        success = user_service.activate_user(user_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
+
+        return {"message": "사용자가 활성화되었습니다.", "user_id": user_id}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"사용자 활성화 실패 (ID: {user_id}): {e}")
+        raise HTTPException(status_code=500, detail="사용자 활성화 중 오류가 발생했습니다.")
+
+
+@router.post("/{user_id}/deactivate")
+async def deactivate_user(
+    user_id: str = Path(..., description="사용자 ID"),
+    user_service: UserService = Depends(get_user_service)
+):
+    """
+    사용자 비활성화
+
+    - **user_id**: 비활성화할 사용자의 UUID
+    """
+    try:
+        success = user_service.deactivate_user(user_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
+
+        return {"message": "사용자가 비활성화되었습니다.", "user_id": user_id}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"사용자 비활성화 실패 (ID: {user_id}): {e}")
+        raise HTTPException(status_code=500, detail="사용자 비활성화 중 오류가 발생했습니다.")
+
+
+@router.delete("/{user_id}")
+async def delete_user(
+    user_id: str = Path(..., description="사용자 ID"),
+    user_service: UserService = Depends(get_user_service)
+):
+    """
+    사용자 삭제
+
+    - **user_id**: 삭제할 사용자의 UUID
+    - **주의**: 이 작업은 되돌릴 수 없습니다.
+    """
+    try:
+        success = user_service.delete_user(user_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
+
+        return {"message": "사용자가 삭제되었습니다.", "user_id": user_id}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"사용자 삭제 실패 (ID: {user_id}): {e}")
+        raise HTTPException(status_code=500, detail="사용자 삭제 중 오류가 발생했습니다.")
+
+
+@router.post("/{user_id}/reset-password")
+async def reset_user_password(
+    user_id: str = Path(..., description="사용자 ID"),
+    user_service: UserService = Depends(get_user_service)
+):
+    """
+    사용자 비밀번호 초기화
+
+    - **user_id**: 비밀번호를 초기화할 사용자의 UUID
+    - 비밀번호는 "123456789a"로 초기화됩니다.
+    """
+    try:
+        success = user_service.reset_user_password(user_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
+
+        return {"message": "사용자 비밀번호가 초기화되었습니다.", "user_id": user_id, "new_password": "123456789a"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"사용자 비밀번호 초기화 실패 (ID: {user_id}): {e}")
+        raise HTTPException(status_code=500, detail="사용자 비밀번호 초기화 중 오류가 발생했습니다.")

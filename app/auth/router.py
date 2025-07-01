@@ -275,6 +275,60 @@ async def deactivate_admin(
     return {"message": f"관리자 '{admin.name}' 계정이 비활성화되었습니다"}
 
 
+@router.delete("/admins/{admin_id}/permanent")
+async def delete_admin_permanently(
+    admin_id: int,
+    current_admin: Admin = Depends(get_current_active_admin),
+    db: Session = Depends(get_db),
+):
+    """관리자 계정 완전 삭제"""
+    admin = db.query(Admin).filter(Admin.admin_id == admin_id).first()
+
+    if not admin:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="관리자를 찾을 수 없습니다"
+        )
+
+    # 자기 자신은 삭제할 수 없음
+    if admin.admin_id == current_admin.admin_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="자신의 계정은 삭제할 수 없습니다",
+        )
+
+    admin_name = admin.name or admin.email
+    db.delete(admin)
+    db.commit()
+
+    return {"message": f"관리자 '{admin_name}' 계정이 완전히 삭제되었습니다"}
+
+
+@router.post("/admins/{admin_id}/reset-password")
+async def reset_admin_password(
+    admin_id: int,
+    current_admin: Admin = Depends(get_current_active_admin),
+    db: Session = Depends(get_db),
+):
+    """관리자 비밀번호 초기화"""
+    admin = db.query(Admin).filter(Admin.admin_id == admin_id).first()
+
+    if not admin:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="관리자를 찾을 수 없습니다"
+        )
+
+    # 새 비밀번호로 초기화
+    new_password = "123456789a"
+    admin.password_hash = get_password_hash(new_password)
+    db.commit()
+
+    return {
+        "message": f"관리자 '{admin.name or admin.email}' 비밀번호가 초기화되었습니다",
+        "admin_id": admin_id,
+        "new_password": new_password
+    }
+
+
 @router.post("/logout")
 async def logout():
     """로그아웃 (클라이언트에서 토큰 삭제)"""
