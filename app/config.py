@@ -37,7 +37,8 @@ class Settings(BaseSettings):
     weather_api_url: str = "http://api.weatherapi.com/v1"
 
     # 기상청 API 설정
-    kma_api_key: str = ""
+    kma_api_key: str = "6IWo%2F1qDnkiMU8A184OZxDuCQcU%2FvRsIL2vRBn7jwGQ2fgg9ECJLgXWxBeRMtzbHirhgC%2Fj6lSfSSqwHhAiHkQ%3D%3D"
+    kma_forecast_url: str = "http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0"
 
     # 카카오 API 설정 (맛집, 장소 검색)
     kakao_api_key: str = ""
