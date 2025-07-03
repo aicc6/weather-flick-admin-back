@@ -394,3 +394,95 @@ async def delete_city_data(
     except Exception as e:
         logger.error(f"Delete city data error: {e}")
         raise HTTPException(status_code=500, detail="데이터 삭제 중 오류가 발생했습니다.")
+
+
+@router.get("/summary")
+def get_weather_summary(weather_service: KMAWeatherService = Depends(get_weather_service)):
+    """
+    주요 도시들의 현재 날씨 요약 및 통계 반환
+    """
+    cities = list(MAJOR_CITIES.keys())
+    regions = []
+    temps = []
+    now = None
+    for city_name in cities:
+        weather = weather_service.get_current_weather_by_city(city_name)
+        if weather and weather.temperature is not None:
+            temps.append(weather.temperature)
+            regions.append({
+                "city_name": city_name,
+                "region_code": MAJOR_CITIES[city_name].nx,
+                "temperature": weather.temperature,
+                "humidity": weather.humidity,
+                "wind_speed": weather.wind_speed,
+                "sky_condition": weather.sky_condition,
+                "last_updated": weather.forecast_time.isoformat() if weather.forecast_time else None
+            })
+            if not now or (weather.forecast_time and weather.forecast_time > now):
+                now = weather.forecast_time
+    avg_temp = round(sum(temps) / len(temps), 1) if temps else None
+    max_temp = max(temps) if temps else None
+    min_temp = min(temps) if temps else None
+    max_region = next((r["city_name"] for r in regions if r["temperature"] == max_temp), None)
+    min_region = next((r["city_name"] for r in regions if r["temperature"] == min_temp), None)
+    last_updated = now.isoformat() if now else None
+    return {
+        "regions": regions,
+        "summary": {
+            "region_count": len(regions),
+            "avg_temp": avg_temp,
+            "max_temp": max_temp,
+            "min_temp": min_temp,
+            "max_region": max_region,
+            "min_region": min_region,
+            "last_updated": last_updated
+        }
+    }
+
+
+@router.get("/summary-db")
+def get_weather_summary_db(db: Session = Depends(get_db)):
+    """
+    데이터베이스에 저장된 주요 도시들의 최신 날씨 요약 및 통계 반환
+    """
+    from .service import MAJOR_CITIES
+    from .database_service import WeatherDatabaseService
+    db_service = WeatherDatabaseService(db)
+    cities = list(MAJOR_CITIES.keys())
+    regions = []
+    temps = []
+    now = None
+    for city_name in cities:
+        data = db_service.get_weather_by_city(city_name)
+        if data and data.temperature is not None:
+            temp = float(data.temperature)
+            temps.append(temp)
+            regions.append({
+                "city_name": city_name,
+                "region_code": getattr(data, 'region_code', None),
+                "temperature": temp,
+                "humidity": data.humidity,
+                "wind_speed": data.wind_speed,
+                "sky_condition": data.sky_condition,
+                "last_updated": data.forecast_time.isoformat() if data.forecast_time else None
+            })
+            if not now or (data.forecast_time and data.forecast_time > now):
+                now = data.forecast_time
+    avg_temp = round(sum(temps) / len(temps), 1) if temps else None
+    max_temp = max(temps) if temps else None
+    min_temp = min(temps) if temps else None
+    max_region = next((r["city_name"] for r in regions if r["temperature"] == max_temp), None)
+    min_region = next((r["city_name"] for r in regions if r["temperature"] == min_temp), None)
+    last_updated = now.isoformat() if now else None
+    return {
+        "regions": regions,
+        "summary": {
+            "region_count": len(regions),
+            "avg_temp": avg_temp,
+            "max_temp": max_temp,
+            "min_temp": min_temp,
+            "max_region": max_region,
+            "min_region": min_region,
+            "last_updated": last_updated
+        }
+    }
