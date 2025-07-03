@@ -14,6 +14,7 @@ from sqlalchemy import (
     DECIMAL,
     UniqueConstraint,
     PrimaryKeyConstraint,
+    Numeric,
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship, declarative_base
@@ -253,3 +254,19 @@ class CityWeatherData(Base):
     __table_args__ = (
         UniqueConstraint('city_name', 'forecast_time', name='_city_forecast_time_uc'),
     )
+
+
+class TouristAttraction(Base):
+    __tablename__ = "tourist_attractions"
+    content_id = Column(String, primary_key=True, index=True)
+    attraction_name = Column(String)
+    description = Column(Text)
+    address = Column(String)
+    image_url = Column(String)
+    latitude = Column(Numeric)
+    longitude = Column(Numeric)
+    category_code = Column(String)
+    category_name = Column(String)
+    region_code = Column(String)
+    created_at = Column(DateTime)
+    updated_at = Column(DateTime)

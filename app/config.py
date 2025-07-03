@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     debug: bool = False
 
     # 서버 설정
-    host: str = "localhost"
+    host: str = "127.0.0.1"
     port: int = 8000
 
     # CORS 설정

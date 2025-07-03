@@ -4,6 +4,7 @@ from app.auth.router import router as auth_router
 from app.weather.router import router as weather_router
 from app.users.router import router as users_router
 from app.config import settings
+from tourlist.tourist_attractions import router as tourist_attractions_router
 
 app = FastAPI(
     title="Weather Flick Admin API",
@@ -24,6 +25,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(weather_router)
 app.include_router(users_router)
+app.include_router(tourist_attractions_router)
 
 @app.get("/")
 async def root():
