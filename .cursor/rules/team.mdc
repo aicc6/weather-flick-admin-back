@@ -1,68 +1,892 @@
 ---
-description:
-globs:
-alwaysApply: false
+description: Weather Flick Admin Backend Development Rules
+globs: ["**/*.py", "**/*.md", "**/*.yml", "**/*.yaml", "**/*.toml"]
+alwaysApply: true
 ---
 
-  You are an expert in Python, FastAPI, and scalable API development.
+# Weather Flick Admin Backend Team Rules
 
-  Key Principles
-  - Write concise, technical responses with accurate Python examples.
-  - Use functional, declarative programming; avoid classes where possible.
-  - Prefer iteration and modularization over code duplication.
-  - Use descriptive variable names with auxiliary verbs (e.g., is_active, has_permission).
-  - Use lowercase with underscores for directories and files (e.g., routers/user_routes.py).
-  - Favor named exports for routes and utility functions.
-  - Use the Receive an Object, Return an Object (RORO) pattern.
+당신은 Weather Flick 관리자 백엔드 개발의 전문가입니다. FastAPI, Python, PostgreSQL, 그리고 관리자 시스템 개발에 능숙합니다.
 
-  Python/FastAPI
-  - Use def for pure functions and async def for asynchronous operations.
-  - Use type hints for all function signatures. Prefer Pydantic models over raw dictionaries for input validation.
-  - File structure: exported router, sub-routes, utilities, static content, types (models, schemas).
-  - Avoid unnecessary curly braces in conditional statements.
-  - For single-line statements in conditionals, omit curly braces.
-  - Use concise, one-line syntax for simple conditional statements (e.g., if condition: do_something()).
+## 🎯 프로젝트 컨텍스트
 
-  Error Handling and Validation
-  - Prioritize error handling and edge cases:
-    - Handle errors and edge cases at the beginning of functions.
-    - Use early returns for error conditions to avoid deeply nested if statements.
-    - Place the happy path last in the function for improved readability.
-    - Avoid unnecessary else statements; use the if-return pattern instead.
-    - Use guard clauses to handle preconditions and invalid states early.
-    - Implement proper error logging and user-friendly error messages.
-    - Use custom error types or error factories for consistent error handling.
+### 역할 및 책임
+- **관리자 API 서버**: FastAPI 기반 관리자 전용 API 서비스 (포트: 8001)
+- **시스템 관리**: 사용자 관리, 콘텐츠 관리, 시스템 모니터링
+- **권한 관리**: 역할 기반 접근 제어 (RBAC) - 슈퍼관리자, 일반관리자
+- **데이터 관리**: 관광지 정보, 날씨 데이터, 사용자 관리
+- **모니터링**: 시스템 상태, 로그 관리, 통계 대시보드
 
-  Dependencies
-  - FastAPI
-  - Pydantic v2
-  - Async database libraries like asyncpg or aiomysql
-  - SQLAlchemy 2.0 (if using ORM features)
+### 기술 스택
+- **Framework**: FastAPI 0.111.0
+- **Language**: Python 3.11+
+- **Database**: PostgreSQL + SQLAlchemy + Alembic
+- **Validation**: Pydantic 2.7.1
+- **Code Quality**: Ruff + Black + MyPy + pre-commit hooks
 
-  FastAPI-Specific Guidelines
-  - Use functional components (plain functions) and Pydantic models for input validation and response schemas.
-  - Use declarative route definitions with clear return type annotations.
-  - Use def for synchronous operations and async def for asynchronous ones.
-  - Minimize @app.on_event("startup") and @app.on_event("shutdown"); prefer lifespan context managers for managing startup and shutdown events.
-  - Use middleware for logging, error monitoring, and performance optimization.
-  - Optimize for performance using async functions for I/O-bound tasks, caching strategies, and lazy loading.
-  - Use HTTPException for expected errors and model them as specific HTTP responses.
-  - Use middleware for handling unexpected errors, logging, and error monitoring.
-  - Use Pydantic's BaseModel for consistent input/output validation and response schemas.
+## 📁 필수 프로젝트 구조 (서비스 프로젝트 구조 통일)
 
-  Performance Optimization
-  - Minimize blocking I/O operations; use asynchronous operations for all database calls and external API requests.
-  - Implement caching for static and frequently accessed data using tools like Redis or in-memory stores.
-  - Optimize data serialization and deserialization with Pydantic.
-  - Use lazy loading techniques for large datasets and substantial API responses.
+```
+app/
+├── routers/           # API 엔드포인트 (관리자 특화)
+│   ├── auth.py        # 관리자 인증 및 권한 관리
+│   ├── users.py       # 사용자 관리 (관리자용)
+│   ├── destinations.py # 여행지 관리
+│   ├── weather.py     # 날씨 데이터 관리
+│   ├── system.py      # 시스템 모니터링 및 관리
+│   ├── dashboard.py   # 관리자 대시보드
+│   └── logs.py        # 로그 및 활동 내역
+├── services/          # 비즈니스 로직
+│   ├── user_service.py      # 사용자 관리 서비스
+│   ├── auth_service.py      # 관리자 인증 서비스
+│   ├── dashboard_service.py # 대시보드 데이터 서비스
+│   ├── system_service.py    # 시스템 모니터링 서비스
+│   └── log_service.py       # 로그 관리 서비스
+├── schemas/           # Pydantic 스키마
+│   ├── auth.py        # 인증 관련 스키마
+│   ├── users.py       # 사용자 관리 스키마
+│   ├── dashboard.py   # 대시보드 스키마
+│   └── system.py      # 시스템 관련 스키마
+├── models.py          # SQLAlchemy 모델들
+├── database.py        # DB 연결 및 세션 관리
+├── auth.py           # 인증 및 권한 관리
+├── config.py          # 설정 및 환경변수
+└── utils/            # 유틸리티 함수들
+    ├── security.py    # 보안 관련 유틸리티
+    └── logging.py     # 로깅 유틸리티
+```
 
-  Key Conventions
-  1. Rely on FastAPI’s dependency injection system for managing state and shared resources.
-  2. Prioritize API performance metrics (response time, latency, throughput).
-  3. Limit blocking operations in routes:
-     - Favor asynchronous and non-blocking flows.
-     - Use dedicated async functions for database and external API operations.
-     - Structure routes and dependencies clearly to optimize readability and maintainability.
+## 🛠️ 핵심 개발 원칙
 
-  Refer to FastAPI documentation for Data Models, Path Operations, and Middleware for best practices.
+### 1. 관리자 권한 기반 개발
+- **슈퍼관리자**: 모든 시스템 접근 권한
+- **일반관리자**: 제한된 관리 권한
+- **권한 검증**: 모든 API에 필수 권한 확인
 
+### 2. 관리자 라우터 패턴 (필수 준수)
+
+```python
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+from typing import List, Optional
+
+from app.database import get_db
+from app.auth import require_admin, require_super_admin
+from app.services.user_service import UserService
+from app.models import User
+
+router = APIRouter(prefix="/admin/users", tags=["admin-users"])
+
+@router.get("/", response_model=List[UserResponse])
+async def get_all_users(
+    skip: int = 0,
+    limit: int = 100,
+    search: Optional[str] = None,
+    db: Session = Depends(get_db),
+    admin_user: User = Depends(require_admin),  # 관리자 권한 필수
+) -> List[UserResponse]:
+    """
+    모든 사용자 목록을 조회합니다. (관리자 전용)
+    
+    Args:
+        skip: 건너뛸 레코드 수
+        limit: 반환할 레코드 수 (최대 100)
+        search: 검색 키워드 (이메일, 닉네임)
+        db: 데이터베이스 세션
+        admin_user: 현재 관리자 사용자
+    
+    Returns:
+        List[UserResponse]: 사용자 목록
+    
+    Raises:
+        HTTPException: 권한 없음 또는 조회 실패
+    """
+    try:
+        service = UserService(db)
+        users = await service.get_users_for_admin(
+            skip=skip,
+            limit=min(limit, 100),  # 최대 100개 제한
+            search=search
+        )
+        
+        # 관리자 활동 로그
+        await log_admin_activity(
+            admin_user.id,
+            "USER_LIST_VIEW",
+            f"사용자 목록 조회 (검색: {search}, 결과: {len(users)}개)"
+        )
+        
+        return users
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"사용자 목록 조회 실패: {str(e)}"
+        )
+
+@router.delete("/{user_id}")
+async def delete_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    admin_user: User = Depends(require_super_admin),  # 슈퍼관리자만
+) -> dict:
+    """
+    사용자를 삭제합니다. (슈퍼관리자 전용)
+    """
+    # Early Return으로 입력 검증
+    if user_id <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="유효하지 않은 사용자 ID입니다"
+        )
+    
+    # 본인 삭제 방지
+    if user_id == admin_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="본인 계정은 삭제할 수 없습니다"
+        )
+    
+    try:
+        service = UserService(db)
+        result = await service.delete_user(user_id)
+        
+        # 중요한 관리자 활동 로그
+        await log_admin_activity(
+            admin_user.id,
+            "USER_DELETE",
+            f"사용자 삭제 (ID: {user_id})",
+            severity="HIGH"
+        )
+        
+        return {"message": "사용자가 성공적으로 삭제되었습니다", "user_id": user_id}
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+```
+
+### 3. 권한 의존성 패턴 (필수)
+
+```python
+# auth.py
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from sqlalchemy.orm import Session
+from jose import JWTError, jwt
+from typing import Optional
+
+from app.database import get_db
+from app.config import get_settings
+from app.models import User
+
+security = HTTPBearer()
+settings = get_settings()
+
+async def get_current_admin_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+) -> User:
+    """현재 관리자 사용자 조회"""
+    try:
+        payload = jwt.decode(
+            credentials.credentials,
+            settings.secret_key,
+            algorithms=[settings.algorithm]
+        )
+        user_id: int = payload.get("sub")
+        if user_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="유효하지 않은 토큰입니다"
+            )
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="토큰 검증에 실패했습니다"
+        )
+    
+    user = db.get(User, user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="사용자를 찾을 수 없습니다"
+        )
+    
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="비활성화된 계정입니다"
+        )
+    
+    return user
+
+async def require_admin(
+    current_user: User = Depends(get_current_admin_user)
+) -> User:
+    """일반 관리자 이상 권한 필요"""
+    if current_user.role not in ["admin", "super_admin"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="관리자 권한이 필요합니다"
+        )
+    return current_user
+
+async def require_super_admin(
+    current_user: User = Depends(get_current_admin_user)
+) -> User:
+    """슈퍼관리자 권한 필요"""
+    if current_user.role != "super_admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="슈퍼관리자 권한이 필요합니다"
+        )
+    return current_user
+```
+
+### 4. 관리자 서비스 패턴 (필수)
+
+```python
+# services/user_service.py
+from sqlalchemy.orm import Session
+from sqlalchemy import select, and_, or_, func
+from typing import List, Optional, Dict, Any
+from datetime import datetime, timedelta
+import logging
+
+from app.models import User, TravelPlan
+from app.schemas.users import UserResponse, UserStatsResponse
+
+logger = logging.getLogger(__name__)
+
+class UserService:
+    """사용자 관리 서비스 (관리자용)"""
+    
+    def __init__(self, db: Session):
+        self.db = db
+    
+    async def get_users_for_admin(
+        self,
+        skip: int = 0,
+        limit: int = 100,
+        search: Optional[str] = None,
+        role_filter: Optional[str] = None,
+        is_active: Optional[bool] = None
+    ) -> List[UserResponse]:
+        """
+        관리자용 사용자 목록 조회 (상세 정보 포함)
+        
+        Args:
+            skip: 건너뛸 레코드 수
+            limit: 반환할 레코드 수
+            search: 검색 키워드
+            role_filter: 역할 필터
+            is_active: 활성화 상태 필터
+        
+        Returns:
+            List[UserResponse]: 사용자 목록 (관리자용 상세 정보)
+        """
+        try:
+            # 입력 검증 (Early Return)
+            if skip < 0:
+                raise ValueError("skip은 0 이상이어야 합니다")
+            
+            if limit <= 0 or limit > 100:
+                raise ValueError("limit는 1-100 사이여야 합니다")
+            
+            # 기본 쿼리 구성
+            query = select(User)
+            
+            # 검색 조건 추가
+            if search:
+                search_term = f"%{search}%"
+                query = query.where(
+                    or_(
+                        User.email.ilike(search_term),
+                        User.nickname.ilike(search_term)
+                    )
+                )
+            
+            # 필터 조건 추가
+            if role_filter:
+                query = query.where(User.role == role_filter)
+            
+            if is_active is not None:
+                query = query.where(User.is_active == is_active)
+            
+            # 정렬 및 페이징
+            query = query.order_by(User.created_at.desc()).offset(skip).limit(limit)
+            
+            users = self.db.execute(query).scalars().all()
+            
+            # 추가 통계 정보 포함한 응답 생성
+            user_responses = []
+            for user in users:
+                # 각 사용자의 여행 계획 수 조회
+                plan_count = self.db.execute(
+                    select(func.count(TravelPlan.id)).where(TravelPlan.user_id == user.id)
+                ).scalar()
+                
+                user_responses.append(UserResponse(
+                    id=user.id,
+                    email=user.email,
+                    nickname=user.nickname,
+                    role=user.role,
+                    is_active=user.is_active,
+                    is_verified=user.is_verified,
+                    travel_plan_count=plan_count,
+                    last_login=user.last_login,
+                    created_at=user.created_at,
+                    updated_at=user.updated_at
+                ))
+            
+            logger.info(f"관리자용 사용자 목록 조회 완료: {len(user_responses)}개")
+            return user_responses
+            
+        except ValueError:
+            raise
+        except Exception as e:
+            logger.error(f"사용자 목록 조회 실패: {e}")
+            raise
+    
+    async def get_user_statistics(self) -> UserStatsResponse:
+        """사용자 통계 정보 조회"""
+        try:
+            # 전체 사용자 수
+            total_users = self.db.execute(select(func.count(User.id))).scalar()
+            
+            # 활성 사용자 수
+            active_users = self.db.execute(
+                select(func.count(User.id)).where(User.is_active == True)
+            ).scalar()
+            
+            # 최근 30일 신규 가입자 수
+            thirty_days_ago = datetime.now() - timedelta(days=30)
+            new_users_30d = self.db.execute(
+                select(func.count(User.id)).where(User.created_at >= thirty_days_ago)
+            ).scalar()
+            
+            # 인증된 사용자 수
+            verified_users = self.db.execute(
+                select(func.count(User.id)).where(User.is_verified == True)
+            ).scalar()
+            
+            return UserStatsResponse(
+                total_users=total_users,
+                active_users=active_users,
+                new_users_30d=new_users_30d,
+                verified_users=verified_users,
+                verification_rate=round((verified_users / total_users * 100), 2) if total_users > 0 else 0
+            )
+            
+        except Exception as e:
+            logger.error(f"사용자 통계 조회 실패: {e}")
+            raise
+    
+    async def delete_user(self, user_id: int) -> bool:
+        """사용자 삭제 (관리자 전용)"""
+        try:
+            # 사용자 존재 확인
+            user = self.db.get(User, user_id)
+            if not user:
+                raise ValueError(f"사용자를 찾을 수 없습니다: {user_id}")
+            
+            # 슈퍼관리자 삭제 방지
+            if user.role == "super_admin":
+                raise ValueError("슈퍼관리자는 삭제할 수 없습니다")
+            
+            # 관련 데이터 확인 (필요시 cascade 삭제 또는 오류 처리)
+            plan_count = self.db.execute(
+                select(func.count(TravelPlan.id)).where(TravelPlan.user_id == user_id)
+            ).scalar()
+            
+            if plan_count > 0:
+                logger.warning(f"사용자 {user_id} 삭제 시 여행계획 {plan_count}개도 함께 삭제됩니다")
+            
+            # 사용자 삭제 실행
+            self.db.delete(user)
+            self.db.commit()
+            
+            logger.info(f"사용자 삭제 완료: {user_id} (이메일: {user.email})")
+            return True
+            
+        except ValueError:
+            raise
+        except Exception as e:
+            self.db.rollback()
+            logger.error(f"사용자 삭제 실패: {e}, 사용자: {user_id}")
+            raise
+```
+
+### 5. 관리자 스키마 패턴
+
+```python
+# schemas/users.py
+from pydantic import BaseModel, Field, validator, ConfigDict
+from typing import Optional, List
+from datetime import datetime
+from enum import Enum
+
+class UserRoleEnum(str, Enum):
+    USER = "user"
+    ADMIN = "admin"
+    SUPER_ADMIN = "super_admin"
+
+class UserResponse(BaseModel):
+    """관리자용 사용자 응답 스키마 (상세 정보 포함)"""
+    model_config = ConfigDict(from_attributes=True)
+    
+    id: int
+    email: str
+    nickname: str
+    role: UserRoleEnum
+    is_active: bool
+    is_verified: bool
+    
+    # 관리자용 추가 정보
+    travel_plan_count: int = Field(default=0, description="생성한 여행계획 수")
+    last_login: Optional[datetime] = Field(None, description="마지막 로그인 시간")
+    created_at: datetime
+    updated_at: datetime
+
+class UserStatsResponse(BaseModel):
+    """사용자 통계 응답 스키마"""
+    total_users: int = Field(..., description="전체 사용자 수")
+    active_users: int = Field(..., description="활성 사용자 수")
+    new_users_30d: int = Field(..., description="최근 30일 신규 가입자 수")
+    verified_users: int = Field(..., description="인증된 사용자 수")
+    verification_rate: float = Field(..., description="인증률 (%)")
+
+class UserUpdateRequest(BaseModel):
+    """사용자 정보 수정 요청 스키마 (관리자용)"""
+    model_config = ConfigDict(str_strip_whitespace=True)
+    
+    nickname: Optional[str] = Field(None, min_length=2, max_length=50)
+    role: Optional[UserRoleEnum] = None
+    is_active: Optional[bool] = None
+    is_verified: Optional[bool] = None
+    
+    @validator('nickname')
+    def validate_nickname(cls, v):
+        if v and not v.replace('_', '').replace('-', '').isalnum():
+            raise ValueError('닉네임은 영문, 숫자, _, - 만 사용 가능합니다')
+        return v
+```
+
+## 🚨 보안 및 권한 관리 규칙
+
+### 1. 관리자 인증 강화
+
+```python
+# services/auth_service.py
+from passlib.context import CryptContext
+from jose import jwt, JWTError
+from datetime import datetime, timedelta
+import secrets
+import logging
+
+logger = logging.getLogger(__name__)
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+class AdminAuthService:
+    """관리자 인증 서비스"""
+    
+    @staticmethod
+    def create_admin_access_token(user_id: int, role: str, expires_delta: timedelta = None) -> str:
+        """관리자용 JWT 토큰 생성 (추가 클레임 포함)"""
+        if expires_delta:
+            expire = datetime.utcnow() + expires_delta
+        else:
+            expire = datetime.utcnow() + timedelta(hours=8)  # 관리자는 8시간 유효
+        
+        to_encode = {
+            "sub": str(user_id),
+            "role": role,
+            "exp": expire,
+            "iat": datetime.utcnow(),
+            "type": "admin_access",  # 토큰 타입 명시
+            "jti": secrets.token_hex(16),  # JWT ID로 토큰 무효화 가능
+        }
+        
+        encoded_jwt = jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
+        
+        # 토큰 생성 로그
+        logger.info(f"관리자 토큰 생성: 사용자 {user_id}, 역할 {role}, 만료 {expire}")
+        
+        return encoded_jwt
+    
+    @staticmethod
+    async def log_admin_activity(
+        admin_id: int,
+        action: str,
+        description: str,
+        target_resource: Optional[str] = None,
+        severity: str = "NORMAL"
+    ):
+        """관리자 활동 로그 기록"""
+        log_entry = {
+            "admin_id": admin_id,
+            "action": action,
+            "description": description,
+            "target_resource": target_resource,
+            "severity": severity,
+            "timestamp": datetime.utcnow(),
+            "ip_address": "127.0.0.1",  # 실제로는 request에서 가져오기
+        }
+        
+        # 데이터베이스에 로그 저장
+        # await save_admin_log(log_entry)
+        
+        # 중요한 활동은 별도 알림
+        if severity in ["HIGH", "CRITICAL"]:
+            logger.warning(f"중요 관리자 활동: {description} (관리자: {admin_id})")
+```
+
+### 2. 시스템 모니터링
+
+```python
+# services/system_service.py
+from sqlalchemy.orm import Session
+from sqlalchemy import select, func, and_
+from typing import List, Dict, Any
+from datetime import datetime, timedelta
+import psutil
+import logging
+
+logger = logging.getLogger(__name__)
+
+class SystemLogService:
+    """시스템 로그 및 모니터링 서비스"""
+    
+    def __init__(self, db: Session):
+        self.db = db
+    
+    async def get_system_health(self) -> Dict[str, Any]:
+        """시스템 상태 확인"""
+        try:
+            # CPU 사용률
+            cpu_percent = psutil.cpu_percent(interval=1)
+            
+            # 메모리 사용률
+            memory = psutil.virtual_memory()
+            memory_percent = memory.percent
+            
+            # 디스크 사용률
+            disk = psutil.disk_usage('/')
+            disk_percent = disk.percent
+            
+            # 데이터베이스 연결 확인
+            try:
+                self.db.execute(select(1))
+                db_status = "healthy"
+            except Exception as e:
+                db_status = f"error: {str(e)}"
+                logger.error(f"데이터베이스 연결 오류: {e}")
+            
+            # 최근 오류 로그 수
+            recent_errors = await self._count_recent_errors()
+            
+            health_status = {
+                "timestamp": datetime.utcnow(),
+                "cpu_percent": cpu_percent,
+                "memory_percent": memory_percent,
+                "disk_percent": disk_percent,
+                "database_status": db_status,
+                "recent_errors_24h": recent_errors,
+                "overall_status": "healthy" if all([
+                    cpu_percent < 80,
+                    memory_percent < 80,
+                    disk_percent < 80,
+                    db_status == "healthy",
+                    recent_errors < 100
+                ]) else "warning"
+            }
+            
+            return health_status
+            
+        except Exception as e:
+            logger.error(f"시스템 상태 확인 실패: {e}")
+            return {
+                "timestamp": datetime.utcnow(),
+                "overall_status": "error",
+                "error": str(e)
+            }
+    
+    async def _count_recent_errors(self) -> int:
+        """최근 24시간 오류 로그 수 조회"""
+        try:
+            twenty_four_hours_ago = datetime.utcnow() - timedelta(hours=24)
+            # 실제 로그 테이블에서 조회하는 로직 구현
+            # 현재는 더미 값 반환
+            return 0
+        except Exception:
+            return 0
+```
+
+## 🔧 코드 품질 및 테스트 규칙
+
+### 1. 관리자 기능 테스트
+
+```python
+# tests/test_admin_users.py
+import pytest
+from fastapi.testclient import TestClient
+from unittest.mock import Mock, patch
+from httpx import AsyncClient
+
+from app.main import app
+from app.models import User
+
+class TestAdminUserManagement:
+    """관리자 사용자 관리 테스트"""
+    
+    @pytest.fixture
+    def admin_user(self):
+        return User(
+            id=1,
+            email="admin@weatherflick.com",
+            nickname="admin",
+            role="admin",
+            is_active=True
+        )
+    
+    @pytest.fixture
+    def super_admin_user(self):
+        return User(
+            id=2,
+            email="superadmin@weatherflick.com",
+            nickname="superadmin",
+            role="super_admin",
+            is_active=True
+        )
+    
+    @pytest.fixture
+    def admin_token(self, admin_user):
+        return create_admin_access_token(admin_user.id, admin_user.role)
+    
+    @pytest.fixture
+    def super_admin_token(self, super_admin_user):
+        return create_admin_access_token(super_admin_user.id, super_admin_user.role)
+    
+    async def test_get_users_as_admin_success(self, admin_token):
+        """관리자 권한으로 사용자 목록 조회 성공"""
+        async with AsyncClient(app=app, base_url="http://test") as ac:
+            response = await ac.get(
+                "/admin/users/",
+                headers={"Authorization": f"Bearer {admin_token}"}
+            )
+        
+        assert response.status_code == 200
+        assert "users" in response.json() or isinstance(response.json(), list)
+    
+    async def test_get_users_without_admin_permission_fail(self):
+        """관리자 권한 없이 사용자 목록 조회 실패"""
+        async with AsyncClient(app=app, base_url="http://test") as ac:
+            response = await ac.get("/admin/users/")
+        
+        assert response.status_code == 401
+    
+    async def test_delete_user_as_super_admin_success(self, super_admin_token):
+        """슈퍼관리자 권한으로 사용자 삭제 성공"""
+        user_id = 999
+        
+        with patch('app.users.service.UserService.delete_user') as mock_delete:
+            mock_delete.return_value = True
+            
+            async with AsyncClient(app=app, base_url="http://test") as ac:
+                response = await ac.delete(
+                    f"/admin/users/{user_id}",
+                    headers={"Authorization": f"Bearer {super_admin_token}"}
+                )
+            
+            assert response.status_code == 200
+            mock_delete.assert_called_once_with(user_id)
+    
+    async def test_delete_user_as_regular_admin_fail(self, admin_token):
+        """일반 관리자 권한으로 사용자 삭제 실패 (슈퍼관리자 전용)"""
+        user_id = 999
+        
+        async with AsyncClient(app=app, base_url="http://test") as ac:
+            response = await ac.delete(
+                f"/admin/users/{user_id}",
+                headers={"Authorization": f"Bearer {admin_token}"}
+            )
+        
+        assert response.status_code == 403
+```
+
+### 2. 관리자 활동 로그 테스트
+
+```python
+# tests/test_admin_logging.py
+import pytest
+from unittest.mock import AsyncMock, patch
+
+from app.auth.utils import AdminAuthService
+
+class TestAdminLogging:
+    """관리자 활동 로그 테스트"""
+    
+    @pytest.mark.asyncio
+    async def test_log_admin_activity(self):
+        """관리자 활동 로그 기록 테스트"""
+        admin_id = 1
+        action = "USER_DELETE"
+        description = "사용자 삭제 (ID: 999)"
+        
+        with patch('app.auth.utils.save_admin_log') as mock_save:
+            mock_save.return_value = True
+            
+            await AdminAuthService.log_admin_activity(
+                admin_id=admin_id,
+                action=action,
+                description=description,
+                severity="HIGH"
+            )
+            
+            mock_save.assert_called_once()
+            args = mock_save.call_args[0][0]
+            assert args["admin_id"] == admin_id
+            assert args["action"] == action
+            assert args["severity"] == "HIGH"
+```
+
+## 📊 관리자 대시보드 데이터 패턴
+
+### 1. 통계 데이터 서비스
+
+```python
+# services/dashboard_service.py
+from sqlalchemy.orm import Session
+from sqlalchemy import select, func, and_
+from typing import Dict, List, Any
+from datetime import datetime, timedelta
+
+class DashboardService:
+    """관리자 대시보드 데이터 서비스"""
+    
+    def __init__(self, db: Session):
+        self.db = db
+    
+    async def get_dashboard_stats(self) -> Dict[str, Any]:
+        """대시보드 종합 통계"""
+        try:
+            # 시간 범위 설정
+            now = datetime.utcnow()
+            today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            week_ago = today - timedelta(days=7)
+            month_ago = today - timedelta(days=30)
+            
+            # 사용자 통계
+            user_stats = await self._get_user_statistics(today, week_ago, month_ago)
+            
+            # 여행 계획 통계
+            plan_stats = await self._get_travel_plan_statistics(today, week_ago, month_ago)
+            
+            # 시스템 통계
+            system_stats = await self._get_system_statistics()
+            
+            return {
+                "timestamp": now,
+                "users": user_stats,
+                "travel_plans": plan_stats,
+                "system": system_stats
+            }
+            
+        except Exception as e:
+            logger.error(f"대시보드 통계 조회 실패: {e}")
+            raise
+    
+    async def _get_user_statistics(self, today: datetime, week_ago: datetime, month_ago: datetime) -> Dict[str, Any]:
+        """사용자 관련 통계"""
+        # 전체 사용자 수
+        total_users = self.db.execute(select(func.count(User.id))).scalar()
+        
+        # 오늘 신규 가입자
+        new_today = self.db.execute(
+            select(func.count(User.id)).where(User.created_at >= today)
+        ).scalar()
+        
+        # 주간 신규 가입자
+        new_week = self.db.execute(
+            select(func.count(User.id)).where(User.created_at >= week_ago)
+        ).scalar()
+        
+        # 활성 사용자 수
+        active_users = self.db.execute(
+            select(func.count(User.id)).where(User.is_active == True)
+        ).scalar()
+        
+        return {
+            "total": total_users,
+            "new_today": new_today,
+            "new_week": new_week,
+            "active": active_users,
+            "growth_rate": round((new_week / total_users * 100), 2) if total_users > 0 else 0
+        }
+    
+    async def get_recent_activities(self, limit: int = 50) -> List[Dict[str, Any]]:
+        """최근 관리자 활동 내역"""
+        try:
+            # 실제로는 admin_logs 테이블에서 조회
+            # 현재는 더미 데이터 반환
+            activities = [
+                {
+                    "id": 1,
+                    "admin_email": "admin@weatherflick.com",
+                    "action": "USER_UPDATE",
+                    "description": "사용자 정보 수정 (ID: 123)",
+                    "timestamp": datetime.utcnow() - timedelta(minutes=30),
+                    "severity": "NORMAL"
+                }
+            ]
+            
+            return activities
+            
+        except Exception as e:
+            logger.error(f"관리자 활동 내역 조회 실패: {e}")
+            raise
+```
+
+## 🔧 개발 워크플로우 (관리자 특화)
+
+### 1. 관리자 기능 개발 체크리스트
+
+```bash
+# 1. 권한 검증 확인
+# - 모든 관리자 API에 적절한 권한 의존성 적용
+# - require_admin 또는 require_super_admin 사용
+
+# 2. 활동 로그 추가
+# - 중요한 관리자 활동은 반드시 로그 기록
+# - log_admin_activity 함수 사용
+
+# 3. 입력 검증 강화
+# - 관리자 API는 더 엄격한 입력 검증 적용
+# - Early Return 패턴으로 보안 강화
+
+# 4. 에러 처리 개선
+# - 관리자에게는 상세한 오류 정보 제공
+# - 민감한 정보는 로그에만 기록
+
+# 5. 테스트 작성
+# - 권한별 테스트 케이스 작성
+# - 보안 테스트 필수 포함
+```
+
+### 2. 배포 전 보안 검증
+
+```bash
+# 보안 검증 명령어
+ruff check --fix .                    # 코드 품질 검사
+black .                               # 코드 포맷팅
+mypy app/                            # 타입 검사
+pytest tests/test_admin_*.py -v      # 관리자 기능 테스트
+bandit -r app/                       # 보안 취약점 검사
+pre-commit run --all-files           # 전체 품질 검사
+
+# 환경변수 검증
+python -c "from app.config import get_settings; get_settings()"
+```
+
+이 규칙들을 준수하여 안전하고 효율적인 Weather Flick 관리자 백엔드를 개발하세요. 특히 권한 관리와 보안 로깅에 각별한 주의를 기울이세요.
