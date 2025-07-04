@@ -1,6 +1,5 @@
 import uuid
 from sqlalchemy import (
-    create_engine,
     Column,
     Integer,
     String,
@@ -13,14 +12,12 @@ from sqlalchemy import (
     ForeignKey,
     DECIMAL,
     UniqueConstraint,
-    PrimaryKeyConstraint,
     Numeric,
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship, declarative_base
 from sqlalchemy.sql import func
 import enum
-from datetime import datetime
 
 
 Base = declarative_base()
@@ -97,7 +94,6 @@ class Admin(Base):
     created_at = Column(DateTime, server_default=func.now())
 
     roles = relationship("AdminRole", back_populates="admin")
-    
     # id 속성을 admin_id의 별칭으로 추가
     @property
     def id(self):
@@ -242,7 +238,7 @@ class CityWeatherData(Base):
     humidity = Column(Integer)            # 습도 (%)
     precipitation = Column(Float)         # 강수량 (mm)
     wind_speed = Column(Float)           # 풍속 (m/s)
-    wind_direction = Column(Integer)     # 풍향 (deg)
+    wind_direction = Column(Integer)  # 풍향 (deg)
     sky_condition = Column(String)       # 하늘상태
     precipitation_type = Column(String)  # 강수형태
     weather_description = Column(String) # 날씨 설명

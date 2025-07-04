@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_, or_, desc
-from typing import List, Optional, Dict, Any
+from sqlalchemy import func, or_, desc
+from typing import List, Optional
 from datetime import datetime, timedelta
 import logging
 import math
@@ -10,7 +10,7 @@ from fastapi import Depends
 
 from ..models import User, UserRole as DBUserRole
 from .schemas import (
-    UserCreate, UserUpdate, UserResponse, UserListResponse,
+    UserCreate, UserUpdate, UserListResponse,
     UserStats, UserSearchParams, UserRole
 )
 from ..database import get_db

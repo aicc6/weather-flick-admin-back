@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
-from app.database import SessionLocal, engine
-from app.models import Base, Admin
+from app.database import SessionLocal
+from app.models import Admin
 from app.auth.utils import get_password_hash
 
 
@@ -40,7 +40,7 @@ def create_super_admin():
 
         print("✅ 슈퍼 관리자 계정이 생성되었습니다.")
         print(f"   이메일: {super_admin.email}")
-        print(f"   비밀번호: admin123")
+        print("   비밀번호: admin123")
         print(f"   관리자 ID: {super_admin.id}")
         print(f"   이름: {super_admin.name}")
         print(f"   상태: {super_admin.status}")

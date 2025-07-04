@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Query, Depends, Path
-from typing import List, Optional
+from typing import Optional
 from sqlalchemy.orm import Session
 import logging
 
@@ -291,13 +291,13 @@ async def reset_user_password(
 
         if not user.email:
             raise HTTPException(
-                status_code=400, 
+                status_code=400,
                 detail="이메일 주소가 등록되지 않은 사용자입니다."
             )
 
         # 보안 강화된 임시 비밀번호 생성
         temp_password = generate_temporary_password()
-        
+
         # 비밀번호 업데이트
         success = user_service.reset_user_password_with_temp(user_id, temp_password)
         if not success:
@@ -310,7 +310,7 @@ async def reset_user_password(
                 temp_password=temp_password,
                 user_name=user.nickname or user.email
             )
-            
+
             if email_sent:
                 return {
                     "message": f"사용자 '{user.nickname or user.email}' 비밀번호가 초기화되었습니다.",
@@ -328,7 +328,7 @@ async def reset_user_password(
                     "temporary_password": temp_password,
                     "note": "이메일 전송에 실패했습니다. 임시 비밀번호를 안전하게 전달해주세요."
                 }
-                
+
         except Exception as email_error:
             logger.error(f"이메일 전송 실패 (User: {user_id}): {email_error}")
             # 이메일 전송 중 오류 발생 시

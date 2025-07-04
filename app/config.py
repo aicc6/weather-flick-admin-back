@@ -3,7 +3,7 @@
 import os
 from typing import Optional
 
-from pydantic import validator
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -71,14 +71,16 @@ class Settings(BaseSettings):
     # 프론트엔드 설정
     admin_frontend_url: str = os.getenv("ADMIN_FRONTEND_URL", "http://localhost:5174")
 
-    @validator("secret_key")
+    @field_validator("secret_key")
+    @classmethod
     def secret_key_must_be_set(cls, v: str) -> str:
         """Validate that secret key is set."""
         if not v:
             raise ValueError("JWT_SECRET_KEY must be set")
         return v
 
-    @validator("database_url")
+    @field_validator("database_url")
+    @classmethod
     def database_url_must_be_set(cls, v: str) -> str:
         """Validate that database URL is set."""
         if not v:
