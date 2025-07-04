@@ -93,7 +93,8 @@ class UserService:
     ) -> UserListResponse:
         """사용자 목록 조회 (페이징, 필터링 지원)"""
         try:
-            query = self.db.query(User)
+            # 삭제된 사용자 제외 (소프트 삭제된 사용자)
+            query = self.db.query(User).filter(~User.email.like('deleted_%'))
 
             # 검색 조건 적용
             if search_params:
@@ -241,16 +242,20 @@ class UserService:
             raise
 
     def delete_user(self, user_id: str) -> bool:
-        """사용자 삭제 (실제 DB에서 삭제)"""
+        """사용자 삭제 (소프트 삭제 - 비활성화)"""
         try:
             user = self.get_user_by_id(user_id)
             if not user:
                 return False
 
-            self.db.delete(user)
+            # 소프트 삭제: 비활성화 + 이메일에 삭제 표시
+            user.is_active = False
+            user.email = f"deleted_{user_id}_{user.email}"  # 이메일 충돌 방지
+            user.updated_at = datetime.utcnow()
+            
             self.db.commit()
 
-            logger.info(f"사용자 삭제 완료: {user_id}")
+            logger.info(f"사용자 삭제 완료 (소프트 삭제): {user_id}")
             return True
 
         except Exception as e:
@@ -259,7 +264,7 @@ class UserService:
             raise
 
     def reset_user_password(self, user_id: str, new_password: str = "123456789a") -> bool:
-        """사용자 비밀번호 초기화"""
+        """사용자 비밀번호 초기화 (레거시 메서드)"""
         try:
             user = self.get_user_by_id(user_id)
             if not user:
@@ -278,7 +283,29 @@ class UserService:
         except Exception as e:
             logger.error(f"사용자 비밀번호 초기화 실패 (ID: {user_id}): {e}")
             self.db.rollback()
-            raise
+            return False
+
+    def reset_user_password_with_temp(self, user_id: str, temp_password: str) -> bool:
+        """사용자 비밀번호를 임시 비밀번호로 초기화"""
+        try:
+            user = self.get_user_by_id(user_id)
+            if not user:
+                return False
+
+            # 임시 비밀번호 해싱
+            hashed_password = pwd_context.hash(temp_password)
+            user.hashed_password = hashed_password
+            user.updated_at = datetime.utcnow()
+
+            self.db.commit()
+
+            logger.info(f"사용자 임시 비밀번호 설정 완료: {user_id}")
+            return True
+
+        except Exception as e:
+            logger.error(f"사용자 임시 비밀번호 설정 실패 (ID: {user_id}): {e}")
+            self.db.rollback()
+            return False
 
     def search_users_by_keyword(self, keyword: str, limit: int = 20) -> List[User]:
         """키워드로 사용자 검색 (이메일, 닉네임)"""

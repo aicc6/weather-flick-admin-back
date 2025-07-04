@@ -9,6 +9,8 @@ from .schemas import (
     UserSearchParams, UserRole
 )
 from ..database import get_db
+from ..email.service import send_temp_password_email
+from ..auth.utils import generate_temporary_password
 
 logger = logging.getLogger(__name__)
 
@@ -272,20 +274,71 @@ async def delete_user(
 @router.post("/{user_id}/reset-password")
 async def reset_user_password(
     user_id: str = Path(..., description="사용자 ID"),
-    user_service: UserService = Depends(get_user_service)
+    user_service: UserService = Depends(get_user_service),
+    db: Session = Depends(get_db)
 ):
     """
-    사용자 비밀번호 초기화
+    사용자 비밀번호 초기화 (이메일 전송)
 
     - **user_id**: 비밀번호를 초기화할 사용자의 UUID
-    - 비밀번호는 "123456789a"로 초기화됩니다.
+    - 임시 비밀번호가 사용자 이메일로 전송됩니다.
     """
     try:
-        success = user_service.reset_user_password(user_id)
-        if not success:
+        # 사용자 정보 조회
+        user = user_service.get_user_by_id(user_id)
+        if not user:
             raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
 
-        return {"message": "사용자 비밀번호가 초기화되었습니다.", "user_id": user_id, "new_password": "123456789a"}
+        if not user.email:
+            raise HTTPException(
+                status_code=400, 
+                detail="이메일 주소가 등록되지 않은 사용자입니다."
+            )
+
+        # 보안 강화된 임시 비밀번호 생성
+        temp_password = generate_temporary_password()
+        
+        # 비밀번호 업데이트
+        success = user_service.reset_user_password_with_temp(user_id, temp_password)
+        if not success:
+            raise HTTPException(status_code=500, detail="비밀번호 업데이트에 실패했습니다.")
+
+        # 이메일 전송 시도
+        try:
+            email_sent = await send_temp_password_email(
+                email=user.email,
+                temp_password=temp_password,
+                user_name=user.nickname or user.email
+            )
+            
+            if email_sent:
+                return {
+                    "message": f"사용자 '{user.nickname or user.email}' 비밀번호가 초기화되었습니다.",
+                    "user_id": user_id,
+                    "email_sent": True,
+                    "email": user.email,
+                    "note": "임시 비밀번호가 이메일로 전송되었습니다. 24시간 후 만료됩니다."
+                }
+            else:
+                # 이메일 전송 실패 시 응답에 비밀번호 포함 (백업 옵션)
+                return {
+                    "message": f"사용자 '{user.nickname or user.email}' 비밀번호가 초기화되었습니다.",
+                    "user_id": user_id,
+                    "email_sent": False,
+                    "temporary_password": temp_password,
+                    "note": "이메일 전송에 실패했습니다. 임시 비밀번호를 안전하게 전달해주세요."
+                }
+                
+        except Exception as email_error:
+            logger.error(f"이메일 전송 실패 (User: {user_id}): {email_error}")
+            # 이메일 전송 중 오류 발생 시
+            return {
+                "message": f"사용자 '{user.nickname or user.email}' 비밀번호가 초기화되었습니다.",
+                "user_id": user_id,
+                "email_sent": False,
+                "temporary_password": temp_password,
+                "note": f"이메일 전송 중 오류가 발생했습니다: {str(email_error)}"
+            }
 
     except HTTPException:
         raise

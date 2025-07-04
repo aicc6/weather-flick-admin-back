@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings
 from typing import Optional
+import os
 
 class Settings(BaseSettings):
     # 기본 설정
@@ -9,35 +10,35 @@ class Settings(BaseSettings):
 
     # 서버 설정
     host: str = "127.0.0.1"
-    port: int = 8000
+    port: int = 9000
 
     # CORS 설정
     cors_origins: list = ["*"]
 
     # JWT 설정
-    secret_key: str = "weatherflick-admin-secret-key"
+    secret_key: str = os.getenv("JWT_SECRET_KEY", "")
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 1440  # 24시간
 
     # 데이터베이스 설정
-    database_url: str = "postgresql://aicc6:aicc6_pass@seongjunlee.dev:55432/weather_flick"
+    database_url: str = os.getenv("DATABASE_URL", "")
 
     # 이메일 설정
-    mail_username: str = ""
-    mail_password: str = ""
-    mail_from: str = "noreply@weatherflick.com"
-    mail_port: int = 587
-    mail_server: str = "smtp.gmail.com"
-    mail_starttls: bool = True
-    mail_ssl_tls: bool = False
-    mail_from_name: str = "Weather Flick"
+    mail_username: str = os.getenv("MAIL_USERNAME", "")
+    mail_password: str = os.getenv("MAIL_PASSWORD", "")
+    mail_from: str = os.getenv("MAIL_FROM", "noreply@weatherflick.com")
+    mail_port: int = int(os.getenv("MAIL_PORT", "587"))
+    mail_server: str = os.getenv("MAIL_SERVER", "smtp.gmail.com")
+    mail_starttls: bool = os.getenv("MAIL_STARTTLS", "true").lower() == "true"
+    mail_ssl_tls: bool = os.getenv("MAIL_SSL_TLS", "false").lower() == "true"
+    mail_from_name: str = os.getenv("MAIL_FROM_NAME", "Weather Flick Admin")
 
     # WeatherAPI 설정
     weather_api_key: str = ""
     weather_api_url: str = "http://api.weatherapi.com/v1"
 
     # 기상청 API 설정
-    kma_api_key: str = "6IWo%2F1qDnkiMU8A184OZxDuCQcU%2FvRsIL2vRBn7jwGQ2fgg9ECJLgXWxBeRMtzbHirhgC%2Fj6lSfSSqwHhAiHkQ%3D%3D"
+    kma_api_key: str = os.getenv("KMA_API_KEY", "")
     kma_forecast_url: str = "http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0"
 
     # 카카오 API 설정 (맛집, 장소 검색)
@@ -69,5 +70,17 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = False
+        extra = "ignore"  # 추가 필드 무시
 
 settings = Settings()
+
+# 필수 환경 변수 검증
+required_vars = {
+    "JWT_SECRET_KEY": settings.secret_key,
+    "DATABASE_URL": settings.database_url,
+    "KMA_API_KEY": settings.kma_api_key
+}
+
+missing_vars = [var for var, value in required_vars.items() if not value]
+if missing_vars:
+    raise ValueError(f"다음 필수 환경 변수가 설정되지 않았습니다: {', '.join(missing_vars)}")

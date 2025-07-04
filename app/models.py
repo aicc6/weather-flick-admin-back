@@ -97,6 +97,11 @@ class Admin(Base):
     created_at = Column(DateTime, server_default=func.now())
 
     roles = relationship("AdminRole", back_populates="admin")
+    
+    # id 속성을 admin_id의 별칭으로 추가
+    @property
+    def id(self):
+        return self.admin_id
 
 
 class Role(Base):

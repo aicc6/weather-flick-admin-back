@@ -1,5 +1,7 @@
 from datetime import datetime, timezone
 from typing import Optional
+import secrets
+import string
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
@@ -15,7 +17,7 @@ from app.auth.schemas import (
     AdminStatusUpdate,
     AdminUpdate,
 )
-from app.auth.utils import verify_password, get_password_hash, create_admin_token
+from app.auth.utils import verify_password, get_password_hash, create_admin_token, generate_temporary_password
 from app.auth.dependencies import get_current_active_admin
 import math
 
@@ -281,7 +283,14 @@ async def delete_admin_permanently(
     current_admin: Admin = Depends(get_current_active_admin),
     db: Session = Depends(get_db),
 ):
-    """관리자 계정 완전 삭제"""
+    """관리자 계정 완전 삭제 (superadmin만 가능)"""
+    # superadmin 권한 확인
+    if current_admin.email != "admin@weatherflick.com":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="관리자 삭제는 슈퍼 관리자만 가능합니다"
+        )
+    
     admin = db.query(Admin).filter(Admin.admin_id == admin_id).first()
 
     if not admin:
@@ -317,16 +326,40 @@ async def reset_admin_password(
             status_code=status.HTTP_404_NOT_FOUND, detail="관리자를 찾을 수 없습니다"
         )
 
-    # 새 비밀번호로 초기화
-    new_password = "123456789a"
-    admin.password_hash = get_password_hash(new_password)
+    # 보안 강화된 임시 비밀번호 생성
+    temp_password = generate_temporary_password()
+    admin.password_hash = get_password_hash(temp_password)
+    
     db.commit()
 
     return {
         "message": f"관리자 '{admin.name or admin.email}' 비밀번호가 초기화되었습니다",
         "admin_id": admin_id,
-        "new_password": new_password
+        "temporary_password": temp_password
     }
+
+
+@router.get("/admins/stats")
+async def get_admin_statistics(
+    current_admin: Admin = Depends(get_current_active_admin),
+    db: Session = Depends(get_db),
+):
+    """관리자 통계 조회"""
+    try:
+        total = db.query(Admin).count()
+        active = db.query(Admin).filter(Admin.status == AdminStatus.ACTIVE).count()
+        inactive = db.query(Admin).filter(Admin.status == AdminStatus.INACTIVE).count()
+        
+        return {
+            "total": total,
+            "active": active,
+            "inactive": inactive
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="관리자 통계 조회 중 오류가 발생했습니다"
+        )
 
 
 @router.post("/logout")

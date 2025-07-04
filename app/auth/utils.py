@@ -2,6 +2,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional, Union
 from passlib.context import CryptContext
 from jose import JWTError, jwt
+import secrets
+import string
 from app.config import settings
 
 # 패스워드 해싱 컨텍스트
@@ -43,3 +45,29 @@ def create_admin_token(admin_id: int, email: str) -> str:
         "type": "admin"
     }
     return create_access_token(token_data)
+
+def generate_temporary_password(length: int = 12) -> str:
+    """보안 강화된 임시 비밀번호 생성"""
+    # 각 문자 유형별로 최소 1개씩 포함
+    lowercase = string.ascii_lowercase
+    uppercase = string.ascii_uppercase  
+    digits = string.digits
+    special_chars = "!@#$%^&*"
+    
+    # 최소 요구사항: 각 유형별로 1개씩
+    password = [
+        secrets.choice(lowercase),
+        secrets.choice(uppercase),
+        secrets.choice(digits),
+        secrets.choice(special_chars)
+    ]
+    
+    # 나머지 길이만큼 모든 문자에서 랜덤 선택
+    all_chars = lowercase + uppercase + digits + special_chars
+    for _ in range(length - 4):
+        password.append(secrets.choice(all_chars))
+    
+    # 리스트를 섞어서 패턴 예측 방지
+    secrets.SystemRandom().shuffle(password)
+    
+    return ''.join(password)
