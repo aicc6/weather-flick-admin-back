@@ -16,6 +16,7 @@ from fastapi.requests import Request
 from fastapi.responses import JSONResponse
 from fastapi.exception_handlers import RequestValidationError
 from fastapi.exceptions import RequestValidationError as FastAPIRequestValidationError
+from app.routers.system import router as system_router
 
 app = FastAPI(
     title="Weather Flick Admin API",
@@ -37,6 +38,7 @@ app.include_router(auth_router)
 app.include_router(weather_router)
 app.include_router(users_router)
 app.include_router(tourist_attractions_router)
+app.include_router(system_router)
 
 # 서버 시작 시간 기록
 start_time = time.time()

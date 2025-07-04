@@ -395,3 +395,14 @@ async def login_for_access_token(
 
     access_token = create_admin_token(admin.admin_id, admin.email)
     return Token(access_token=access_token)
+
+
+@router.get("/admins/stats")
+async def get_admin_stats(
+    db: Session = Depends(get_db),
+    current_admin: Admin = Depends(get_current_active_admin),
+):
+    total = db.query(Admin).count()
+    active = db.query(Admin).filter(Admin.status == AdminStatus.ACTIVE).count()
+    inactive = db.query(Admin).filter(Admin.status == AdminStatus.INACTIVE).count()
+    return {"total": total, "active": active, "inactive": inactive}
