@@ -37,7 +37,7 @@ async def get_current_weather(
     try:
         # 디버그 정보 로깅
         logger.info(f"날씨 조회 요청: nx={nx}, ny={ny}, location={location}")
-        
+
         weather = weather_service.get_current_weather(nx, ny, location)
         if not weather:
             # 더 구체적인 404 메시지
@@ -460,23 +460,23 @@ def get_weather_summary_db(db: Session = Depends(get_db)):
     try:
         from ..services.weather_service import MAJOR_CITIES
         from ..services.weather_database_service import WeatherDatabaseService
-        
+
         db_service = WeatherDatabaseService(db)
         cities = list(MAJOR_CITIES.keys())
-        
+
         # 단일 쿼리로 모든 도시의 최신 데이터 조회 (성능 개선)
         latest_weather_data = db_service.get_latest_weather_data(limit=len(cities) * 2)
-        
+
         # 도시별 최신 데이터 매핑
         city_data_map = {}
         for data in latest_weather_data:
             if data.city_name in cities and data.city_name not in city_data_map:
                 city_data_map[data.city_name] = data
-        
+
         regions = []
         temps = []
         now = None
-        
+
         # 데이터가 없는 경우 기본 응답 제공
         if not latest_weather_data:
             logger.warning("데이터베이스에 저장된 날씨 데이터가 없습니다.")
@@ -493,7 +493,7 @@ def get_weather_summary_db(db: Session = Depends(get_db)):
                     "message": "저장된 날씨 데이터가 없습니다. 데이터 수집을 먼저 실행해주세요."
                 }
             }
-        
+
         for city_name in cities:
             data = city_data_map.get(city_name)
             if data and data.temperature is not None:
@@ -510,14 +510,14 @@ def get_weather_summary_db(db: Session = Depends(get_db)):
                 })
                 if not now or (data.forecast_time and data.forecast_time > now):
                     now = data.forecast_time
-        
+
         avg_temp = round(sum(temps) / len(temps), 1) if temps else None
         max_temp = max(temps) if temps else None
         min_temp = min(temps) if temps else None
         max_region = next((r["city_name"] for r in regions if r["temperature"] == max_temp), None)
         min_region = next((r["city_name"] for r in regions if r["temperature"] == min_temp), None)
         last_updated = now.isoformat() if now else None
-        
+
         return {
             "regions": regions,
             "summary": {
@@ -547,19 +547,19 @@ async def collect_sample_weather_data(
     try:
         from ..services.weather_database_service import WeatherDatabaseService
         from ..services.weather_service import MAJOR_CITIES
-        
+
         db_service = WeatherDatabaseService(db)
-        
+
         # 테스트용으로 3개 도시만 수집
         test_cities = ['서울', '부산', '대구']
         collected_data = []
-        
+
         for city_name in test_cities:
             try:
                 if city_name in MAJOR_CITIES:
                     coordinate = MAJOR_CITIES[city_name]
                     weather = weather_service.get_current_weather(coordinate.nx, coordinate.ny, coordinate.name)
-                    
+
                     if weather:
                         saved_data = db_service.save_weather_data(weather)
                         if saved_data:
@@ -584,14 +584,14 @@ async def collect_sample_weather_data(
                     "city": city_name,
                     "status": f"error: {str(e)}"
                 })
-        
+
         return {
             "message": "샘플 데이터 수집 완료",
             "collected_count": len([d for d in collected_data if d.get("status") == "success"]),
             "total_attempted": len(test_cities),
             "details": collected_data
         }
-        
+
     except Exception as e:
         logger.error(f"샘플 데이터 수집 실패: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"데이터 수집 중 오류가 발생했습니다: {str(e)}")
@@ -605,7 +605,7 @@ async def debug_kma_api_test(weather_service: KMAWeatherService = Depends(get_we
     try:
         from ..weather.models import UltraSrtNcstRequest
         from datetime import datetime, timedelta
-        
+
         # 현재 시간 기준으로 발표시각 계산
         now = datetime.now()
         if now.minute < 40:
@@ -615,7 +615,7 @@ async def debug_kma_api_test(weather_service: KMAWeatherService = Depends(get_we
 
         base_date = base_time.strftime("%Y%m%d")
         base_time_str = base_time.strftime("%H00")
-        
+
         # 서울 좌표로 테스트
         request = UltraSrtNcstRequest(
             base_date=base_date,
@@ -623,10 +623,10 @@ async def debug_kma_api_test(weather_service: KMAWeatherService = Depends(get_we
             nx=60,
             ny=127
         )
-        
+
         # 실제 API 호출
         response = weather_service.get_ultra_srt_ncst(request)
-        
+
         debug_info = {
             "api_key_length": len(weather_service.api_key),
             "api_url": weather_service.base_url,
@@ -640,7 +640,7 @@ async def debug_kma_api_test(weather_service: KMAWeatherService = Depends(get_we
             "calculated_base_time": base_time.isoformat(),
             "response_received": response is not None
         }
-        
+
         if response:
             debug_info.update({
                 "response_code": response.response.header.resultCode,
@@ -648,7 +648,7 @@ async def debug_kma_api_test(weather_service: KMAWeatherService = Depends(get_we
                 "total_count": response.response.header.totalCount,
                 "items_count": len(response.response.body.items.item) if response.response.body.items.item else 0
             })
-            
+
             # 첫 몇 개 아이템 샘플
             if response.response.body.items.item:
                 debug_info["sample_items"] = [
@@ -662,9 +662,9 @@ async def debug_kma_api_test(weather_service: KMAWeatherService = Depends(get_we
                 ]
         else:
             debug_info["error"] = "API 응답이 없습니다"
-        
+
         return debug_info
-        
+
     except Exception as e:
         logger.error(f"API 테스트 실패: {e}", exc_info=True)
         return {

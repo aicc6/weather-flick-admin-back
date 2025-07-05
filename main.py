@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 # 통합된 라우터들 사용
 from app.routers.auth import router as auth_router
-from app.routers.admins import router as admins_router  
+from app.routers.admins import router as admins_router
 from app.routers.weather import router as weather_router
 from app.routers.users import router as users_router
 from app.routers.destinations import router as destinations_router
