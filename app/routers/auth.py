@@ -2,16 +2,16 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from app.database import get_db
-from app.models import Admin, AdminStatus
-from app.auth.schemas import (
+from ..database import get_db
+from ..models import Admin, AdminStatus
+from ..schemas.auth_schemas import (
     AdminLogin,
     AdminResponse,
     Token,
     LoginResponse,
 )
-from app.auth.utils import verify_password, create_admin_token
-from app.auth.dependencies import get_current_active_admin
+from ..auth.utils import verify_password, create_admin_token
+from ..auth.dependencies import get_current_active_admin
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 

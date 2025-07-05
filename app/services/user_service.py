@@ -9,7 +9,7 @@ from passlib.context import CryptContext
 from fastapi import Depends
 
 from ..models import User, UserRole as DBUserRole
-from .schemas import (
+from ..schemas.user_schemas import (
     UserCreate, UserUpdate, UserListResponse,
     UserStats, UserSearchParams, UserRole
 )

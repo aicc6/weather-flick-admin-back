@@ -6,7 +6,7 @@ import logging
 
 from ..models import CityWeatherData
 from ..database import get_db
-from .models import WeatherInfo, LocationCoordinate
+from ..weather.models import WeatherInfo, LocationCoordinate
 
 
 logger = logging.getLogger(__name__)

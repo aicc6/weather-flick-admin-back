@@ -271,3 +271,24 @@ class TouristAttraction(Base):
     region_code = Column(String)
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
+
+
+class AdminActivityLog(Base):
+    """관리자 활동 로그 모델"""
+    __tablename__ = "admin_activity_logs"
+    
+    log_id = Column(Integer, primary_key=True, index=True)
+    admin_id = Column(Integer, ForeignKey("admins.admin_id"), nullable=False)
+    action = Column(String, nullable=False)  # 수행된 작업 (예: USER_DELETE, USER_UPDATE)
+    description = Column(Text, nullable=False)  # 작업 설명
+    target_resource = Column(String, nullable=True)  # 대상 리소스 (예: user_id, plan_id)
+    severity = Column(String, default="NORMAL")  # 심각도 (NORMAL, HIGH, CRITICAL)
+    ip_address = Column(String, nullable=True)  # IP 주소
+    user_agent = Column(String, nullable=True)  # 사용자 에이전트
+    created_at = Column(DateTime, server_default=func.now())
+    
+    # 관계 설정
+    admin = relationship("Admin", foreign_keys=[admin_id])
+    
+    def __repr__(self):
+        return f"<AdminActivityLog(admin_id='{self.admin_id}', action='{self.action}', severity='{self.severity}')>"

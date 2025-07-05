@@ -4,15 +4,18 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 import logging
 
-from .service import get_user_service, UserService
-from .schemas import (
+from ..services.user_service import get_user_service, UserService
+from ..schemas.user_schemas import (
     UserCreate, UserResponse, UserListResponse, UserStats, UserUpdate,
     UserSearchParams, UserRole
 )
 from ..database import get_db
-from ..email.service import send_temp_password_email
+from ..services.email_service import send_temp_password_email
 from ..auth.utils import generate_temporary_password
+from ..auth.dependencies import require_admin, require_super_admin
+from ..auth.logging import log_admin_activity
 from ..schemas.common import SuccessResponse
+from ..models import Admin
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +32,8 @@ async def get_users(
     is_active: Optional[bool] = Query(None, description="활성 상태 필터"),
     is_email_verified: Optional[bool] = Query(None, description="이메일 인증 상태 필터"),
     preferred_region: Optional[str] = Query(None, description="선호 지역 필터"),
-    user_service: UserService = Depends(get_user_service)
+    user_service: UserService = Depends(get_user_service),
+    admin_user: Admin = Depends(require_admin)  # 관리자 권한 필수
 ):
     """
     사용자 목록 조회
@@ -80,7 +84,9 @@ async def create_user(
 
 @router.get("/stats")
 async def get_user_statistics(
-    user_service: UserService = Depends(get_user_service)
+    user_service: UserService = Depends(get_user_service),
+    admin_user: Admin = Depends(require_admin),  # 관리자 권한 필수
+    db: Session = Depends(get_db)
 ):
     """
     사용자 통계 조회
@@ -94,6 +100,15 @@ async def get_user_statistics(
     """
     try:
         stats = user_service.get_user_statistics()
+        
+        # 관리자 활동 로그 (데이터베이스 저장 포함)
+        await log_admin_activity(
+            admin_user.admin_id,
+            "USER_STATS_VIEW",
+            f"사용자 통계 조회 (전체: {stats.total_users}명, 활성: {stats.active_users}명)",
+            db=db
+        )
+        
         return {
             "success": True,
             "data": stats,
@@ -258,7 +273,8 @@ async def deactivate_user(
 @router.delete("/{user_id}")
 async def delete_user(
     user_id: str = Path(..., description="사용자 ID"),
-    user_service: UserService = Depends(get_user_service)
+    user_service: UserService = Depends(get_user_service),
+    admin_user: Admin = Depends(require_super_admin)  # 슈퍼관리자 권한 필수
 ):
     """
     사용자 삭제

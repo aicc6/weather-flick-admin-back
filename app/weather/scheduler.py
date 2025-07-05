@@ -6,8 +6,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from sqlalchemy.orm import Session
 from ..database import get_db
-from .service import KMAWeatherService
-from .database_service import WeatherDatabaseService
+from ..services.weather_service import KMAWeatherService
+from ..services.weather_database_service import WeatherDatabaseService
 from .models import WeatherInfo
 
 logger = logging.getLogger(__name__)

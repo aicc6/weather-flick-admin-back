@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Admin
 from app.auth.utils import verify_token
-from app.auth.schemas import TokenData
+from app.schemas.auth_schemas import TokenData
 
 # HTTP Bearer 토큰 스키마
 security = HTTPBearer()
@@ -52,4 +52,24 @@ def get_current_active_admin(
 ) -> Admin:
     """현재 활성화된 관리자 정보 가져오기"""
     # get_current_admin에서 이미 상태 체크를 했으므로 중복 체크 제거
+    return current_admin
+
+# Cursor 규칙에 따른 권한 관리 함수들
+async def require_admin(
+    current_admin: Admin = Depends(get_current_active_admin)
+) -> Admin:
+    """일반 관리자 이상 권한 필요"""
+    # Admin 모델에서는 모든 사용자가 관리자이므로 활성 상태만 확인
+    return current_admin
+
+async def require_super_admin(
+    current_admin: Admin = Depends(get_current_active_admin)
+) -> Admin:
+    """슈퍼관리자 권한 필요"""
+    # 슈퍼관리자 판별: 이메일이 admin@weatherflick.com인 경우
+    if current_admin.email != "admin@weatherflick.com":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="슈퍼관리자 권한이 필요합니다"
+        )
     return current_admin

@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import Admin, AdminStatus
-from .schemas import (
+from ..schemas.admin_schemas import (
     AdminCreate,
     AdminResponse,
     AdminListResponse,

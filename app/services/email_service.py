@@ -8,7 +8,7 @@ from fastapi import HTTPException
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
 from jinja2 import Template
 import logging
-from app.config import settings
+from ..config import settings
 
 logger = logging.getLogger(__name__)
 

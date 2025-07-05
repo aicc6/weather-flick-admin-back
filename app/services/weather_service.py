@@ -3,8 +3,8 @@ import logging
 from typing import Dict, List, Optional
 from datetime import datetime, timedelta
 from urllib.parse import unquote
-from app.config import settings
-from .models import (
+from ..config import settings
+from ..weather.models import (
     WeatherResponse, WeatherInfo, LocationCoordinate,
     UltraSrtNcstRequest, UltraSrtFcstRequest, VilageFcstRequest
 )
@@ -16,12 +16,17 @@ class KMAWeatherService:
     """기상청 단기예보 API 서비스"""
 
     def __init__(self):
-        # API 키 URL 디코딩
-        self.api_key = unquote(settings.kma_api_key) if settings.kma_api_key else ""
+        # API 키 설정 (따옴표 제거 및 공백 제거)
+        self.api_key = (settings.kma_api_key or "").strip().strip('"').strip("'")
         self.base_url = settings.kma_forecast_url
 
         logger.info(f"KMA API 키 길이: {len(self.api_key)}")
         logger.info(f"KMA API URL: {self.base_url}")
+        
+        if not self.api_key:
+            logger.warning("KMA API 키가 설정되지 않았습니다!")
+        if not self.base_url:
+            logger.warning("KMA API URL이 설정되지 않았습니다!")
 
         # 기상청 자료구분코드 매핑
         self.category_mapping = {
@@ -160,16 +165,20 @@ class KMAWeatherService:
         """현재 시각에 맞는 발표시각 계산"""
         now = datetime.now()
 
-        # 기상청 발표시각 (매시 30분에 발표, 10분 딜레이 고려)
-        # 현재 시간이 40분 이전이면 이전 시간 기준
-        if now.minute < 40:
+        # 기상청 초단기실황은 매시 30분에 발표되며, 약 10분 후에 이용 가능
+        # 안전을 위해 45분 이후에만 현재 시간 데이터를 요청
+        if now.minute < 45:
+            # 이전 시간의 데이터 요청
             base_time = now - timedelta(hours=1)
         else:
+            # 현재 시간 데이터 요청
             base_time = now
 
         base_date = base_time.strftime("%Y%m%d")
         base_time_str = base_time.strftime("%H00")  # 정시로 설정
 
+        logger.info(f"현재 시간: {now.strftime('%Y-%m-%d %H:%M')}, 요청 기준시간: {base_date} {base_time_str}")
+        
         return base_date, base_time_str
 
     def get_current_weather(self, nx: int, ny: int, location_name: str = "") -> Optional[WeatherInfo]:
@@ -184,12 +193,42 @@ class KMAWeatherService:
         )
 
         response = self.get_ultra_srt_ncst(request)
-        if not response or response.response.header.resultCode != "00":
-            logger.error(f"초단기실황 조회 실패: {response.response.header.resultMsg if response else '응답 없음'}")
+        if not response:
+            logger.error("초단기실황 API 응답이 없습니다.")
+            return None
+            
+        if response.response.header.resultCode != "00":
+            logger.error(f"초단기실황 조회 실패 - 코드: {response.response.header.resultCode}, 메시지: {response.response.header.resultMsg}")
+            
+            # 일반적인 에러 코드들에 대한 상세 설명
+            error_messages = {
+                "01": "APPLICATION_ERROR - 어플리케이션 에러",
+                "02": "DB_ERROR - 데이터베이스 에러", 
+                "03": "NODATA_ERROR - 데이터없음 에러",
+                "04": "HTTP_ERROR - HTTP 에러",
+                "05": "SERVICETIME_OUT - 서비스 연결실패 에러",
+                "10": "INVALID_REQUEST_PARAMETER_ERROR - 잘못된 요청 파라메터 에러",
+                "11": "NO_MANDATORY_REQUEST_PARAMETERS_ERROR - 필수요청 파라메터가 없음",
+                "12": "NO_OPENAPI_SERVICE_ERROR - 해당 오픈API서비스가 없거나 폐기됨",
+                "20": "SERVICE_ACCESS_DENIED_ERROR - 서비스 접근거부",
+                "21": "TEMPORARILY_DISABLE_THE_SERVICEKEY_ERROR - 일시적으로 사용할 수 없는 서비스 키",
+                "22": "LIMITED_NUMBER_OF_SERVICE_REQUESTS_EXCEEDS_ERROR - 서비스 요청제한횟수 초과",
+                "30": "SERVICE_KEY_IS_NOT_REGISTERED_ERROR - 등록되지 않은 서비스키",
+                "31": "DEADLINE_HAS_EXPIRED_ERROR - 기한만료된 서비스키",
+                "32": "UNREGISTERED_IP_ERROR - 등록되지 않은 IP",
+                "33": "UNSIGNED_CALL_ERROR - 서명되지 않은 호출"
+            }
+            
+            error_detail = error_messages.get(response.response.header.resultCode, "알 수 없는 오류")
+            logger.error(f"기상청 API 오류 상세: {error_detail}")
             return None
 
         weather_list = self._parse_weather_info(response, location_name, "current")
-        return weather_list[0] if weather_list else None
+        if not weather_list:
+            logger.warning(f"날씨 정보 파싱 결과가 없습니다. 응답 아이템 수: {len(response.response.body.items.item) if response.response.body.items.item else 0}")
+            return None
+            
+        return weather_list[0]
 
     def get_weather_forecast(self, nx: int, ny: int, location_name: str = "") -> List[WeatherInfo]:
         """날씨 예보 정보 조회 (초단기예보 + 단기예보)"""

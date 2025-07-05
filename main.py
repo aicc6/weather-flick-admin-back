@@ -1,17 +1,20 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.auth.router import router as auth_router
-from app.admins.router import router as admins_router
-from app.weather.router import router as weather_router
-from app.users.router import router as users_router
-from app.tourist_attractions.router import router as tourist_attractions_router
+# 통합된 라우터들 사용
+from app.routers.auth import router as auth_router
+from app.routers.admins import router as admins_router  
+from app.routers.weather import router as weather_router
+from app.routers.users import router as users_router
+from app.routers.destinations import router as destinations_router
+from app.routers.system import router as system_router
+from app.routers.dashboard import router as dashboard_router
+from app.routers.logs import router as logs_router
 from app.config import settings
 import logging
 from fastapi.requests import Request
 from fastapi.responses import JSONResponse
 from fastapi.exception_handlers import RequestValidationError
 from fastapi.exceptions import RequestValidationError as FastAPIRequestValidationError
-from app.routers.system import router as system_router
 
 app = FastAPI(
     title="Weather Flick Admin API",
@@ -28,13 +31,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 라우터 등록 (API prefix 통일)
+# 라우터 등록 (API prefix 통일) - Cursor 규칙에 따른 통합 구조
 app.include_router(auth_router, prefix="/api")
 app.include_router(admins_router, prefix="/api")
 app.include_router(weather_router, prefix="/api")
 app.include_router(users_router, prefix="/api")
-app.include_router(tourist_attractions_router, prefix="/api")
+app.include_router(destinations_router, prefix="/api")
 app.include_router(system_router, prefix="/api")
+app.include_router(dashboard_router, prefix="/api")  # 새로 추가된 대시보드 API
+app.include_router(logs_router, prefix="/api")  # 새로 추가된 로그 관리 API
 
 @app.get("/")
 async def root():
