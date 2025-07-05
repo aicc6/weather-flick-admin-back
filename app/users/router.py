@@ -138,14 +138,6 @@ async def get_users_by_region(
         raise HTTPException(status_code=500, detail="지역별 사용자 조회 중 오류가 발생했습니다.")
 
 
-@router.get("/health")
-async def users_health_check():
-    """사용자 서비스 상태 확인"""
-    return {
-        "status": "healthy",
-        "service": "users",
-        "timestamp": "2025-07-01T12:30:00"
-    }
 
 
 @router.get("/{user_id}", response_model=UserResponse)
