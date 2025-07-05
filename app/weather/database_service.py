@@ -92,18 +92,28 @@ class WeatherDatabaseService:
 
     def get_latest_weather_data(self, city_name: Optional[str] = None, limit: int = 100) -> List[CityWeatherData]:
         """최신 날씨 데이터 조회"""
-        query = self.db.query(CityWeatherData)
+        try:
+            query = self.db.query(CityWeatherData)
 
-        if city_name:
-            query = query.filter(CityWeatherData.city_name == city_name)
+            if city_name:
+                query = query.filter(CityWeatherData.city_name == city_name)
 
-        return query.order_by(desc(CityWeatherData.forecast_time)).limit(limit).all()
+            return query.order_by(desc(CityWeatherData.forecast_time)).limit(limit).all()
+        except Exception as e:
+            logger.error(f"최신 날씨 데이터 조회 실패: {e}")
+            self.db.rollback()
+            return []
 
     def get_weather_by_city(self, city_name: str) -> Optional[CityWeatherData]:
         """특정 도시의 최신 날씨 데이터 조회"""
-        return self.db.query(CityWeatherData).filter(
-            CityWeatherData.city_name == city_name
-        ).order_by(desc(CityWeatherData.forecast_time)).first()
+        try:
+            return self.db.query(CityWeatherData).filter(
+                CityWeatherData.city_name == city_name
+            ).order_by(desc(CityWeatherData.forecast_time)).first()
+        except Exception as e:
+            logger.error(f"도시별 날씨 데이터 조회 실패 ({city_name}): {e}")
+            self.db.rollback()
+            return None
 
     def get_weather_statistics(self) -> Dict[str, Any]:
         """날씨 데이터 통계 조회"""

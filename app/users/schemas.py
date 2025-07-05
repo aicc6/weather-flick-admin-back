@@ -24,6 +24,7 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     """사용자 생성 요청"""
     password: str = Field(..., min_length=8, description="비밀번호 (최소 8자)")
+    role: UserRole = Field(default=UserRole.USER, description="사용자 역할")
 
 
 class UserUpdate(BaseModel):
@@ -50,8 +51,10 @@ class UserResponse(UserBase):
     updated_at: datetime
 
 
+# UserListResponse는 이제 PaginatedResponse[UserResponse]로 대체됩니다.
+# 호환성을 위해 임시로 유지하되, 향후 제거 예정
 class UserListResponse(BaseModel):
-    """사용자 목록 응답"""
+    """사용자 목록 응답 (Deprecated: PaginatedResponse[UserResponse] 사용 권장)"""
     users: list[UserResponse]
     total: int
     page: int

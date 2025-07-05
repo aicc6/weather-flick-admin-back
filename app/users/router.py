@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Query, Depends, Path
-from typing import Optional
+from typing import Optional, List
 from sqlalchemy.orm import Session
+from datetime import datetime
 import logging
 
 from .service import get_user_service, UserService
@@ -11,6 +12,7 @@ from .schemas import (
 from ..database import get_db
 from ..email.service import send_temp_password_email
 from ..auth.utils import generate_temporary_password
+from ..schemas.common import SuccessResponse
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +78,7 @@ async def create_user(
         raise HTTPException(status_code=500, detail="사용자 생성 중 오류가 발생했습니다.")
 
 
-@router.get("/stats", response_model=UserStats)
+@router.get("/stats")
 async def get_user_statistics(
     user_service: UserService = Depends(get_user_service)
 ):
@@ -91,7 +93,15 @@ async def get_user_statistics(
     - 최근 로그인 사용자 수 (7일)
     """
     try:
-        return user_service.get_user_statistics()
+        stats = user_service.get_user_statistics()
+        return {
+            "success": True,
+            "data": stats,
+            "message": "사용자 통계를 성공적으로 조회했습니다.",
+            "error": None,
+            "meta": None,
+            "timestamp": datetime.now().isoformat()
+        }
 
     except Exception as e:
         logger.error(f"사용자 통계 조회 실패: {e}")
@@ -112,7 +122,14 @@ async def search_users(
     """
     try:
         users = user_service.search_users_by_keyword(keyword, limit)
-        return {"users": users, "count": len(users)}
+        return {
+            "success": True,
+            "data": users,
+            "message": f"'{keyword}' 검색 결과 {len(users)}명을 찾았습니다.",
+            "error": None,
+            "meta": None,
+            "timestamp": datetime.now().isoformat()
+        }
 
     except Exception as e:
         logger.error(f"사용자 검색 실패 (키워드: {keyword}): {e}")

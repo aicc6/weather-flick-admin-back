@@ -148,23 +148,24 @@ class UserService:
     def get_user_statistics(self) -> UserStats:
         """사용자 통계 조회"""
         try:
-            # 기본 통계
-            total_users = self.db.query(func.count(User.user_id)).scalar() or 0
-            active_users = self.db.query(func.count(User.user_id)).filter(User.is_active == True).scalar() or 0
-            verified_users = self.db.query(func.count(User.user_id)).filter(User.is_email_verified == True).scalar() or 0
-            admin_users = self.db.query(func.count(User.user_id)).filter(User.role == DBUserRole.ADMIN).scalar() or 0
-
+            # 간단한 개별 쿼리로 안정성 확보 (복잡한 CASE 문 대신)
+            total_users = self.db.query(User).count()
+            active_users = self.db.query(User).filter(User.is_active == True).count()
+            verified_users = self.db.query(User).filter(User.is_email_verified == True).count()
+            admin_users = self.db.query(User).filter(User.role == DBUserRole.ADMIN).count()
+            
             # 최근 30일 가입자
             thirty_days_ago = datetime.utcnow() - timedelta(days=30)
-            recent_registrations = self.db.query(func.count(User.user_id)).filter(
+            recent_registrations = self.db.query(User).filter(
                 User.created_at >= thirty_days_ago
-            ).scalar() or 0
-
-            # 최근 7일 로그인 사용자
+            ).count()
+            
+            # 최근 7일 로그인 사용자 (NULL 값 제외)
             seven_days_ago = datetime.utcnow() - timedelta(days=7)
-            recent_logins = self.db.query(func.count(User.user_id)).filter(
+            recent_logins = self.db.query(User).filter(
+                User.last_login.isnot(None),
                 User.last_login >= seven_days_ago
-            ).scalar() or 0
+            ).count()
 
             return UserStats(
                 total_users=total_users,
@@ -177,6 +178,7 @@ class UserService:
 
         except Exception as e:
             logger.error(f"사용자 통계 조회 실패: {e}")
+            self.db.rollback()
             raise
 
     def update_user(self, user_id: str, user_update: UserUpdate) -> Optional[User]:
