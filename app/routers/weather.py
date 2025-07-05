@@ -4,7 +4,7 @@ from datetime import datetime
 import logging
 from sqlalchemy.orm import Session
 
-from ..services.weather_service import get_weather_service, KMAWeatherService, MAJOR_CITIES
+from ..services.weather_service import get_weather_service, KTOWeatherService, MAJOR_CITIES
 from ..weather.models import (
     WeatherInfo, LocationCoordinate,
     UltraSrtNcstRequest, UltraSrtFcstRequest, VilageFcstRequest,
@@ -25,7 +25,7 @@ async def get_current_weather(
     nx: int = Query(60, description="예보지점 X 좌표 (기본값: 서울)"),
     ny: int = Query(127, description="예보지점 Y 좌표 (기본값: 서울)"),
     location: str = Query("서울", description="지역명"),
-    weather_service: KMAWeatherService = Depends(get_weather_service)
+    weather_service: KTOWeatherService = Depends(get_weather_service)
 ):
     """
     현재 날씨 정보 조회 (초단기실황)
@@ -60,7 +60,7 @@ async def get_weather_forecast(
     nx: int = Query(60, description="예보지점 X 좌표 (기본값: 서울)"),
     ny: int = Query(127, description="예보지점 Y 좌표 (기본값: 서울)"),
     location: str = Query("서울", description="지역명"),
-    weather_service: KMAWeatherService = Depends(get_weather_service)
+    weather_service: KTOWeatherService = Depends(get_weather_service)
 ):
     """
     날씨 예보 정보 조회 (초단기예보 + 단기예보)
@@ -81,7 +81,7 @@ async def get_weather_forecast(
 @router.get("/current/{city_name}", response_model=WeatherInfo)
 async def get_current_weather_by_city(
     city_name: str,
-    weather_service: KMAWeatherService = Depends(get_weather_service)
+    weather_service: KTOWeatherService = Depends(get_weather_service)
 ):
     """
     도시명으로 현재 날씨 정보 조회
@@ -114,7 +114,7 @@ async def get_current_weather_by_city(
 @router.get("/forecast/{city_name}", response_model=List[WeatherInfo])
 async def get_weather_forecast_by_city(
     city_name: str,
-    weather_service: KMAWeatherService = Depends(get_weather_service)
+    weather_service: KTOWeatherService = Depends(get_weather_service)
 ):
     """
     도시명으로 날씨 예보 정보 조회
@@ -152,12 +152,12 @@ async def get_available_cities():
 @router.post("/ultra-srt-ncst", response_model=WeatherResponse)
 async def get_ultra_srt_ncst(
     request: UltraSrtNcstRequest,
-    weather_service: KMAWeatherService = Depends(get_weather_service)
+    weather_service: KTOWeatherService = Depends(get_weather_service)
 ):
     """
     초단기실황 조회 (Raw API)
 
-    기상청 API를 직접 호출하여 원본 응답을 반환합니다.
+    관광공사 API를 직접 호출하여 원본 응답을 반환합니다.
     """
     try:
         response = weather_service.get_ultra_srt_ncst(request)
@@ -174,12 +174,12 @@ async def get_ultra_srt_ncst(
 @router.post("/ultra-srt-fcst", response_model=WeatherResponse)
 async def get_ultra_srt_fcst(
     request: UltraSrtFcstRequest,
-    weather_service: KMAWeatherService = Depends(get_weather_service)
+    weather_service: KTOWeatherService = Depends(get_weather_service)
 ):
     """
     초단기예보 조회 (Raw API)
 
-    기상청 API를 직접 호출하여 원본 응답을 반환합니다.
+    관광공사 API를 직접 호출하여 원본 응답을 반환합니다.
     """
     try:
         response = weather_service.get_ultra_srt_fcst(request)
@@ -196,12 +196,12 @@ async def get_ultra_srt_fcst(
 @router.post("/vilage-fcst", response_model=WeatherResponse)
 async def get_vilage_fcst(
     request: VilageFcstRequest,
-    weather_service: KMAWeatherService = Depends(get_weather_service)
+    weather_service: KTOWeatherService = Depends(get_weather_service)
 ):
     """
     단기예보 조회 (Raw API)
 
-    기상청 API를 직접 호출하여 원본 응답을 반환합니다.
+    관광공사 API를 직접 호출하여 원본 응답을 반환합니다.
     """
     try:
         response = weather_service.get_vilage_fcst(request)
@@ -216,7 +216,7 @@ async def get_vilage_fcst(
 
 
 @router.get("/health")
-async def weather_health_check(weather_service: KMAWeatherService = Depends(get_weather_service)):
+async def weather_health_check(weather_service: KTOWeatherService = Depends(get_weather_service)):
     """
     날씨 서비스 상태 확인
     """
@@ -409,7 +409,7 @@ async def delete_city_data(
 
 
 @router.get("/summary")
-def get_weather_summary(weather_service: KMAWeatherService = Depends(get_weather_service)):
+def get_weather_summary(weather_service: KTOWeatherService = Depends(get_weather_service)):
     """
     주요 도시들의 현재 날씨 요약 및 통계 반환
     """
@@ -538,7 +538,7 @@ def get_weather_summary_db(db: Session = Depends(get_db)):
 @router.post("/collect-sample-data")
 async def collect_sample_weather_data(
     db: Session = Depends(get_db),
-    weather_service: KMAWeatherService = Depends(get_weather_service)
+    weather_service: KTOWeatherService = Depends(get_weather_service)
 ):
     """
     샘플 날씨 데이터 수집 (테스트용)
@@ -598,7 +598,7 @@ async def collect_sample_weather_data(
 
 
 @router.get("/debug/api-test")
-async def debug_kma_api_test(weather_service: KMAWeatherService = Depends(get_weather_service)):
+async def debug_kma_api_test(weather_service: KTOWeatherService = Depends(get_weather_service)):
     """
     기상청 API 테스트 및 디버깅
     """

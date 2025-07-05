@@ -1,6 +1,6 @@
 import requests
 import logging
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
 from urllib.parse import unquote
 from ..config import settings
@@ -12,21 +12,21 @@ from ..weather.models import (
 logger = logging.getLogger(__name__)
 
 
-class KMAWeatherService:
-    """기상청 단기예보 API 서비스"""
+class KTOWeatherService:
+    """한국관광공사 날씨(또는 관광) API 서비스"""
 
     def __init__(self):
         # API 키 설정 (따옴표 제거 및 공백 제거)
-        self.api_key = (settings.kma_api_key or "").strip().strip('"').strip("'")
-        self.base_url = settings.kma_forecast_url
+        self.api_key = (settings.kto_api_key or "").strip().strip('"').strip("'")
+        self.base_url = settings.kto_forecast_url
 
-        logger.info(f"KMA API 키 길이: {len(self.api_key)}")
-        logger.info(f"KMA API URL: {self.base_url}")
-        
+        logger.info(f"KTO API 키 길이: {len(self.api_key)}")
+        logger.info(f"KTO API URL: {self.base_url}")
+
         if not self.api_key:
-            logger.warning("KMA API 키가 설정되지 않았습니다!")
+            logger.warning("KTO API 키가 설정되지 않았습니다!")
         if not self.base_url:
-            logger.warning("KMA API URL이 설정되지 않았습니다!")
+            logger.warning("KTO API URL이 설정되지 않았습니다!")
 
         # 기상청 자료구분코드 매핑
         self.category_mapping = {
@@ -77,13 +77,13 @@ class KMAWeatherService:
             "4": "흐림"
         }
 
-    def _make_request(self, endpoint: str, params: Dict) -> Optional[Dict]:
+    def _make_request(self, endpoint: str, params: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """API 요청 실행"""
         try:
-            params["serviceKey"] = self.api_key
+            params["ServiceKey"] = self.api_key
             url = f"{self.base_url}/{endpoint}"
 
-            logger.info(f"KMA API 요청: {url}")
+            logger.info(f"KTO API 요청: {url}")
             logger.info(f"파라미터: {params}")
 
             response = requests.get(url, params=params, timeout=30)
@@ -92,10 +92,10 @@ class KMAWeatherService:
             return response.json()
 
         except requests.exceptions.RequestException as e:
-            logger.error(f"KMA API 요청 실패: {e}")
+            logger.error(f"KTO API 요청 실패: {e}")
             return None
         except Exception as e:
-            logger.error(f"KMA API 응답 파싱 실패: {e}")
+            logger.error(f"KTO API 응답 파싱 실패: {e}")
             return None
 
     def get_ultra_srt_ncst(self, request: UltraSrtNcstRequest) -> Optional[WeatherResponse]:
@@ -178,7 +178,7 @@ class KMAWeatherService:
         base_time_str = base_time.strftime("%H00")  # 정시로 설정
 
         logger.info(f"현재 시간: {now.strftime('%Y-%m-%d %H:%M')}, 요청 기준시간: {base_date} {base_time_str}")
-        
+
         return base_date, base_time_str
 
     def get_current_weather(self, nx: int, ny: int, location_name: str = "") -> Optional[WeatherInfo]:
@@ -196,14 +196,14 @@ class KMAWeatherService:
         if not response:
             logger.error("초단기실황 API 응답이 없습니다.")
             return None
-            
+
         if response.response.header.resultCode != "00":
             logger.error(f"초단기실황 조회 실패 - 코드: {response.response.header.resultCode}, 메시지: {response.response.header.resultMsg}")
-            
+
             # 일반적인 에러 코드들에 대한 상세 설명
             error_messages = {
                 "01": "APPLICATION_ERROR - 어플리케이션 에러",
-                "02": "DB_ERROR - 데이터베이스 에러", 
+                "02": "DB_ERROR - 데이터베이스 에러",
                 "03": "NODATA_ERROR - 데이터없음 에러",
                 "04": "HTTP_ERROR - HTTP 에러",
                 "05": "SERVICETIME_OUT - 서비스 연결실패 에러",
@@ -218,7 +218,7 @@ class KMAWeatherService:
                 "32": "UNREGISTERED_IP_ERROR - 등록되지 않은 IP",
                 "33": "UNSIGNED_CALL_ERROR - 서명되지 않은 호출"
             }
-            
+
             error_detail = error_messages.get(response.response.header.resultCode, "알 수 없는 오류")
             logger.error(f"기상청 API 오류 상세: {error_detail}")
             return None
@@ -227,7 +227,7 @@ class KMAWeatherService:
         if not weather_list:
             logger.warning(f"날씨 정보 파싱 결과가 없습니다. 응답 아이템 수: {len(response.response.body.items.item) if response.response.body.items.item else 0}")
             return None
-            
+
         return weather_list[0]
 
     def get_weather_forecast(self, nx: int, ny: int, location_name: str = "") -> List[WeatherInfo]:
@@ -277,45 +277,45 @@ class KMAWeatherService:
 
         return weather_list
 
-    def _parse_weather_info(self, response: WeatherResponse, location_name: str, forecast_type: str) -> List[WeatherInfo]:
+    def _parse_weather_info(self, response: WeatherResponse, location_name: str, forecast_type: str) -> List[Any]:
         """API 응답을 WeatherInfo 객체로 변환"""
-        weather_list = []
+        weather_list: List[Any] = []
         items = response.response.body.items.item
 
         if not items:
             return weather_list
 
         # 시간별로 그룹화
-        time_groups = {}
+        grouped: Dict[Any, Any] = {}
 
         for item in items:
             if forecast_type == "current":
                 # 초단기실황
                 time_key = f"{item.baseDate}_{item.baseTime}"
-                if time_key not in time_groups:
-                    time_groups[time_key] = {
+                if time_key not in grouped:
+                    grouped[time_key] = {
                         "base_date": item.baseDate,
                         "base_time": item.baseTime,
                         "nx": item.nx,
                         "ny": item.ny,
                         "data": {}
                     }
-                time_groups[time_key]["data"][item.category] = item.obsrValue
+                grouped[time_key]["data"][item.category] = item.obsrValue
             else:
                 # 예보
                 time_key = f"{item.fcstDate}_{item.fcstTime}"
-                if time_key not in time_groups:
-                    time_groups[time_key] = {
+                if time_key not in grouped:
+                    grouped[time_key] = {
                         "fcst_date": item.fcstDate,
                         "fcst_time": item.fcstTime,
                         "nx": item.nx,
                         "ny": item.ny,
                         "data": {}
                     }
-                time_groups[time_key]["data"][item.category] = item.fcstValue
+                grouped[time_key]["data"][item.category] = item.fcstValue
 
         # WeatherInfo 객체 생성
-        for time_key, group in time_groups.items():
+        for time_key, group in grouped.items():
             try:
                 if forecast_type == "current":
                     forecast_time = datetime.strptime(
@@ -413,7 +413,7 @@ class KMAWeatherService:
 
         return ", ".join(description_parts) if description_parts else "날씨 정보 없음"
 
-    def get_major_cities(self) -> List[Dict]:
+    def get_major_cities(self) -> List[Dict[str, Any]]:
         """주요 도시 목록 반환"""
         return [
             {
@@ -599,6 +599,6 @@ MAJOR_CITIES = {
 }
 
 
-def get_weather_service() -> KMAWeatherService:
+def get_weather_service() -> KTOWeatherService:
     """WeatherService 인스턴스 반환"""
-    return KMAWeatherService()
+    return KTOWeatherService()

@@ -53,8 +53,8 @@ class Settings(BaseSettings):
     weather_api_key: str = os.getenv("WEATHER_API_KEY", "")
     weather_api_url: str = "http://api.weatherapi.com/v1"
 
-    kma_api_key: str = os.getenv("KMA_API_KEY", "")
-    kma_forecast_url: str = "http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0"
+    kto_api_key: str = os.getenv("KTO_API_KEY", "")
+    kto_forecast_url: str = "http://api.visitkorea.or.kr/openapi/service/rest/KorService"
 
     kakao_api_key: str = os.getenv("KAKAO_API_KEY", "")
     kakao_api_url: str = "https://dapi.kakao.com/v2/local"
@@ -118,7 +118,7 @@ settings = Settings()
 required_vars = {
     "JWT_SECRET_KEY": settings.secret_key,
     "DATABASE_URL": settings.database_url,
-    "KMA_API_KEY": settings.kma_api_key,
+    "KTO_API_KEY": settings.kto_api_key,
 }
 
 missing_vars = [var for var, value in required_vars.items() if not value]

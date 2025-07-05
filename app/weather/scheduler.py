@@ -1,12 +1,10 @@
-import asyncio
 import logging
 from datetime import datetime
-from typing import List, Dict, Any
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import List, Dict, Any, Optional
+from concurrent.futures import ThreadPoolExecutor, as_completed, Future
 
-from sqlalchemy.orm import Session
 from ..database import get_db
-from ..services.weather_service import KMAWeatherService
+from ..services.weather_service import KTOWeatherService
 from ..services.weather_database_service import WeatherDatabaseService
 from .models import WeatherInfo
 
@@ -17,7 +15,7 @@ class WeatherDataCollector:
     """날씨 데이터 수집 및 저장 클래스"""
 
     def __init__(self):
-        self.weather_service = KMAWeatherService()
+        self.weather_service = KTOWeatherService()
 
     async def collect_all_cities_weather(self, include_forecast: bool = False) -> Dict[str, Any]:
         """모든 주요 도시의 날씨 데이터를 수집하고 저장"""
@@ -29,9 +27,9 @@ class WeatherDataCollector:
 
         try:
             db_service = WeatherDatabaseService(db)
-            cities = self.weather_service.get_major_cities()
+            cities: List[Dict[str, Any]] = self.weather_service.get_major_cities()
 
-            results = {
+            results: Dict[str, Any] = {
                 "collected_at": datetime.now().isoformat(),
                 "total_cities": len(cities),
                 "success_count": 0,
@@ -41,10 +39,10 @@ class WeatherDataCollector:
             }
 
             # 병렬로 날씨 데이터 수집
-            weather_data_list = await self._collect_weather_parallel(cities, include_forecast)
+            weather_data_list: List[WeatherInfo] = await self._collect_weather_parallel(cities, include_forecast)
 
             # 성공한 데이터들을 데이터베이스에 저장
-            successful_data = [data for data in weather_data_list if data is not None]
+            successful_data: List[WeatherInfo] = [data for data in weather_data_list if data is not None]
 
             if successful_data:
                 saved_count = db_service.save_multiple_weather_data(successful_data)
@@ -66,8 +64,11 @@ class WeatherDataCollector:
 
         except Exception as e:
             logger.error(f"Error in collect_all_cities_weather: {str(e)}")
-            results["errors"].append(str(e))
-            return results
+            if 'results' in locals():
+                results["errors"].append(str(e))
+                return results
+            else:
+                return {"errors": [str(e)]}
         finally:
             db.close()
 
@@ -75,14 +76,14 @@ class WeatherDataCollector:
         """현재 날씨만 수집 (예보 제외)"""
         return await self.collect_all_cities_weather(include_forecast=False)
 
-    async def _collect_weather_parallel(self, cities: List[Dict], include_forecast: bool) -> List[WeatherInfo]:
+    async def _collect_weather_parallel(self, cities: List[Dict[str, Any]], include_forecast: bool) -> List[WeatherInfo]:
         """병렬로 날씨 데이터 수집"""
-        weather_data_list = []
+        weather_data_list: List[WeatherInfo] = []
 
         # ThreadPoolExecutor를 사용하여 병렬 처리
         with ThreadPoolExecutor(max_workers=5) as executor:
             # 각 도시에 대해 작업 제출
-            future_to_city = {}
+            future_to_city: Dict[Future[Any], Dict[str, Any]] = {}
 
             for city in cities:
                 if include_forecast:
@@ -94,21 +95,19 @@ class WeatherDataCollector:
                 future_to_city[future] = city
 
             # 완료된 작업들 처리
-            for future in as_completed(future_to_city):
+            for future in as_completed(list(future_to_city.keys())):
                 city = future_to_city[future]
                 try:
                     weather_info = future.result()
-                    if weather_info:
+                    if weather_info is not None:
                         weather_data_list.append(weather_info)
                         logger.info(f"Successfully collected weather data for {city['name']}")
-                    else:
-                        logger.warning(f"No weather data received for {city['name']}")
                 except Exception as e:
                     logger.error(f"Error collecting weather data for {city['name']}: {str(e)}")
 
         return weather_data_list
 
-    def _get_city_current_weather(self, city: Dict) -> WeatherInfo:
+    def _get_city_current_weather(self, city: Dict[str, Any]) -> Optional[WeatherInfo]:
         """특정 도시의 현재 날씨 조회"""
         try:
             return self.weather_service.get_current_weather_by_city(city["name"])
@@ -116,7 +115,7 @@ class WeatherDataCollector:
             logger.error(f"Error getting current weather for {city['name']}: {str(e)}")
             return None
 
-    def _get_city_forecast(self, city: Dict) -> WeatherInfo:
+    def _get_city_forecast(self, city: Dict[str, Any]) -> Optional[WeatherInfo]:
         """특정 도시의 예보 날씨 조회 (필요시 구현)"""
         try:
             # 현재는 현재 날씨만 반환 (나중에 예보 기능 추가 가능)
