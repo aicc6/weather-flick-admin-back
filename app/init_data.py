@@ -22,7 +22,7 @@ def create_super_admin():
         if existing_admin:
             print("⚠️  슈퍼 관리자 계정이 이미 존재합니다.")
             print(f"   이메일: {existing_admin.email}")
-            print(f"   관리자 ID: {existing_admin.id}")
+            print(f"   관리자 ID: {existing_admin.admin_id}")
             print(f"   상태: {existing_admin.status}")
             return
 
@@ -41,7 +41,7 @@ def create_super_admin():
         print("✅ 슈퍼 관리자 계정이 생성되었습니다.")
         print(f"   이메일: {super_admin.email}")
         print("   비밀번호: admin123")
-        print(f"   관리자 ID: {super_admin.id}")
+        print(f"   관리자 ID: {super_admin.admin_id}")
         print(f"   이름: {super_admin.name}")
         print(f"   상태: {super_admin.status}")
 
