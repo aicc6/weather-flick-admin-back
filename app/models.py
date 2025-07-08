@@ -18,8 +18,10 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    Numeric,
+    CHAR,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID, JSON
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy.sql import func
 
@@ -1068,6 +1070,46 @@ class FestivalEvent(Base):
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
     last_sync_at = Column(DateTime, server_default=func.now())
+
+
+class TravelCourse(Base):
+    __tablename__ = "travel_courses"
+
+    content_id = Column(String(20), primary_key=True, index=True)
+    region_code = Column(String(10), nullable=False)
+    sigungu_code = Column(String(10))
+    course_name = Column(String(300), nullable=False)
+    category_code = Column(String(10))
+    sub_category_code = Column(String(10))
+    address = Column(String(300))
+    detail_address = Column(String(300))
+    latitude = Column(Numeric(10, 8))
+    longitude = Column(Numeric(11, 8))
+    zipcode = Column(String(10))
+    tel = Column(String(500))
+    homepage = Column(String(500))
+    overview = Column(Text)
+    first_image = Column(String(500))
+    first_image_small = Column(String(500))
+    course_theme = Column(String(100))
+    course_distance = Column(String(50))
+    required_time = Column(String(100))
+    difficulty_level = Column(String(20))
+    schedule = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    raw_data_id = Column(UUID(as_uuid=True))
+    last_sync_at = Column(DateTime, default=datetime.utcnow)
+    data_quality_score = Column(Numeric(5, 2))
+    processing_status = Column(String(20), default='processed')
+    booktour = Column(CHAR(1))
+    createdtime = Column(String(14))
+    modifiedtime = Column(String(14))
+    telname = Column(String(100))
+    faxno = Column(String(50))
+    mlevel = Column(Integer)
+    detail_intro_info = Column(JSON)
+    detail_additional_info = Column(JSON)
 
 
 # RestaurantNew 클래스 제거 - 기존 Restaurant 클래스에 통합됨

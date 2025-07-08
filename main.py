@@ -9,6 +9,7 @@ from app.routers.destinations import router as destinations_router
 from app.routers.system import router as system_router
 from app.routers.dashboard import router as dashboard_router
 from app.routers.logs import router as logs_router
+from app.routers.travel_courses import router as travel_courses_router
 from app.config import settings
 import logging
 from fastapi.requests import Request
@@ -43,6 +44,7 @@ app.include_router(destinations_router, prefix="/api")
 app.include_router(system_router, prefix="/api")
 app.include_router(dashboard_router, prefix="/api")  # 새로 추가된 대시보드 API
 app.include_router(logs_router, prefix="/api")  # 새로 추가된 로그 관리 API
+app.include_router(travel_courses_router, prefix="/api")
 
 @app.get("/")
 async def root():
