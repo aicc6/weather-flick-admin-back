@@ -4,7 +4,7 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 import logging
 
-from ..models import CityWeatherData
+from ..models import WeatherData
 from ..database import get_db
 from ..weather.models import WeatherInfo, LocationCoordinate
 
@@ -20,14 +20,14 @@ class WeatherDatabaseService:
     def __init__(self, db: Session):
         self.db = db
 
-    def save_weather_data(self, weather_info: WeatherInfo) -> Optional[CityWeatherData]:
+    def save_weather_data(self, weather_info: WeatherInfo) -> Optional[WeatherData]:
         """날씨 데이터를 데이터베이스에 저장"""
         try:
             # 기존 데이터 확인 (도시명 + 예보시각으로)
-            existing = self.db.query(CityWeatherData).filter(
+            existing = self.db.query(WeatherData).filter(
                 and_(
-                    CityWeatherData.city_name == weather_info.location,
-                    CityWeatherData.forecast_time == weather_info.forecast_time
+                    WeatherData.region_name == weather_info.location,
+                    WeatherData.forecast_time == weather_info.forecast_time.strftime("%H%M")
                 )
             ).first()
 
@@ -48,20 +48,19 @@ class WeatherDatabaseService:
                 return existing
             else:
                 # 새 데이터 생성
-                weather_data = CityWeatherData(
-                    city_name=weather_info.location,
-                    nx=weather_info.nx,
-                    ny=weather_info.ny,
+                weather_data = WeatherData(
+                    region_name=weather_info.location,
+                    grid_x=weather_info.nx,
+                    grid_y=weather_info.ny,
                     temperature=weather_info.temperature,
                     humidity=weather_info.humidity,
-                    precipitation=weather_info.precipitation,
-                    wind_speed=weather_info.wind_speed,
-                    wind_direction=weather_info.wind_direction,
+                    precipitation_probability=weather_info.precipitation,
                     sky_condition=weather_info.sky_condition,
                     precipitation_type=weather_info.precipitation_type,
-                    weather_description=weather_info.weather_description,
-                    forecast_time=weather_info.forecast_time,
-                    base_date=weather_info.forecast_time.strftime("%Y%m%d"),
+                    weather_condition=weather_info.weather_description,
+                    forecast_time=weather_info.forecast_time.strftime("%H%M"),
+                    forecast_date=weather_info.forecast_time.date(),
+                    base_date=weather_info.forecast_time.date(),
                     base_time=weather_info.forecast_time.strftime("%H%M")
                 )
 
@@ -90,26 +89,26 @@ class WeatherDatabaseService:
 
         return saved_count
 
-    def get_latest_weather_data(self, city_name: Optional[str] = None, limit: int = 100) -> List[CityWeatherData]:
+    def get_latest_weather_data(self, city_name: Optional[str] = None, limit: int = 100) -> List[WeatherData]:
         """최신 날씨 데이터 조회"""
         try:
-            query = self.db.query(CityWeatherData)
+            query = self.db.query(WeatherData)
 
             if city_name:
-                query = query.filter(CityWeatherData.city_name == city_name)
+                query = query.filter(WeatherData.region_name == city_name)
 
-            return query.order_by(desc(CityWeatherData.forecast_time)).limit(limit).all()
+            return query.order_by(desc(WeatherData.forecast_date), desc(WeatherData.forecast_time)).limit(limit).all()
         except Exception as e:
             logger.error(f"최신 날씨 데이터 조회 실패: {e}")
             self.db.rollback()
             return []
 
-    def get_weather_by_city(self, city_name: str) -> Optional[CityWeatherData]:
+    def get_weather_by_city(self, city_name: str) -> Optional[WeatherData]:
         """특정 도시의 최신 날씨 데이터 조회"""
         try:
-            return self.db.query(CityWeatherData).filter(
-                CityWeatherData.city_name == city_name
-            ).order_by(desc(CityWeatherData.forecast_time)).first()
+            return self.db.query(WeatherData).filter(
+                WeatherData.region_name == city_name
+            ).order_by(desc(WeatherData.forecast_date), desc(WeatherData.forecast_time)).first()
         except Exception as e:
             logger.error(f"도시별 날씨 데이터 조회 실패 ({city_name}): {e}")
             self.db.rollback()
@@ -117,24 +116,24 @@ class WeatherDatabaseService:
 
     def get_weather_statistics(self) -> Dict[str, Any]:
         """날씨 데이터 통계 조회"""
-        total_count = self.db.query(CityWeatherData).count()
+        total_count = self.db.query(WeatherData).count()
 
         # 도시별 데이터 개수
         city_counts = dict(
             self.db.query(
-                CityWeatherData.city_name,
-                func.count(CityWeatherData.id)
-            ).group_by(CityWeatherData.city_name).all()
+                WeatherData.region_name,
+                func.count(WeatherData.weather_id)
+            ).group_by(WeatherData.region_name).all()
         )
 
         # 최신 데이터 시간
         latest_time = self.db.query(
-            func.max(CityWeatherData.forecast_time)
+            func.max(WeatherData.forecast_date)
         ).scalar()
 
         # 오래된 데이터 시간
         oldest_time = self.db.query(
-            func.min(CityWeatherData.forecast_time)
+            func.min(WeatherData.forecast_date)
         ).scalar()
 
         return {
@@ -148,22 +147,23 @@ class WeatherDatabaseService:
 
     def _cleanup_old_data(self):
         """1000개 제한을 넘으면 오래된 데이터 삭제"""
-        total_count = self.db.query(CityWeatherData).count()
+        total_count = self.db.query(WeatherData).count()
 
         if total_count > self.MAX_RECORDS:
             # 삭제할 개수 계산
             delete_count = total_count - self.MAX_RECORDS
 
             # 가장 오래된 데이터들의 ID 조회
-            old_data_ids = self.db.query(CityWeatherData.id).order_by(
-                CityWeatherData.forecast_time.asc()
+            old_data_ids = self.db.query(WeatherData.weather_id).order_by(
+                WeatherData.forecast_date.asc(),
+                WeatherData.forecast_time.asc()
             ).limit(delete_count).all()
 
             # 해당 데이터들 삭제
             if old_data_ids:
-                ids_to_delete = [row.id for row in old_data_ids]
-                deleted_count = self.db.query(CityWeatherData).filter(
-                    CityWeatherData.id.in_(ids_to_delete)
+                ids_to_delete = [row.weather_id for row in old_data_ids]
+                deleted_count = self.db.query(WeatherData).filter(
+                    WeatherData.weather_id.in_(ids_to_delete)
                 ).delete(synchronize_session=False)
 
                 self.db.commit()
@@ -172,12 +172,12 @@ class WeatherDatabaseService:
     def cleanup_old_data_manual(self) -> int:
         """수동으로 오래된 데이터 정리"""
         self._cleanup_old_data()
-        return self.db.query(CityWeatherData).count()
+        return self.db.query(WeatherData).count()
 
     def delete_city_data(self, city_name: str) -> int:
         """특정 도시의 모든 데이터 삭제"""
-        deleted_count = self.db.query(CityWeatherData).filter(
-            CityWeatherData.city_name == city_name
+        deleted_count = self.db.query(WeatherData).filter(
+            WeatherData.region_name == city_name
         ).delete()
 
         self.db.commit()

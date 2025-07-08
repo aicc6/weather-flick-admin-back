@@ -33,6 +33,12 @@ class AdminStatus(enum.Enum):
     INACTIVE = "INACTIVE"
     LOCKED = "LOCKED"
 
+# v3 ERD용 새로운 Enum 타입들
+class SocialProvider(enum.Enum):
+    GOOGLE = "GOOGLE"
+    NAVER = "NAVER"
+    KAKAO = "KAKAO"
+    EMAIL = "EMAIL"
 
 class TravelPlanStatus(enum.Enum):
     PLANNING = "PLANNING"
@@ -40,6 +46,19 @@ class TravelPlanStatus(enum.Enum):
     IN_PROGRESS = "IN_PROGRESS"
     COMPLETED = "COMPLETED"
     CANCELLED = "CANCELLED"
+
+class WeatherDependency(enum.Enum):
+    HIGH = "HIGH"      # 날씨에 크게 의존 (해변, 등산 등)
+    MEDIUM = "MEDIUM"  # 보통 의존 (일반 관광지)
+    LOW = "LOW"        # 낮은 의존 (박물관, 쇼핑몰 등)
+
+class DestinationCategory(enum.Enum):
+    TOURIST_ATTRACTION = "TOURIST_ATTRACTION"
+    ACCOMMODATION = "ACCOMMODATION"
+    RESTAURANT = "RESTAURANT"
+    SHOPPING = "SHOPPING"
+    CULTURAL_FACILITY = "CULTURAL_FACILITY"
+    FESTIVAL_EVENT = "FESTIVAL_EVENT"
 
 
 class UserRole(enum.Enum):
@@ -81,40 +100,8 @@ class User(Base):
     travel_plans = relationship("TravelPlan", back_populates="user")
     reviews = relationship("Review", back_populates="user")
     activity_logs = relationship("UserActivityLog", back_populates="user")
-
-
-class CityWeatherData(Base):
-    __tablename__ = "city_weather_data"
-
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
-    city_name = Column(String, nullable=False, index=True)
-    nx = Column(Integer, nullable=False)  # 기상청 격자 X좌표
-    ny = Column(Integer, nullable=False)  # 기상청 격자 Y좌표
-    latitude = Column(DECIMAL(10, 8))     # 위도
-    longitude = Column(DECIMAL(11, 8))    # 경도
-
-    # 날씨 데이터
-    temperature = Column(Float)           # 기온 (°C)
-    humidity = Column(Integer)            # 습도 (%)
-    precipitation = Column(Float)         # 강수량 (mm)
-    wind_speed = Column(Float)           # 풍속 (m/s)
-    wind_direction = Column(Integer)  # 풍향 (deg)
-    sky_condition = Column(String)       # 하늘상태
-    precipitation_type = Column(String)  # 강수형태
-    weather_description = Column(String) # 날씨 설명
-
-    # 메타데이터
-    forecast_time = Column(DateTime, nullable=False)  # 예보 시각
-    base_date = Column(String)           # 발표일자 (YYYYMMDD)
-    base_time = Column(String)           # 발표시각 (HHMM)
-    data_source = Column(String, default="KMA")  # 데이터 출처
-    created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
-
-    # 유니크 제약 조건 (도시명 + 예보시각 조합으로 중복 방지)
-    __table_args__ = (
-        UniqueConstraint('city_name', 'forecast_time', name='_city_forecast_time_uc'),
-    )
+    social_accounts = relationship("UserSocialAccount", back_populates="user")
+    preferences = relationship("UserPreference", back_populates="user", uselist=False)
 
 
 class Admin(Base):
@@ -757,10 +744,6 @@ class TravelPlanUpdate(BaseModel):
     transportation: str | None = None
     start_location: str | None = None
     weather_info: Optional[dict[str, Any]] = None
-    created_at: datetime
-
-    class Config:
-        from_attributes = True
 
 
 class TravelPlanResponse(BaseModel):
@@ -932,6 +915,22 @@ class TouristAttraction(Base):
     address = Column(String(200))
     latitude = Column(DECIMAL(10, 8))
     longitude = Column(DECIMAL(11, 8))
+    
+    # 연락처 정보
+    tel = Column(String(50))
+    homepage = Column(Text)
+    
+    # v3 확장성 및 관리 필드
+    data_source = Column(String, default="LEGACY")  # "KTO", "GOOGLE", "MANUAL", "LEGACY"
+    external_id = Column(String)  # 외부 시스템 ID
+    is_verified = Column(Boolean, default=False)  # 관리자 검증 여부
+    verification_date = Column(DateTime)
+    verified_by = Column(Integer, ForeignKey("admins.admin_id"))
+    management_status = Column(String, default="ACTIVE")  # "ACTIVE", "INACTIVE", "PENDING", "REJECTED"
+    last_updated_by = Column(Integer, ForeignKey("admins.admin_id"))
+    quality_score = Column(Float, default=0.0)  # 데이터 품질 점수
+    
+    # 설명 및 이미지
     description = Column(Text)
     image_url = Column(String(500))
     created_at = Column(DateTime, server_default=func.now())
@@ -1385,23 +1384,8 @@ class Region(Base):
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
 
-class UnifiedRegion(Base):
-    __tablename__ = "unified_regions"
-    __table_args__ = {"extend_existing": True, "autoload_replace": False}
-    region_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
-    region_code = Column(String, index=True)
-    region_name = Column(String, nullable=False)
-    region_name_full = Column(String)
-    region_name_en = Column(String)
-    parent_region_id = Column(UUID(as_uuid=True), index=True, nullable=True)
-    region_level = Column(Integer)
-    center_latitude = Column(String)
-    center_longitude = Column(String)
-    boundary_data = Column(JSONB)
-    administrative_code = Column(String)
-    is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+# UnifiedRegion 클래스 제거 - UnifiedRegionNew와 중복으로 인한 테이블 생성 오류 해결
+# 기능은 UnifiedRegionNew 클래스에서 제공
 # 임시 비밀번호 관련 스키마
 class ForgotPasswordRequest(BaseModel):
     """비밀번호 찾기 요청"""
@@ -1651,3 +1635,262 @@ class UnifiedRegionResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# v3 ERD 핵심 모델들 추가
+class UserSocialAccount(Base):
+    """소셜 로그인 계정 정보"""
+    __tablename__ = "user_social_accounts"
+    __table_args__ = {"extend_existing": True}
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.user_id"), nullable=False)
+    provider = Column(Enum(SocialProvider), nullable=False)
+    social_id = Column(String, nullable=False)  # 소셜 플랫폼에서의 ID
+    email = Column(String)
+    name = Column(String)
+    profile_image_url = Column(String)
+    access_token = Column(Text)
+    refresh_token = Column(Text)
+    token_expires_at = Column(DateTime)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    
+    # 복합 유니크 제약조건
+    __table_args__ = (
+        Index('idx_user_social_provider', 'user_id', 'provider'),
+        Index('idx_social_provider_id', 'provider', 'social_id'),
+        {"extend_existing": True}
+    )
+    
+    # 관계 설정
+    user = relationship("User", back_populates="social_accounts")
+
+
+class UserPreference(Base):
+    """사용자 선호 설정"""
+    __tablename__ = "user_preferences"
+    __table_args__ = {"extend_existing": True}
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.user_id"), nullable=False)
+    preferred_regions = Column(JSONB)  # ["서울", "부산", "제주"]
+    preferred_themes = Column(JSONB)  # ["문화관광", "자연관광", "음식여행"]
+    preferred_activities = Column(JSONB)  # ["등산", "쇼핑", "사진촬영"]
+    weather_preferences = Column(JSONB)  # {"min_temp": 15, "max_temp": 25, "no_rain": true}
+    accessibility_needs = Column(JSONB)  # {"wheelchair": true, "parking": true}
+    budget_range = Column(String)  # "BUDGET", "STANDARD", "PREMIUM"
+    travel_style = Column(String)  # "RELAXED", "ACTIVE", "CULTURAL"
+    notification_settings = Column(JSONB)  # 알림 설정
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    
+    # 관계 설정
+    user = relationship("User", back_populates="preferences")
+
+
+class TravelDay(Base):
+    """여행 계획의 일별 상세"""
+    __tablename__ = "travel_days"
+    __table_args__ = {"extend_existing": True}
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    travel_plan_id = Column(UUID(as_uuid=True), ForeignKey("travel_plans.plan_id"), nullable=False)
+    day_number = Column(Integer, nullable=False)  # 1일차, 2일차 등
+    date = Column(Date, nullable=False)
+    title = Column(String, nullable=False)  # "서울 도심 탐방"
+    description = Column(Text)
+    total_budget = Column(DECIMAL(10, 2))
+    weather_forecast = Column(JSONB)  # 해당 날짜 날씨 예보
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    
+    # 인덱스
+    __table_args__ = (
+        Index('idx_travel_plan_day', 'travel_plan_id', 'day_number'),
+        {"extend_existing": True}
+    )
+    
+    # 관계 설정
+    travel_plan = relationship("TravelPlan", back_populates="travel_days")
+    destinations = relationship("TravelDayDestination", back_populates="travel_day")
+
+
+class TravelDayDestination(Base):
+    """일별 여행지 방문 계획"""
+    __tablename__ = "travel_day_destinations"
+    __table_args__ = {"extend_existing": True}
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    travel_day_id = Column(UUID(as_uuid=True), ForeignKey("travel_days.id"), nullable=False)
+    destination_id = Column(UUID(as_uuid=True), ForeignKey("destinations.destination_id"), nullable=False)
+    visit_order = Column(Integer, nullable=False)  # 방문 순서 (1, 2, 3...)
+    planned_arrival_time = Column(DateTime)
+    planned_departure_time = Column(DateTime)
+    planned_duration_minutes = Column(Integer)  # 예상 체류 시간 (분)
+    planned_budget = Column(DECIMAL(10, 2))
+    transportation_method = Column(String)  # "CAR", "PUBLIC", "WALK"
+    notes = Column(Text)  # 개인 메모
+    weather_dependency = Column(Enum(WeatherDependency))
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    
+    # 인덱스
+    __table_args__ = (
+        Index('idx_travel_day_order', 'travel_day_id', 'visit_order'),
+        {"extend_existing": True}
+    )
+    
+    # 관계 설정
+    travel_day = relationship("TravelDay", back_populates="destinations")
+    destination = relationship("Destination", back_populates="travel_day_destinations")
+
+
+# Destination 모델에 travel_day_destinations 관계 추가
+setattr(Destination, 'travel_day_destinations', relationship("TravelDayDestination", back_populates="destination"))
+
+# TravelPlan 모델에 travel_days 관계 추가  
+setattr(TravelPlan, 'travel_days', relationship("TravelDay", back_populates="travel_plan"))
+
+
+class WeatherSnapshot(Base):
+    """특정 시점의 날씨 데이터"""
+    __tablename__ = "weather_snapshots"
+    __table_args__ = {"extend_existing": True}
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    weather_region_id = Column(UUID(as_uuid=True), ForeignKey("weather_regions.id"), nullable=False)
+    forecast_date = Column(Date, nullable=False)
+    forecast_datetime = Column(DateTime, nullable=False)
+    temperature = Column(Float)  # 온도 (°C)
+    feels_like = Column(Float)  # 체감온도 (°C)
+    humidity = Column(Integer)  # 습도 (%)
+    precipitation = Column(Float)  # 강수량 (mm)
+    precipitation_probability = Column(Integer)  # 강수 확률 (%)
+    wind_speed = Column(Float)  # 풍속 (m/s)
+    wind_direction = Column(String)  # 풍향
+    weather_main = Column(String)  # "Clear", "Clouds", "Rain" 등
+    weather_description = Column(String)  # 상세 날씨 설명
+    visibility = Column(Integer)  # 가시거리 (m)
+    uv_index = Column(Float)  # 자외선 지수
+    air_quality_index = Column(Integer)  # 대기질 지수
+    data_source = Column(String, nullable=False)  # "KMA", "OPENWEATHER" 등
+    collected_at = Column(DateTime, server_default=func.now())
+    
+    # 인덱스
+    __table_args__ = (
+        Index('idx_weather_region_date', 'weather_region_id', 'forecast_date'),
+        Index('idx_forecast_datetime', 'forecast_datetime'),
+        {"extend_existing": True}
+    )
+    
+    # 관계 설정
+    weather_region = relationship("WeatherRegion", back_populates="weather_snapshots")
+
+
+class WeatherRegion(Base):
+    """날씨 예보 지역"""
+    __tablename__ = "weather_regions"
+    __table_args__ = {"extend_existing": True}
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    region_code = Column(String, unique=True, nullable=False)  # 기상청 지역코드
+    region_name = Column(String, nullable=False)  # "서울특별시 강남구"
+    parent_region = Column(String)  # 상위 지역 "서울특별시"
+    latitude = Column(Float, nullable=False)
+    longitude = Column(Float, nullable=False)
+    timezone = Column(String, default="Asia/Seoul")
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    
+    # 관계 설정
+    weather_snapshots = relationship("WeatherSnapshot", back_populates="weather_region")
+
+
+class ContentApproval(Base):
+    """콘텐츠 승인 관리"""
+    __tablename__ = "content_approvals"
+    __table_args__ = {"extend_existing": True}
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    content_type = Column(String, nullable=False)  # "DESTINATION", "REVIEW", "IMAGE"
+    content_id = Column(UUID(as_uuid=True), nullable=False)  # 관련 콘텐츠 ID
+    status = Column(String, nullable=False, default="PENDING")  # "PENDING", "APPROVED", "REJECTED"
+    submitted_by = Column(UUID(as_uuid=True), ForeignKey("users.user_id"))
+    reviewed_by = Column(Integer, ForeignKey("admins.admin_id"))
+    review_notes = Column(Text)  # 승인/거부 사유
+    submitted_at = Column(DateTime, server_default=func.now())
+    reviewed_at = Column(DateTime)
+    
+    # 인덱스
+    __table_args__ = (
+        Index('idx_content_approval_status', 'content_type', 'status'),
+        Index('idx_content_approval_submitted', 'submitted_at'),
+        {"extend_existing": True}
+    )
+    
+    # 관계 설정
+    submitter = relationship("User", foreign_keys=[submitted_by])
+    reviewer = relationship("Admin", foreign_keys=[reviewed_by])
+
+
+# 관리자용 데이터 소스 및 확장성 관리
+class DataSource(Base):
+    """외부 데이터 소스 관리"""
+    __tablename__ = "data_sources"
+    __table_args__ = {"extend_existing": True}
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String, nullable=False, unique=True)  # "한국관광공사", "기상청", "구글맵"
+    api_endpoint = Column(String)
+    api_key_name = Column(String)  # 환경변수명
+    description = Column(Text)
+    is_active = Column(Boolean, default=True)
+    last_sync_at = Column(DateTime)
+    sync_frequency_hours = Column(Integer, default=24)  # 동기화 주기
+    rate_limit_per_hour = Column(Integer)  # 시간당 요청 제한
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class ExternalDestination(Base):
+    """외부 수집 여행지 데이터 (승인 전)"""
+    __tablename__ = "external_destinations"
+    __table_args__ = {"extend_existing": True}
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    data_source_id = Column(UUID(as_uuid=True), ForeignKey("data_sources.id"), nullable=False)
+    external_id = Column(String, nullable=False)  # 외부 시스템의 ID
+    raw_data = Column(JSONB)  # 원본 JSON 데이터
+    parsed_data = Column(JSONB)  # 파싱된 구조화 데이터
+    
+    # 관리자 승인 상태
+    approval_status = Column(String, default="PENDING")  # PENDING, APPROVED, REJECTED, MERGED
+    approved_by = Column(Integer, ForeignKey("admins.admin_id"))
+    approved_at = Column(DateTime)
+    merged_to_destination_id = Column(UUID(as_uuid=True), ForeignKey("destinations.destination_id"))
+    
+    # 메타데이터
+    quality_score = Column(Float, default=0.0)
+    duplicate_check_status = Column(String, default="UNCHECKED")  # UNCHECKED, UNIQUE, DUPLICATE
+    duplicate_of = Column(UUID(as_uuid=True), ForeignKey("external_destinations.id"))
+    
+    collected_at = Column(DateTime, server_default=func.now())
+    last_processed_at = Column(DateTime)
+    
+    # 인덱스
+    __table_args__ = (
+        Index('idx_external_dest_source', 'data_source_id', 'external_id'),
+        Index('idx_external_dest_approval', 'approval_status'),
+        {"extend_existing": True}
+    )
+    
+    # 관계 설정
+    data_source = relationship("DataSource")
+    approver = relationship("Admin", foreign_keys=[approved_by])
+    merged_destination = relationship("Destination", foreign_keys=[merged_to_destination_id])
+
+
+# 기존 Destination 모델에 추가 필드들
+# (확장성과 관리자 관리를 위한 필드 추가)

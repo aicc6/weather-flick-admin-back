@@ -57,20 +57,35 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy", "version": settings.app_version}
+    """확장된 헬스체크 - v3 DB 연결 및 필수 모델 검증"""
+    try:
+        from app.database import SessionLocal
+        from app.models import Admin, User, Destination
+        
+        with SessionLocal() as session:
+            # DB 연결 테스트
+            admin_count = session.query(Admin).count()
+            
+            return {
+                "status": "healthy",
+                "version": settings.app_version,
+                "database": "connected",
+                "v3_schema": "active",
+                "admin_accounts": admin_count
+            }
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "version": settings.app_version,
+            "error": str(e)
+        }
 
 @app.on_event("startup")
 async def startup_event():
     """애플리케이션 시작 시 실행"""
     print(f"🚀 {settings.app_name} v{settings.app_version} 시작")
-
-    # 개발 환경에서만 자동으로 테이블 생성 및 초기 데이터 설정
-    if settings.debug:
-        try:
-            from app.init_data import init_database
-            init_database()
-        except Exception as e:
-            print(f"⚠️  초기화 중 오류 발생: {e}")
+    print("ℹ️  관리자 계정 생성이 필요한 경우:")
+    print("   python scripts/create_admin.py")
 
 
 # 전역 에러 핸들러

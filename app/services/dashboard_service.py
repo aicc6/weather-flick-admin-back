@@ -8,7 +8,7 @@ from typing import Dict, Any, List
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_
 
-from ..models import User, Admin, AdminActivityLog, CityWeatherData
+from ..models import User, Admin, AdminActivityLog, WeatherData
 from ..auth.logging import AdminLogService
 
 logger = logging.getLogger(__name__)
@@ -130,10 +130,10 @@ class DashboardService:
         """시스템 관련 통계"""
         try:
             # 날씨 데이터 통계
-            weather_data_count = self.db.query(func.count(CityWeatherData.id)).scalar() or 0
+            weather_data_count = self.db.query(func.count(WeatherData.weather_id)).scalar() or 0
             
             # 최신 날씨 데이터 시간
-            latest_weather = self.db.query(func.max(CityWeatherData.forecast_time)).scalar()
+            latest_weather = self.db.query(func.max(WeatherData.forecast_date)).scalar()
             
             return {
                 "weather_data_count": weather_data_count,

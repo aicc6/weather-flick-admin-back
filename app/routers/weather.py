@@ -13,7 +13,7 @@ from ..weather.models import (
 from ..services.weather_database_service import WeatherDatabaseService
 from ..weather.scheduler import weather_collector
 from ..database import get_db
-from ..models import CityWeatherData
+from ..models import WeatherData
 
 logger = logging.getLogger(__name__)
 
