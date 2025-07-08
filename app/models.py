@@ -59,7 +59,7 @@ class User(Base):
     )  # OAuth 사용자는 비밀번호가 없을 수 있음
     nickname = Column(String, index=True, nullable=False)
     profile_image = Column(String)
-    preferences = Column(JSONB)
+    preferences = Column(JSONB, default=dict)
     preferred_region = Column(String)  # 선호 지역
     preferred_theme = Column(String)  # 선호 테마
     bio = Column(Text)  # 자기소개
