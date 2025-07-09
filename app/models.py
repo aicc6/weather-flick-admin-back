@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime, date
 from typing import Any, Optional, List
 
-from pydantic import BaseModel
+from pydantic import BaseModel,validator
 from sqlalchemy import (
     DECIMAL,
     Boolean,
@@ -778,6 +778,15 @@ class TravelPlanResponse(BaseModel):
     start_location: str | None = None
     weather_info: Optional[dict[str, Any]] = None
     created_at: datetime
+
+    @validator('budget', pre=True)
+    def decimal_to_float(cls, v):
+        if v is None:
+            return v
+        try:
+            return float(v)
+        except Exception:
+            return None
 
     class Config:
         from_attributes = True

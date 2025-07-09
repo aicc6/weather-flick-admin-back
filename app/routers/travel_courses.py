@@ -3,7 +3,55 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import TravelCourse
 from uuid import uuid4
-from sqlalchemy import and_
+from typing import Any
+from pydantic import BaseModel
+from datetime import datetime
+
+def safe_float(val: Any) -> float | None:
+    try:
+        return float(val)
+    except Exception:
+        return None
+
+class TravelCourseResponse(BaseModel):
+    content_id: str
+    region_code: str
+    sigungu_code: str | None = None
+    course_name: str
+    category_code: str | None = None
+    sub_category_code: str | None = None
+    address: str | None = None
+    detail_address: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    zipcode: str | None = None
+    tel: str | None = None
+    homepage: str | None = None
+    overview: str | None = None
+    first_image: str | None = None
+    first_image_small: str | None = None
+    course_theme: str | None = None
+    course_distance: str | None = None
+    required_time: str | None = None
+    difficulty_level: str | None = None
+    schedule: str | None = None
+    created_at: datetime
+    updated_at: datetime | None = None
+    raw_data_id: str | None = None
+    last_sync_at: datetime | None = None
+    data_quality_score: float | None = None
+    processing_status: str | None = None
+    booktour: str | None = None
+    createdtime: str | None = None
+    modifiedtime: str | None = None
+    telname: str | None = None
+    faxno: str | None = None
+    mlevel: int | None = None
+    detail_intro_info: dict | None = None
+    detail_additional_info: dict | None = None
+
+    class Config:
+        orm_mode = True
 
 router = APIRouter(prefix="/travel-courses", tags=["Travel Courses"])
 
@@ -34,8 +82,8 @@ def get_all_travel_courses(
                 "sub_category_code": c.sub_category_code,
                 "address": c.address,
                 "detail_address": c.detail_address,
-                "latitude": float(c.latitude) if c.latitude is not None else None,
-                "longitude": float(c.longitude) if c.longitude is not None else None,
+                "latitude": safe_float(getattr(c, 'latitude', None)),
+                "longitude": safe_float(getattr(c, 'longitude', None)),
                 "zipcode": c.zipcode,
                 "tel": c.tel,
                 "homepage": c.homepage,
@@ -49,9 +97,9 @@ def get_all_travel_courses(
                 "schedule": c.schedule,
                 "created_at": c.created_at,
                 "updated_at": c.updated_at,
-                "raw_data_id": str(c.raw_data_id) if c.raw_data_id is not None else None,
+                "raw_data_id": str(getattr(c, 'raw_data_id', None)) if getattr(c, 'raw_data_id', None) is not None else None,
                 "last_sync_at": c.last_sync_at,
-                "data_quality_score": float(c.data_quality_score) if c.data_quality_score is not None else None,
+                "data_quality_score": safe_float(getattr(c, 'data_quality_score', None)),
                 "processing_status": c.processing_status,
                 "booktour": c.booktour,
                 "createdtime": c.createdtime,
@@ -72,16 +120,16 @@ def get_region_count(db: Session = Depends(get_db)):
     # regions is a list of tuples like [(1,), (2,), ...]
     return {"region_count": len(regions)}
 
-@router.get("/{content_id}")
+@router.get("/{content_id}", response_model=TravelCourseResponse)
 def get_travel_course(content_id: str, db: Session = Depends(get_db)):
     c = db.query(TravelCourse).filter(TravelCourse.content_id == content_id).first()
     if not c:
         raise HTTPException(status_code=404, detail="코스를 찾을 수 없습니다.")
-    return c.__dict__
+    return c
 
 @router.post("/", status_code=201)
 def create_travel_course(
-    course: dict = Body(...),
+    course: dict[str, object] = Body(...),
     db: Session = Depends(get_db)
 ):
     course['content_id'] = course.get('content_id') or str(uuid4())[:20]
@@ -94,13 +142,13 @@ def create_travel_course(
 @router.put("/{content_id}")
 def update_travel_course(
     content_id: str,
-    course: dict = Body(...),
+    course: dict[str, object] = Body(...),
     db: Session = Depends(get_db)
 ):
     c = db.query(TravelCourse).filter(TravelCourse.content_id == content_id).first()
     if not c:
         raise HTTPException(status_code=404, detail="코스를 찾을 수 없습니다.")
-    for key, value in course.items():
+    for key, value in course.items():  # type: ignore
         if hasattr(c, key) and value is not None:
             setattr(c, key, value)
     db.commit()

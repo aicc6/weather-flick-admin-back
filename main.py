@@ -12,6 +12,7 @@ from app.routers.logs import router as logs_router
 from app.routers.travel_courses import router as travel_courses_router
 from app.routers import festivals_events
 from app.routers import leisure_sports
+from app.routers import travel_plans
 from app.config import settings
 import logging
 from fastapi.requests import Request
@@ -48,6 +49,7 @@ app.include_router(logs_router, prefix="/api")  # 새로 추가된 로그 관리
 app.include_router(travel_courses_router, prefix="/api")
 app.include_router(festivals_events.router)
 app.include_router(leisure_sports.router)
+app.include_router(travel_plans.router, prefix="/api")
 
 @app.get("/")
 async def root():
