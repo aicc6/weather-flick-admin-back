@@ -10,8 +10,8 @@
 2. 슈퍼 관리자 계정 생성 (admin@weatherflick.com / admin123)
 """
 
-import sys
 import os
+import sys
 
 # 현재 디렉토리를 Python 경로에 추가
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))

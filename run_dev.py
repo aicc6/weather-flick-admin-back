@@ -9,6 +9,7 @@
 """
 
 import uvicorn
+
 from app.config import settings
 
 if __name__ == "__main__":
@@ -22,4 +23,5 @@ if __name__ == "__main__":
         host=settings.host,
         port=settings.port,
         reload=True,  # 개발 시 자동 리로드
-        log_level="info")
+        log_level="info",
+    )

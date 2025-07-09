@@ -1,52 +1,57 @@
-from fastapi import APIRouter, Depends, Query
-from sqlalchemy.orm import Session
-from app.models import SystemLog
-from app.database import get_db, engine
-from typing import List
 from datetime import datetime
-from app.services.system_log import log_system_event
-from sqlalchemy import text
-import requests
+from typing import Any
 
-from app.schemas.common import SuccessResponse, PaginatedResponse
+import requests
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+
+from app.database import engine, get_db
+from app.models import SystemLog
+from app.schemas.common import PaginatedResponse, SuccessResponse
 from app.schemas.system import (
-    SystemStatusData,
     DatabaseStatus,
-    ExternalApiStatus,
     ExternalApisStatus,
+    ExternalApiStatus,
     SystemLogOut,
     SystemLogTestRequest,
     SystemLogTestResponse,
+    SystemStatusData,
 )
-from typing import Any
+from app.services.system_log import log_system_event
 
 router = APIRouter(prefix="/system", tags=["system"])
+
 
 # 외부 API 헬스체크 함수
 def check_external_api_status(url, timeout=3):
     """
     외부 API 상태 확인
-    
+
     Args:
         url: 확인할 API URL
         timeout: 타임아웃 시간 (초)
-        
+
     Returns:
         dict: 상태 정보 (status, response_time)
     """
     try:
         import time
+
         start_time = time.time()
         resp = requests.head(url, timeout=timeout)
         response_time = round((time.time() - start_time) * 1000, 2)  # ms
-        
+
         if resp.status_code < 400:
             return {"status": "정상", "response_time": f"{response_time}ms"}
         else:
-            return {"status": f"오류({resp.status_code})", "response_time": f"{response_time}ms"}
+            return {
+                "status": f"오류({resp.status_code})",
+                "response_time": f"{response_time}ms",
+            }
     except requests.exceptions.Timeout:
         return {"status": "타임아웃", "response_time": "-"}
-    except Exception as e:
+    except Exception:
         return {"status": "연결실패", "response_time": "-"}
 
 
@@ -67,18 +72,19 @@ def get_system_logs(
         query = query.filter(SystemLog.source == source)
     if message:
         query = query.filter(SystemLog.message.ilike(f"%{message}%"))
-    
+
     total = query.count()
     query = query.order_by(SystemLog.created_at.desc())
     logs = query.offset((page - 1) * size).limit(size).all()
-    
+
     return PaginatedResponse(
         items=logs,
         total=total,
         page=page,
         size=size,
-        message="시스템 로그를 성공적으로 조회했습니다."
+        message="시스템 로그를 성공적으로 조회했습니다.",
     )
+
 
 @router.post("/logs/test", response_model=SuccessResponse[SystemLogTestResponse])
 def test_log(
@@ -91,35 +97,36 @@ def test_log(
         message=request.message,
         source=request.source,
         context=request.context,
-        db=db
+        db=db,
     )
-    
+
     response_data = SystemLogTestResponse(
         log_id=log.log_id,
         level=log.level,
         source=log.source,
         message=log.message,
-        created_at=log.created_at
+        created_at=log.created_at,
     )
-    
+
     return SuccessResponse(
-        data=response_data,
-        message="테스트 로그가 성공적으로 생성되었습니다."
+        data=response_data, message="테스트 로그가 성공적으로 생성되었습니다."
     )
+
 
 # 서비스 상태 확인 API (하드웨어 모니터링 제거, 서비스 의존성 중심으로 변경)
 @router.get("/status", response_model=Any)
 async def get_service_status():
     """
     서비스 상태 조회
-    
+
     - 데이터베이스 연결 상태
     - 외부 API 의존성 상태
     """
     try:
-        from app.config import settings
         import time
-        
+
+        from app.config import settings
+
         # 데이터베이스 연결 상태 확인
         db_status_dict = {"status": "연결됨", "response_time": "-"}
         try:
@@ -128,43 +135,42 @@ async def get_service_status():
                 conn.execute(text("SELECT 1"))
             response_time = round((time.time() - start_time) * 1000, 2)
             db_status_dict = {"status": "연결됨", "response_time": f"{response_time}ms"}
-        except Exception as e:
+        except Exception:
             db_status_dict = {"status": "연결실패", "response_time": "-"}
 
         # 외부 API 의존성 상태 확인
         external_apis_dict = {
             "weather_api": check_external_api_status(settings.weather_api_url),
             "tourism_api": check_external_api_status(settings.korea_tourism_api_url),
-            "google_places": check_external_api_status(settings.google_places_url)
+            "google_places": check_external_api_status(settings.google_places_url),
         }
-        
+
         # 전체 서비스 상태 판단
-        service_healthy = (
-            db_status_dict["status"] == "연결됨" and
-            all(api["status"] in ["정상", "타임아웃"] for api in external_apis_dict.values())
+        service_healthy = db_status_dict["status"] == "연결됨" and all(
+            api["status"] in ["정상", "타임아웃"] for api in external_apis_dict.values()
         )
-        
+
         # Pydantic 모델로 변환
         database_status = DatabaseStatus(**db_status_dict)
         external_apis_status = ExternalApisStatus(
             weather_api=ExternalApiStatus(**external_apis_dict["weather_api"]),
             tourism_api=ExternalApiStatus(**external_apis_dict["tourism_api"]),
-            google_places=ExternalApiStatus(**external_apis_dict["google_places"])
+            google_places=ExternalApiStatus(**external_apis_dict["google_places"]),
         )
-        
+
         system_status_data = SystemStatusData(
             service_status="정상" if service_healthy else "문제발생",
             database=database_status,
-            external_apis=external_apis_status
+            external_apis=external_apis_status,
         )
-        
+
         return SuccessResponse(
-            data=system_status_data,
-            message="시스템 상태를 성공적으로 조회했습니다."
+            data=system_status_data, message="시스템 상태를 성공적으로 조회했습니다."
         )
-    
+
     except Exception as e:
         import logging
+
         logging.error(f"System status error: {e}")
         # 간단한 응답 반환
         return {
@@ -172,5 +178,5 @@ async def get_service_status():
             "data": None,
             "message": f"시스템 상태 조회 중 오류 발생: {str(e)}",
             "error": {"code": "SYSTEM_ERROR", "message": str(e)},
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }

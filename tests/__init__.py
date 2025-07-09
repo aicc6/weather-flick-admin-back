@@ -1,1 +1,3 @@
-# Tests module
+"""
+Weather Flick Admin Backend Tests
+"""

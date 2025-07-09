@@ -1,17 +1,19 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+
+from ..auth.dependencies import get_current_active_admin
+from ..auth.utils import create_admin_token, verify_password
 from ..database import get_db
 from ..models import Admin, AdminStatus
 from ..schemas.auth_schemas import (
     AdminLogin,
     AdminResponse,
-    Token,
     LoginResponse,
+    Token,
 )
-from ..auth.utils import verify_password, create_admin_token
-from ..auth.dependencies import get_current_active_admin
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -28,14 +30,14 @@ async def login(admin_login: AdminLogin, db: Session = Depends(get_db)):
             detail="이메일 또는 비밀번호가 올바르지 않습니다",
         )
 
-    # 계정 상태 확인 - INACTIVE나 LOCKED 상태일 때만 차단
-    if admin.status and admin.status in [AdminStatus.INACTIVE, AdminStatus.LOCKED]:
+    # 계정 상태 확인 - INACTIVE 상태일 때만 차단
+    if admin.status and admin.status == AdminStatus.INACTIVE:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="비활성화된 계정입니다"
         )
 
     # 마지막 로그인 시간 업데이트
-    admin.last_login_at = datetime.now(timezone.utc)
+    admin.last_login_at = datetime.now(UTC)
     db.commit()
 
     # JWT 토큰 생성
@@ -76,14 +78,14 @@ async def login_for_access_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # 계정 상태 확인 - INACTIVE나 LOCKED 상태일 때만 차단
-    if admin.status and admin.status in [AdminStatus.INACTIVE, AdminStatus.LOCKED]:
+    # 계정 상태 확인 - INACTIVE 상태일 때만 차단
+    if admin.status and admin.status == AdminStatus.INACTIVE:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="비활성화된 계정입니다"
         )
 
     # 마지막 로그인 시간 업데이트
-    admin.last_login_at = datetime.now(timezone.utc)
+    admin.last_login_at = datetime.now(UTC)
     db.commit()
 
     access_token = create_admin_token(admin.admin_id, admin.email)

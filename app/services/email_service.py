@@ -2,12 +2,11 @@
 이메일 전송 서비스
 """
 
-import os
-from typing import List, Optional
-from fastapi import HTTPException
-from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
-from jinja2 import Template
 import logging
+
+from fastapi_mail import ConnectionConfig, FastMail, MessageSchema, MessageType
+from jinja2 import Template
+
 from ..config import settings
 
 logger = logging.getLogger(__name__)
@@ -20,11 +19,13 @@ class EmailService:
         """이메일 서비스 초기화"""
         try:
             # 설정에서 이메일 정보 가져오기
-            if not all([settings.mail_username, settings.mail_password, settings.mail_from]):
+            if not all(
+                [settings.mail_username, settings.mail_password, settings.mail_from]
+            ):
                 logger.warning("이메일 설정이 없습니다. 이메일 기능이 비활성화됩니다.")
                 self.fastmail = None
                 return
-                
+
             self.conf = ConnectionConfig(
                 MAIL_USERNAME=settings.mail_username,
                 MAIL_PASSWORD=settings.mail_password,
@@ -35,21 +36,18 @@ class EmailService:
                 MAIL_STARTTLS=settings.mail_starttls,
                 MAIL_SSL_TLS=settings.mail_ssl_tls,
                 USE_CREDENTIALS=True,
-                VALIDATE_CERTS=True
+                VALIDATE_CERTS=True,
             )
-            
+
             self.fastmail = FastMail(self.conf)
             logger.info("이메일 서비스 초기화 완료")
-            
+
         except Exception as e:
             logger.warning(f"이메일 서비스 초기화 실패: {e}")
             self.fastmail = None
 
     async def send_temporary_password_email(
-        self, 
-        email: str, 
-        temp_password: str, 
-        user_name: Optional[str] = None
+        self, email: str, temp_password: str, user_name: str | None = None
     ) -> bool:
         """임시 비밀번호 이메일 전송"""
         try:
@@ -58,7 +56,8 @@ class EmailService:
                 return False
 
             # 이메일 템플릿
-            template = Template("""
+            template = Template(
+                """
 <!DOCTYPE html>
 <html>
 <head>
@@ -117,32 +116,30 @@ class EmailService:
     </div>
 </body>
 </html>
-            """)
-            
-            html_content = template.render(
-                temp_password=temp_password,
-                user_name=user_name
+            """
             )
-            
+
+            html_content = template.render(
+                temp_password=temp_password, user_name=user_name
+            )
+
             message = MessageSchema(
                 subject="Weather Flick 임시 비밀번호 발급",
                 recipients=[email],
                 body=html_content,
-                subtype=MessageType.html
+                subtype=MessageType.html,
             )
-            
+
             await self.fastmail.send_message(message)
             logger.info(f"임시 비밀번호 이메일 전송 성공: {email}")
             return True
-            
+
         except Exception as e:
             logger.error(f"임시 비밀번호 이메일 전송 실패: {email}, 오류: {e}")
             return False
 
     async def send_password_reset_notification(
-        self, 
-        email: str, 
-        user_name: Optional[str] = None
+        self, email: str, user_name: str | None = None
     ) -> bool:
         """비밀번호 재설정 알림 이메일 전송"""
         try:
@@ -150,7 +147,8 @@ class EmailService:
                 logger.warning("이메일 서비스가 초기화되지 않음")
                 return False
 
-            template = Template("""
+            template = Template(
+                """
 <!DOCTYPE html>
 <html>
 <head>
@@ -188,25 +186,27 @@ class EmailService:
     </div>
 </body>
 </html>
-            """)
-            
+            """
+            )
+
             from datetime import datetime
+
             html_content = template.render(
                 user_name=user_name,
-                current_time=datetime.now().strftime("%Y년 %m월 %d일 %H:%M")
+                current_time=datetime.now().strftime("%Y년 %m월 %d일 %H:%M"),
             )
-            
+
             message = MessageSchema(
                 subject="Weather Flick 비밀번호 변경 완료",
                 recipients=[email],
                 body=html_content,
-                subtype=MessageType.html
+                subtype=MessageType.html,
             )
-            
+
             await self.fastmail.send_message(message)
             logger.info(f"비밀번호 변경 알림 이메일 전송 성공: {email}")
             return True
-            
+
         except Exception as e:
             logger.error(f"비밀번호 변경 알림 이메일 전송 실패: {email}, 오류: {e}")
             return False
@@ -214,10 +214,10 @@ class EmailService:
     def is_configured(self) -> bool:
         """이메일 서비스 설정 여부 확인"""
         return (
-            self.fastmail is not None and 
-            bool(settings.mail_username) and 
-            bool(settings.mail_password) and 
-            bool(settings.mail_from)
+            self.fastmail is not None
+            and bool(settings.mail_username)
+            and bool(settings.mail_password)
+            and bool(settings.mail_from)
         )
 
 
@@ -225,9 +225,13 @@ class EmailService:
 email_service = EmailService()
 
 
-async def send_temp_password_email(email: str, temp_password: str, user_name: str = None) -> bool:
+async def send_temp_password_email(
+    email: str, temp_password: str, user_name: str = None
+) -> bool:
     """임시 비밀번호 이메일 전송 편의 함수"""
-    return await email_service.send_temporary_password_email(email, temp_password, user_name)
+    return await email_service.send_temporary_password_email(
+        email, temp_password, user_name
+    )
 
 
 async def send_password_change_notification(email: str, user_name: str = None) -> bool:

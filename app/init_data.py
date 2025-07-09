@@ -3,16 +3,17 @@ v3 스키마 데이터베이스 초기화
 """
 
 from sqlalchemy.orm import Session
+
+from app.auth.utils import get_password_hash
 from app.database import SessionLocal
 from app.models import Admin
-from app.auth.utils import get_password_hash
 
 
 def create_v3_tables():
     """v3 데이터베이스 테이블 생성"""
     from app.database import engine
     from app.models import Base
-    
+
     try:
         # v3 테이블 생성 (이미 존재하면 스킵)
         Base.metadata.create_all(bind=engine)
@@ -39,11 +40,12 @@ def create_super_admin_v3():
 
         # v3 슈퍼 관리자 계정 생성
         from app.models import AdminStatus
+
         super_admin = Admin(
             email="admin@weatherflick.com",
             password_hash=get_password_hash("admin123"),
             name="Super Admin",
-            status=AdminStatus.ACTIVE   # v3 enum 사용
+            status=AdminStatus.ACTIVE,  # v3 enum 사용
         )
 
         db.add(super_admin)

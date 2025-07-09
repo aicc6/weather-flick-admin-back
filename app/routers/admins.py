@@ -1,19 +1,19 @@
-from datetime import datetime, timezone
-from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+import math
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
+
+from ..auth.dependencies import get_current_active_admin
+from ..auth.utils import generate_temporary_password, get_password_hash
 from ..database import get_db
 from ..models import Admin, AdminStatus
 from ..schemas.admin_schemas import (
     AdminCreate,
-    AdminResponse,
     AdminListResponse,
+    AdminResponse,
     AdminStatusUpdate,
     AdminUpdate,
 )
-from ..auth.utils import get_password_hash, generate_temporary_password
-from ..auth.dependencies import get_current_active_admin
-import math
 
 router = APIRouter(prefix="/admins", tags=["Admin Management"])
 
@@ -55,10 +55,10 @@ async def create_admin(
 async def get_admin_list(
     page: int = Query(1, ge=1, description="페이지 번호"),
     size: int = Query(10, ge=1, le=100, description="페이지 크기"),
-    status: Optional[str] = Query(
+    status: str | None = Query(
         None, description="상태 필터 (ACTIVE, INACTIVE, LOCKED)"
     ),
-    search: Optional[str] = Query(None, description="이메일 또는 이름으로 검색"),
+    search: str | None = Query(None, description="이메일 또는 이름으로 검색"),
     current_admin: Admin = Depends(get_current_active_admin),
     db: Session = Depends(get_db),
 ):
@@ -107,16 +107,12 @@ async def get_admin_statistics(
         total = db.query(Admin).count()
         active = db.query(Admin).filter(Admin.status == AdminStatus.ACTIVE).count()
         inactive = db.query(Admin).filter(Admin.status == AdminStatus.INACTIVE).count()
-        
-        return {
-            "total": total,
-            "active": active,
-            "inactive": inactive
-        }
-    except Exception as e:
+
+        return {"total": total, "active": active, "inactive": inactive}
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="관리자 통계 조회 중 오류가 발생했습니다"
+            detail="관리자 통계 조회 중 오류가 발생했습니다",
         )
 
 
@@ -256,9 +252,9 @@ async def delete_admin_permanently(
     if current_admin.email != "admin@weatherflick.com":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="관리자 삭제는 슈퍼 관리자만 가능합니다"
+            detail="관리자 삭제는 슈퍼 관리자만 가능합니다",
         )
-    
+
     admin = db.query(Admin).filter(Admin.admin_id == admin_id).first()
 
     if not admin:
@@ -297,11 +293,11 @@ async def reset_admin_password(
     # 보안 강화된 임시 비밀번호 생성
     temp_password = generate_temporary_password()
     admin.password_hash = get_password_hash(temp_password)
-    
+
     db.commit()
 
     return {
         "message": f"관리자 '{admin.name or admin.email}' 비밀번호가 초기화되었습니다",
         "admin_id": admin_id,
-        "temporary_password": temp_password
+        "temporary_password": temp_password,
     }

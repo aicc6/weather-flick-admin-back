@@ -1,19 +1,28 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, Body
-from sqlalchemy.orm import Session
-from ..database import get_db
-from ..models import TouristAttraction
 from uuid import uuid4
 
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from sqlalchemy.orm import Session
+
+from ..database import get_db
+from ..models import TouristAttraction
+
 router = APIRouter(prefix="/tourist-attractions", tags=["Tourist Attractions"])
+
 
 @router.get("/")
 def get_all_tourist_attractions(
     db: Session = Depends(get_db),
     limit: int = Query(10, ge=1, le=100),
-    offset: int = Query(0, ge=0)
+    offset: int = Query(0, ge=0),
 ):
     total = db.query(TouristAttraction).count()
-    attractions = db.query(TouristAttraction).order_by(TouristAttraction.created_at.desc()).offset(offset).limit(limit).all()
+    attractions = (
+        db.query(TouristAttraction)
+        .order_by(TouristAttraction.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
     return {
         "total": total,
         "items": [
@@ -32,12 +41,17 @@ def get_all_tourist_attractions(
                 "updated_at": a.updated_at,
             }
             for a in attractions
-        ]
+        ],
     }
+
 
 @router.get("/{content_id}")
 def get_tourist_attraction(content_id: str, db: Session = Depends(get_db)):
-    attraction = db.query(TouristAttraction).filter(TouristAttraction.content_id == content_id).first()
+    attraction = (
+        db.query(TouristAttraction)
+        .filter(TouristAttraction.content_id == content_id)
+        .first()
+    )
     if not attraction:
         raise HTTPException(status_code=404, detail="관광지를 찾을 수 없습니다.")
     return {
@@ -55,6 +69,7 @@ def get_tourist_attraction(content_id: str, db: Session = Depends(get_db)):
         "updated_at": attraction.updated_at,
     }
 
+
 @router.get("/search/")
 def search_tourist_attractions(
     name: str = Query(None, description="관광지명"),
@@ -62,7 +77,7 @@ def search_tourist_attractions(
     region: str = Query(None, description="지역코드"),
     limit: int = Query(10, ge=1, le=100),
     offset: int = Query(0, ge=0),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     query = db.query(TouristAttraction)
     if name:
@@ -72,7 +87,12 @@ def search_tourist_attractions(
     if region:
         query = query.filter(TouristAttraction.region_code == region)
     total = query.count()
-    results = query.order_by(TouristAttraction.created_at.desc()).offset(offset).limit(limit).all()
+    results = (
+        query.order_by(TouristAttraction.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
     return {
         "total": total,
         "items": [
@@ -91,8 +111,9 @@ def search_tourist_attractions(
                 "updated_at": a.updated_at,
             }
             for a in results
-        ]
+        ],
     }
+
 
 @router.post("/", status_code=201)
 def create_tourist_attraction(
@@ -105,7 +126,7 @@ def create_tourist_attraction(
     category_code: str = Body(None),
     category_name: str = Body(None),
     region_code: str = Body(None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     new_attraction = TouristAttraction(
         content_id=str(uuid4()),
@@ -124,6 +145,7 @@ def create_tourist_attraction(
     db.refresh(new_attraction)
     return {"content_id": new_attraction.content_id}
 
+
 @router.put("/{content_id}")
 def update_tourist_attraction(
     content_id: str,
@@ -136,9 +158,13 @@ def update_tourist_attraction(
     category_code: str = Body(None),
     category_name: str = Body(None),
     region_code: str = Body(None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
-    attraction = db.query(TouristAttraction).filter(TouristAttraction.content_id == content_id).first()
+    attraction = (
+        db.query(TouristAttraction)
+        .filter(TouristAttraction.content_id == content_id)
+        .first()
+    )
     if not attraction:
         raise HTTPException(status_code=404, detail="관광지를 찾을 수 없습니다.")
     if attraction_name is not None:
@@ -163,9 +189,14 @@ def update_tourist_attraction(
     db.refresh(attraction)
     return {"content_id": attraction.content_id}
 
+
 @router.delete("/{content_id}", status_code=204)
 def delete_tourist_attraction(content_id: str, db: Session = Depends(get_db)):
-    attraction = db.query(TouristAttraction).filter(TouristAttraction.content_id == content_id).first()
+    attraction = (
+        db.query(TouristAttraction)
+        .filter(TouristAttraction.content_id == content_id)
+        .first()
+    )
     if not attraction:
         raise HTTPException(status_code=404, detail="관광지를 찾을 수 없습니다.")
     db.delete(attraction)

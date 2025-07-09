@@ -1,7 +1,10 @@
-from app.models import SystemLog
-from app.database import get_db
-from sqlalchemy.orm import Session
 import inspect
+
+from sqlalchemy.orm import Session
+
+from app.database import get_db
+from app.models import SystemLog
+
 
 def log_system_event(level, message, source=None, context=None, db: Session = None):
     if db is None:
@@ -11,7 +14,7 @@ def log_system_event(level, message, source=None, context=None, db: Session = No
         # 호출한 모듈/함수명을 자동으로 기록
         frame = inspect.stack()[1]
         module = inspect.getmodule(frame[0])
-        source = module.__name__ if module else 'unknown'
+        source = module.__name__ if module else "unknown"
     log = SystemLog(
         level=level,
         source=source,

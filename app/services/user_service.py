@@ -1,19 +1,24 @@
-from sqlalchemy.orm import Session
-from sqlalchemy import func, or_, desc
-from typing import List, Optional
-from datetime import datetime, timedelta
 import logging
 import math
 import uuid
-from passlib.context import CryptContext
-from fastapi import Depends
+from datetime import datetime, timedelta
 
-from ..models import User, UserRole as DBUserRole
-from ..schemas.user_schemas import (
-    UserCreate, UserUpdate, UserListResponse,
-    UserStats, UserSearchParams, UserRole
-)
+from fastapi import Depends
+from passlib.context import CryptContext
+from sqlalchemy import desc, or_
+from sqlalchemy.orm import Session
+
 from ..database import get_db
+from ..models import User
+from ..models import UserRole as DBUserRole
+from ..schemas.user_schemas import (
+    UserCreate,
+    UserListResponse,
+    UserRole,
+    UserSearchParams,
+    UserStats,
+    UserUpdate,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -51,10 +56,14 @@ class UserService:
                 bio=user_create.bio,
                 is_active=True,
                 is_email_verified=False,
-                role=DBUserRole.USER if user_create.role == UserRole.USER else DBUserRole.ADMIN,
+                role=(
+                    DBUserRole.USER
+                    if user_create.role == UserRole.USER
+                    else DBUserRole.ADMIN
+                ),
                 login_count=0,
                 created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow()
+                updated_at=datetime.utcnow(),
             )
 
             self.db.add(new_user)
@@ -69,7 +78,7 @@ class UserService:
             self.db.rollback()
             raise
 
-    def get_user_by_id(self, user_id: str) -> Optional[User]:
+    def get_user_by_id(self, user_id: str) -> User | None:
         """사용자 ID로 사용자 조회"""
         try:
             return self.db.query(User).filter(User.user_id == user_id).first()
@@ -77,7 +86,7 @@ class UserService:
             logger.error(f"사용자 조회 실패 (ID: {user_id}): {e}")
             return None
 
-    def get_user_by_email(self, email: str) -> Optional[User]:
+    def get_user_by_email(self, email: str) -> User | None:
         """이메일로 사용자 조회"""
         try:
             return self.db.query(User).filter(User.email == email).first()
@@ -89,12 +98,12 @@ class UserService:
         self,
         page: int = 1,
         size: int = 20,
-        search_params: Optional[UserSearchParams] = None
+        search_params: UserSearchParams | None = None,
     ) -> UserListResponse:
         """사용자 목록 조회 (페이징, 필터링 지원)"""
         try:
             # 삭제된 사용자 제외 (소프트 삭제된 사용자)
-            query = self.db.query(User).filter(~User.email.like('deleted_%'))
+            query = self.db.query(User).filter(~User.email.like("deleted_%"))
 
             # 검색 조건 적용
             if search_params:
@@ -102,43 +111,55 @@ class UserService:
                     query = query.filter(User.email.ilike(f"%{search_params.email}%"))
 
                 if search_params.nickname:
-                    query = query.filter(User.nickname.ilike(f"%{search_params.nickname}%"))
+                    query = query.filter(
+                        User.nickname.ilike(f"%{search_params.nickname}%")
+                    )
 
                 if search_params.role:
-                    db_role = DBUserRole.USER if search_params.role == UserRole.USER else DBUserRole.ADMIN
+                    db_role = (
+                        DBUserRole.USER
+                        if search_params.role == UserRole.USER
+                        else DBUserRole.ADMIN
+                    )
                     query = query.filter(User.role == db_role)
 
                 if search_params.is_active is not None:
                     query = query.filter(User.is_active == search_params.is_active)
 
                 if search_params.is_email_verified is not None:
-                    query = query.filter(User.is_email_verified == search_params.is_email_verified)
+                    query = query.filter(
+                        User.is_email_verified == search_params.is_email_verified
+                    )
 
                 if search_params.preferred_region:
-                    query = query.filter(User.preferred_region.ilike(f"%{search_params.preferred_region}%"))
+                    query = query.filter(
+                        User.preferred_region.ilike(
+                            f"%{search_params.preferred_region}%"
+                        )
+                    )
 
                 if search_params.created_after:
                     query = query.filter(User.created_at >= search_params.created_after)
 
                 if search_params.created_before:
-                    query = query.filter(User.created_at <= search_params.created_before)
+                    query = query.filter(
+                        User.created_at <= search_params.created_before
+                    )
 
             # 총 개수 계산
             total = query.count()
 
             # 페이징 적용
             offset = (page - 1) * size
-            users = query.order_by(desc(User.created_at)).offset(offset).limit(size).all()
+            users = (
+                query.order_by(desc(User.created_at)).offset(offset).limit(size).all()
+            )
 
             # 총 페이지 수 계산
             total_pages = math.ceil(total / size)
 
             return UserListResponse(
-                users=users,
-                total=total,
-                page=page,
-                size=size,
-                total_pages=total_pages
+                users=users, total=total, page=page, size=size, total_pages=total_pages
             )
 
         except Exception as e:
@@ -151,21 +172,26 @@ class UserService:
             # 간단한 개별 쿼리로 안정성 확보 (복잡한 CASE 문 대신)
             total_users = self.db.query(User).count()
             active_users = self.db.query(User).filter(User.is_active == True).count()
-            verified_users = self.db.query(User).filter(User.is_email_verified == True).count()
-            admin_users = self.db.query(User).filter(User.role == DBUserRole.ADMIN).count()
-            
+            verified_users = (
+                self.db.query(User).filter(User.is_email_verified == True).count()
+            )
+            admin_users = (
+                self.db.query(User).filter(User.role == DBUserRole.ADMIN).count()
+            )
+
             # 최근 30일 가입자
             thirty_days_ago = datetime.utcnow() - timedelta(days=30)
-            recent_registrations = self.db.query(User).filter(
-                User.created_at >= thirty_days_ago
-            ).count()
-            
+            recent_registrations = (
+                self.db.query(User).filter(User.created_at >= thirty_days_ago).count()
+            )
+
             # 최근 7일 로그인 사용자 (NULL 값 제외)
             seven_days_ago = datetime.utcnow() - timedelta(days=7)
-            recent_logins = self.db.query(User).filter(
-                User.last_login.isnot(None),
-                User.last_login >= seven_days_ago
-            ).count()
+            recent_logins = (
+                self.db.query(User)
+                .filter(User.last_login.isnot(None), User.last_login >= seven_days_ago)
+                .count()
+            )
 
             return UserStats(
                 total_users=total_users,
@@ -173,7 +199,7 @@ class UserService:
                 verified_users=verified_users,
                 admin_users=admin_users,
                 recent_registrations=recent_registrations,
-                recent_logins=recent_logins
+                recent_logins=recent_logins,
             )
 
         except Exception as e:
@@ -181,7 +207,7 @@ class UserService:
             self.db.rollback()
             raise
 
-    def update_user(self, user_id: str, user_update: UserUpdate) -> Optional[User]:
+    def update_user(self, user_id: str, user_update: UserUpdate) -> User | None:
         """사용자 정보 수정"""
         try:
             user = self.get_user_by_id(user_id)
@@ -254,7 +280,7 @@ class UserService:
             user.is_active = False
             user.email = f"deleted_{user_id}_{user.email}"  # 이메일 충돌 방지
             user.updated_at = datetime.utcnow()
-            
+
             self.db.commit()
 
             logger.info(f"사용자 삭제 완료 (소프트 삭제): {user_id}")
@@ -265,7 +291,9 @@ class UserService:
             self.db.rollback()
             raise
 
-    def reset_user_password(self, user_id: str, new_password: str = "123456789a") -> bool:
+    def reset_user_password(
+        self, user_id: str, new_password: str = "123456789a"
+    ) -> bool:
         """사용자 비밀번호 초기화 (레거시 메서드)"""
         try:
             user = self.get_user_by_id(user_id)
@@ -309,26 +337,33 @@ class UserService:
             self.db.rollback()
             return False
 
-    def search_users_by_keyword(self, keyword: str, limit: int = 20) -> List[User]:
+    def search_users_by_keyword(self, keyword: str, limit: int = 20) -> list[User]:
         """키워드로 사용자 검색 (이메일, 닉네임)"""
         try:
-            return self.db.query(User).filter(
-                or_(
-                    User.email.ilike(f"%{keyword}%"),
-                    User.nickname.ilike(f"%{keyword}%")
+            return (
+                self.db.query(User)
+                .filter(
+                    or_(
+                        User.email.ilike(f"%{keyword}%"),
+                        User.nickname.ilike(f"%{keyword}%"),
+                    )
                 )
-            ).limit(limit).all()
+                .limit(limit)
+                .all()
+            )
 
         except Exception as e:
             logger.error(f"사용자 검색 실패 (키워드: {keyword}): {e}")
             raise
 
-    def get_users_by_region(self, region: str) -> List[User]:
+    def get_users_by_region(self, region: str) -> list[User]:
         """지역별 사용자 조회"""
         try:
-            return self.db.query(User).filter(
-                User.preferred_region.ilike(f"%{region}%")
-            ).all()
+            return (
+                self.db.query(User)
+                .filter(User.preferred_region.ilike(f"%{region}%"))
+                .all()
+            )
 
         except Exception as e:
             logger.error(f"지역별 사용자 조회 실패 (지역: {region}): {e}")

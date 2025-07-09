@@ -283,3 +283,128 @@ $RECYCLE.BIN/
 *.lnk
 
 # End of https://www.toptal.com/developers/gitignore/api/windows,macos,visualstudiocode,python,dotenv,venv,git
+
+# ===== Weather Flick 관리자 백엔드 프로젝트 특화 규칙 =====
+
+# 로그 파일 및 디렉토리
+logs/**/*
+*.log
+admin.log
+admin_server.log
+auth.log
+system.log
+
+# 테스트 결과 및 리포트
+test-results/
+htmlcov/
+reports/
+*.json
+*_report.json
+*_test_report.json
+
+# 데이터베이스 관련
+*.db
+*.sqlite
+*.sqlite3
+backups/
+migration_backup_*.sql
+
+# 임시 파일 및 캐시
+temp/
+tmp/
+cache/
+*.tmp
+*.temp
+*.pid
+
+# 개발 도구 파일
+.claude/
+.cursor/
+
+# 환경별 설정 파일
+.env.*
+!.env.example
+config/local.py
+config/production.py
+
+# 프로젝트 워크스페이스
+*.code-workspace
+*.workspace
+
+# 업로드 파일
+uploads/
+static/uploads/
+
+# 외부 API 키 및 시크릿
+secrets/
+credentials/
+*.pem
+*.key
+*.cert
+
+# Docker 관련
+.dockerignore
+docker-compose.override.yml
+docker-compose.local.yml
+
+# 성능 프로파일링 결과
+*.prof
+*.profile
+performance_*.json
+
+# 관리자 로그
+admin_actions.log
+user_management.log
+system_monitoring.log
+
+# 임시 스크립트 파일
+temp_*.py
+quick_*.py
+debug_*.py
+test_*.py
+
+# 백업 파일
+*.backup
+*.bak
+*.orig
+
+# 에러 리포트
+error_*.log
+exception_*.log
+
+# 임시 데이터 파일
+temp_data/
+sample_data/
+test_data/
+
+# 메모리 덤프
+*.dump
+*.dmp
+
+# 커버리지 리포트
+.coverage.*
+coverage.xml
+coverage.json
+
+# 문서 빌드
+docs/_build/
+docs/build/
+
+# 캐시 파일
+.cache/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# 관리자 전용 파일
+admin_settings.json
+user_exports/
+system_reports/
+
+# IDE 플러그인
+.vscode/settings.json
+.vscode/launch.json
+.vscode/tasks.json
+!.vscode/extensions.json
+htmlcov/

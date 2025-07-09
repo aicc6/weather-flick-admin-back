@@ -1,13 +1,12 @@
 """Admin application configuration settings."""
 
 import os
-from typing import Optional
-
-from pydantic import field_validator
-from pydantic_settings import BaseSettings
 
 # .env 파일 로드
 from dotenv import load_dotenv
+from pydantic import field_validator
+from pydantic_settings import BaseSettings
+
 load_dotenv()
 
 
@@ -54,7 +53,9 @@ class Settings(BaseSettings):
     weather_api_url: str = "http://api.weatherapi.com/v1"
 
     kto_api_key: str = os.getenv("KTO_API_KEY", "")
-    kto_forecast_url: str = "http://api.visitkorea.or.kr/openapi/service/rest/KorService"
+    kto_forecast_url: str = (
+        "http://api.visitkorea.or.kr/openapi/service/rest/KorService"
+    )
 
     kakao_api_key: str = os.getenv("KAKAO_API_KEY", "")
     kakao_api_url: str = "https://dapi.kakao.com/v2/local"
@@ -67,10 +68,14 @@ class Settings(BaseSettings):
     google_places_url: str = "https://maps.googleapis.com/maps/api/place"
     google_client_id: str = os.getenv("GOOGLE_CLIENT_ID", "")
     google_client_secret: str = os.getenv("GOOGLE_CLIENT_SECRET", "")
-    google_redirect_uri: str = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/auth/google/callback")
+    google_redirect_uri: str = os.getenv(
+        "GOOGLE_REDIRECT_URI", "http://localhost:8000/auth/google/callback"
+    )
 
     korea_tourism_api_key: str = os.getenv("KOREA_TOURISM_API_KEY", "")
-    korea_tourism_api_url: str = "http://api.visitkorea.or.kr/openapi/service/rest/KorService"
+    korea_tourism_api_url: str = (
+        "http://api.visitkorea.or.kr/openapi/service/rest/KorService"
+    )
 
     # 프론트엔드 설정
     admin_frontend_url: str = os.getenv("ADMIN_FRONTEND_URL", "http://localhost:5174")

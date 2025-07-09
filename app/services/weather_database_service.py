@@ -1,13 +1,13 @@
-from sqlalchemy.orm import Session
-from sqlalchemy import desc, func, and_
-from typing import List, Optional, Dict, Any
-from datetime import datetime, timedelta
 import logging
+from datetime import datetime
+from typing import Any, Dict, Optional, List
+
+from sqlalchemy import and_, desc, func
+from sqlalchemy.orm import Session
 
 from ..models import WeatherData
 from ..database import get_db
 from ..weather.models import WeatherInfo, LocationCoordinate
-
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +72,9 @@ class WeatherDatabaseService:
                 return weather_data
 
         except Exception as e:
-            logger.error(f"Error saving weather data for {weather_info.location}: {str(e)}")
+            logger.error(
+                f"Error saving weather data for {weather_info.location}: {str(e)}"
+            )
             self.db.rollback()
             return None
 
@@ -142,7 +144,7 @@ class WeatherDatabaseService:
             "city_counts": city_counts,
             "latest_forecast_time": latest_time,
             "oldest_forecast_time": oldest_time,
-            "max_allowed_records": self.MAX_RECORDS
+            "max_allowed_records": self.MAX_RECORDS,
         }
 
     def _cleanup_old_data(self):
@@ -167,7 +169,9 @@ class WeatherDatabaseService:
                 ).delete(synchronize_session=False)
 
                 self.db.commit()
-                logger.info(f"Cleaned up {deleted_count} old weather records. Total records: {total_count - deleted_count}")
+                logger.info(
+                    f"Cleaned up {deleted_count} old weather records. Total records: {total_count - deleted_count}"
+                )
 
     def cleanup_old_data_manual(self) -> int:
         """수동으로 오래된 데이터 정리"""

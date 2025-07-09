@@ -1,0 +1,13 @@
+name: weather-flick-admin-back
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.12
+  - pip
+  - postgresql
+  - redis
+  - pip:
+    - -r requirements.txt
+variables:
+  PYTHONPATH: ${CONDA_PREFIX}

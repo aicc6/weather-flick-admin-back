@@ -1,7 +1,7 @@
 import enum
 import uuid
-from datetime import datetime, date
-from typing import Any, Optional, List
+from datetime import date, datetime
+from typing import Any
 
 from pydantic import BaseModel,validator
 from sqlalchemy import (
@@ -33,12 +33,14 @@ class AdminStatus(enum.Enum):
     INACTIVE = "INACTIVE"
     LOCKED = "LOCKED"
 
+
 # v3 ERD용 새로운 Enum 타입들
 class SocialProvider(enum.Enum):
     GOOGLE = "GOOGLE"
     NAVER = "NAVER"
     KAKAO = "KAKAO"
     EMAIL = "EMAIL"
+
 
 class TravelPlanStatus(enum.Enum):
     PLANNING = "PLANNING"
@@ -47,10 +49,12 @@ class TravelPlanStatus(enum.Enum):
     COMPLETED = "COMPLETED"
     CANCELLED = "CANCELLED"
 
+
 class WeatherDependency(enum.Enum):
-    HIGH = "HIGH"      # 날씨에 크게 의존 (해변, 등산 등)
+    HIGH = "HIGH"  # 날씨에 크게 의존 (해변, 등산 등)
     MEDIUM = "MEDIUM"  # 보통 의존 (일반 관광지)
-    LOW = "LOW"        # 낮은 의존 (박물관, 쇼핑몰 등)
+    LOW = "LOW"  # 낮은 의존 (박물관, 쇼핑몰 등)
+
 
 class DestinationCategory(enum.Enum):
     TOURIST_ATTRACTION = "TOURIST_ATTRACTION"
@@ -343,6 +347,7 @@ class FavoritePlace(Base):
 
 class Restaurant(Base):
     """음식점 정보 테이블 - 한국관광공사 API 데이터 기반 (통합됨)"""
+
     __tablename__ = "restaurants"
     __table_args__ = {"extend_existing": True, "autoload_replace": False}
 
@@ -356,7 +361,7 @@ class Restaurant(Base):
     # 기본 정보
     restaurant_name = Column(String, nullable=False, index=True)
     category_code = Column(String)
-
+    sub_category_code = Column(String)
 
     # 주소 및 위치 정보
     address = Column(String)
@@ -412,6 +417,7 @@ class Transportation(Base):
 
 class Accommodation(Base):
     """숙박시설 정보 테이블 - 한국관광공사 API 데이터 기반 (통합됨)"""
+
     __tablename__ = "accommodations"
     __table_args__ = {"extend_existing": True, "autoload_replace": False}
 
@@ -419,7 +425,9 @@ class Accommodation(Base):
     content_id = Column(String(20), primary_key=True, index=True)
 
     # Foreign Keys
-    region_code = Column(String, ForeignKey("regions.region_code"), nullable=False, index=True)
+    region_code = Column(
+        String, ForeignKey("regions.region_code"), nullable=False, index=True
+    )
     raw_data_id = Column(UUID(as_uuid=True), index=True)
 
     # 기존 필드들 유지 (호환성)
@@ -725,11 +733,11 @@ class TravelPlanCreate(BaseModel):
     start_date: str
     end_date: str
     budget: float | None = None
-    itinerary: Optional[dict[str, List[dict[str, Any]]]] = None
+    itinerary: dict[str, list[dict[str, Any]]] | None = None
     participants: int | None = None
     transportation: str | None = None
     start_location: str | None = None  # 출발지 추가
-    weather_info: Optional[dict[str, Any]] = None  # 날씨 정보 추가
+    weather_info: dict[str, Any] | None = None  # 날씨 정보 추가
 
 
 class TravelPlanUpdate(BaseModel):
@@ -739,11 +747,11 @@ class TravelPlanUpdate(BaseModel):
     end_date: str | None = None
     budget: float | None = None
     status: str | None = None
-    itinerary: Optional[dict[str, List[dict[str, Any]]]] = None
+    itinerary: dict[str, list[dict[str, Any]]] | None = None
     participants: int | None = None
     transportation: str | None = None
     start_location: str | None = None
-    weather_info: Optional[dict[str, Any]] = None
+    weather_info: dict[str, Any] | None = None
 
 
 class TravelPlanResponse(BaseModel):
@@ -755,11 +763,11 @@ class TravelPlanResponse(BaseModel):
     end_date: date
     budget: float | None = None
     status: str
-    itinerary: Optional[dict[str, List[dict[str, Any]]]] = None
+    itinerary: dict[str, list[dict[str, Any]]] | None = None
     participants: int | None = None
     transportation: str | None = None
     start_location: str | None = None
-    weather_info: Optional[dict[str, Any]] = None
+    weather_info: dict[str, Any] | None = None
     created_at: datetime
 
     @validator('budget', pre=True)
@@ -903,43 +911,60 @@ UserActivity = UserActivityLog
 # 실제 데이터베이스 테이블에 대응하는 ORM 모델들
 # ===========================================
 
+
 class TouristAttraction(Base):
-    """관광지 정보 테이블 - DB 컬럼 기준"""
+    """관광지 정보 테이블 - 한국관광공사 API 데이터 기반"""
+
     __tablename__ = "tourist_attractions"
 
-    content_id = Column(String(20), primary_key=True)
-    region_code = Column(String(10), ForeignKey("regions.region_code"), nullable=False)
-    attraction_name = Column(String(300), nullable=False)
+    # Primary Key
+    content_id = Column(String(20), primary_key=True, index=True)
+
+    # Foreign Keys
+    region_code = Column(
+        String, ForeignKey("regions.region_code"), nullable=False, index=True
+    )
+    raw_data_id = Column(UUID(as_uuid=True), index=True)
+
+    # 기본 정보
+    attraction_name = Column(String, nullable=False, index=True)
     category_code = Column(String(10))
     category_name = Column(String(50))
-    address = Column(String(200))
+    sub_category_code = Column(String(10))
+    sub_category_name = Column(String(50))
+
+    # 주소 및 위치 정보
+    address = Column(String)
+    detail_address = Column(String)
+    zipcode = Column(String(10))
     latitude = Column(DECIMAL(10, 8))
     longitude = Column(DECIMAL(11, 8))
-    
+
     # 연락처 정보
     tel = Column(String(50))
     homepage = Column(Text)
-    
+
     # v3 확장성 및 관리 필드
-    data_source = Column(String, default="LEGACY")  # "KTO", "GOOGLE", "MANUAL", "LEGACY"
+    data_source = Column(
+        String, default="LEGACY"
+    )  # "KTO", "GOOGLE", "MANUAL", "LEGACY"
     external_id = Column(String)  # 외부 시스템 ID
     is_verified = Column(Boolean, default=False)  # 관리자 검증 여부
     verification_date = Column(DateTime)
     verified_by = Column(Integer, ForeignKey("admins.admin_id"))
-    management_status = Column(String, default="ACTIVE")  # "ACTIVE", "INACTIVE", "PENDING", "REJECTED"
+    management_status = Column(
+        String, default="ACTIVE"
+    )  # "ACTIVE", "INACTIVE", "PENDING", "REJECTED"
     last_updated_by = Column(Integer, ForeignKey("admins.admin_id"))
     quality_score = Column(Float, default=0.0)  # 데이터 품질 점수
-    
+
     # 설명 및 이미지
     description = Column(Text)
-    image_url = Column(String(500))
-    created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
-    raw_data_id = Column(UUID(as_uuid=True))
-    last_sync_at = Column(DateTime, server_default=func.now())
-    data_quality_score = Column(DECIMAL(5, 2))
-    processing_status = Column(String(20), default="processed")
-    homepage = Column(Text)
+    overview = Column(Text)
+    first_image = Column(String)
+    first_image_small = Column(String)
+
+    # API 원본 필드
     booktour = Column(String(1))
     createdtime = Column(String(14))
     modifiedtime = Column(String(14))
@@ -947,26 +972,38 @@ class TouristAttraction(Base):
     faxno = Column(String(50))
     zipcode = Column(String(10))
     mlevel = Column(Integer)
+
+    # JSON 데이터
     detail_intro_info = Column(JSONB)
     detail_additional_info = Column(JSONB)
+
+    # 메타데이터
+    data_quality_score = Column(DECIMAL(5, 2))
+    processing_status = Column(String(20), default="processed")
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    last_sync_at = Column(DateTime, server_default=func.now())
 
 
 class CulturalFacility(Base):
     """문화시설 정보 테이블"""
+
     __tablename__ = "cultural_facilities"
 
     # Primary Key
     content_id = Column(String(20), primary_key=True, index=True)
 
     # Foreign Keys
-    region_code = Column(String, ForeignKey("regions.region_code"), nullable=False, index=True)
+    region_code = Column(
+        String, ForeignKey("regions.region_code"), nullable=False, index=True
+    )
     raw_data_id = Column(UUID(as_uuid=True), index=True)
 
     # 기본 정보
     facility_name = Column(String, nullable=False, index=True)
     facility_type = Column(String)
     category_code = Column(String(10))
-
+    sub_category_code = Column(String(10))
 
     # 주소 및 위치 정보
     address = Column(String)
@@ -1015,19 +1052,22 @@ class CulturalFacility(Base):
 
 class FestivalEvent(Base):
     """축제/행사 정보 테이블"""
+
     __tablename__ = "festivals_events"
 
     # Primary Key
     content_id = Column(String(20), primary_key=True, index=True)
 
     # Foreign Keys
-    region_code = Column(String, ForeignKey("regions.region_code"), nullable=False, index=True)
+    region_code = Column(
+        String, ForeignKey("regions.region_code"), nullable=False, index=True
+    )
     raw_data_id = Column(UUID(as_uuid=True), index=True)
 
     # 기본 정보
     event_name = Column(String, nullable=False, index=True)
     category_code = Column(String(10))
-
+    sub_category_code = Column(String(10))
 
     # 일정 정보
     event_start_date = Column(Date)
@@ -1211,20 +1251,23 @@ class TravelCourse(Base):
 
 class Shopping(Base):
     """쇼핑 정보 테이블"""
+
     __tablename__ = "shopping"
 
     # Primary Key
     content_id = Column(String(20), primary_key=True, index=True)
 
     # Foreign Keys
-    region_code = Column(String, ForeignKey("regions.region_code"), nullable=False, index=True)
+    region_code = Column(
+        String, ForeignKey("regions.region_code"), nullable=False, index=True
+    )
     raw_data_id = Column(UUID(as_uuid=True), index=True)
 
     # 기본 정보
     shop_name = Column(String, nullable=False, index=True)
     shop_type = Column(String)
     category_code = Column(String(10))
-
+    sub_category_code = Column(String(10))
 
     # 주소 및 위치 정보
     address = Column(String)
@@ -1275,6 +1318,7 @@ class Shopping(Base):
 
 class PetTourInfo(Base):
     """반려동물 관광정보 테이블"""
+
     __tablename__ = "pet_tour_info"
 
     # Primary Key
@@ -1325,17 +1369,25 @@ class PetTourInfo(Base):
 
 class UnifiedRegionNew(Base):
     """통합 지역정보 테이블 (기존 UnifiedRegion 클래스와 구분)"""
+
     __tablename__ = "unified_regions"
     __table_args__ = {"extend_existing": True, "autoload_replace": False}
 
     # Primary Key
-    region_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    region_id = Column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
+    )
 
     # Unique 필드
     region_code = Column(String(20), unique=True, index=True)
 
     # Foreign Keys (자기 참조)
-    parent_region_id = Column(UUID(as_uuid=True), ForeignKey("unified_regions.region_id"), nullable=True, index=True)
+    parent_region_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("unified_regions.region_id"),
+        nullable=True,
+        index=True,
+    )
 
     # 기본 정보
     region_name = Column(String, nullable=False)
@@ -1362,14 +1414,31 @@ class UnifiedRegionNew(Base):
 
 
 # 성능 최적화를 위한 인덱스들
-Index("idx_tourist_attractions_region_category", TouristAttraction.region_code, TouristAttraction.category_code)
-Index("idx_cultural_facilities_region_type", CulturalFacility.region_code, CulturalFacility.facility_type)
-Index("idx_festivals_events_region_dates", FestivalEvent.region_code, FestivalEvent.event_start_date, FestivalEvent.event_end_date)
+Index(
+    "idx_tourist_attractions_region_category",
+    TouristAttraction.region_code,
+    TouristAttraction.category_code,
+)
+Index(
+    "idx_cultural_facilities_region_type",
+    CulturalFacility.region_code,
+    CulturalFacility.facility_type,
+)
+Index(
+    "idx_festivals_events_region_dates",
+    FestivalEvent.region_code,
+    FestivalEvent.event_start_date,
+    FestivalEvent.event_end_date,
+)
 Index("idx_restaurants_region_cuisine", Restaurant.region_code, Restaurant.cuisine_type)
 Index("idx_accommodations_region_type", Accommodation.region_code, Accommodation.type)
 Index("idx_shopping_region_type", Shopping.region_code, Shopping.shop_type)
 Index("idx_pet_tour_info_content_id", PetTourInfo.content_id)
-Index("idx_unified_regions_code_level", UnifiedRegionNew.region_code, UnifiedRegionNew.region_level)
+Index(
+    "idx_unified_regions_code_level",
+    UnifiedRegionNew.region_code,
+    UnifiedRegionNew.region_level,
+)
 
 
 class Region(Base):
@@ -1389,18 +1458,16 @@ class Region(Base):
 # 임시 비밀번호 관련 스키마
 class ForgotPasswordRequest(BaseModel):
     """비밀번호 찾기 요청"""
+
     email: str
 
     class Config:
-        json_schema_extra = {
-            "example": {
-                "email": "user@example.com"
-            }
-        }
+        json_schema_extra = {"example": {"email": "user@example.com"}}
 
 
 class ForgotPasswordResponse(BaseModel):
     """비밀번호 찾기 응답"""
+
     message: str
     success: bool = True
 
@@ -1408,7 +1475,7 @@ class ForgotPasswordResponse(BaseModel):
         json_schema_extra = {
             "example": {
                 "message": "임시 비밀번호가 이메일로 전송되었습니다.",
-                "success": True
+                "success": True,
             }
         }
 
@@ -1416,6 +1483,7 @@ class ForgotPasswordResponse(BaseModel):
 # 회원탈퇴 관련 스키마
 class WithdrawRequest(BaseModel):
     """회원탈퇴 요청"""
+
     password: str | None = None  # 소셜 로그인 사용자는 비밀번호 불필요
     reason: str | None = None  # 탈퇴 사유 (선택사항)
 
@@ -1423,22 +1491,20 @@ class WithdrawRequest(BaseModel):
         json_schema_extra = {
             "example": {
                 "password": "current_password",
-                "reason": "서비스 이용이 불필요해짐"
+                "reason": "서비스 이용이 불필요해짐",
             }
         }
 
 
 class WithdrawResponse(BaseModel):
     """회원탈퇴 응답"""
+
     message: str
     success: bool = True
 
     class Config:
         json_schema_extra = {
-            "example": {
-                "message": "회원탈퇴가 완료되었습니다.",
-                "success": True
-            }
+            "example": {"message": "회원탈퇴가 완료되었습니다.", "success": True}
         }
 
 
@@ -1446,8 +1512,10 @@ class WithdrawResponse(BaseModel):
 # 새로 추가된 모델들에 대한 Pydantic 스키마
 # ===========================================
 
+
 class TouristAttractionResponse(BaseModel):
     """관광지 정보 응답 스키마"""
+
     content_id: str
     region_code: str
     attraction_name: str
@@ -1470,6 +1538,7 @@ class TouristAttractionResponse(BaseModel):
 
 class CulturalFacilityResponse(BaseModel):
     """문화시설 정보 응답 스키마"""
+
     content_id: str
     region_code: str
     facility_name: str
@@ -1494,6 +1563,7 @@ class CulturalFacilityResponse(BaseModel):
 
 class FestivalEventResponse(BaseModel):
     """축제/행사 정보 응답 스키마"""
+
     content_id: str
     region_code: str
     event_name: str
@@ -1568,6 +1638,7 @@ class LeisureSportsResponse(BaseModel):
 
 class ShoppingResponse(BaseModel):
     """쇼핑 정보 응답 스키마"""
+
     content_id: str
     region_code: str
     shop_name: str
@@ -1594,6 +1665,7 @@ class ShoppingResponse(BaseModel):
 
 class PetTourInfoResponse(BaseModel):
     """반려동물 관광정보 응답 스키마"""
+
     id: uuid.UUID
     content_id: str | None = None
     content_type_id: str | None = None
@@ -1621,6 +1693,7 @@ class PetTourInfoResponse(BaseModel):
 
 class UnifiedRegionResponse(BaseModel):
     """통합 지역정보 응답 스키마"""
+
     region_id: uuid.UUID
     region_code: str | None = None
     region_name: str
@@ -1640,9 +1713,10 @@ class UnifiedRegionResponse(BaseModel):
 # v3 ERD 핵심 모델들 추가
 class UserSocialAccount(Base):
     """소셜 로그인 계정 정보"""
+
     __tablename__ = "user_social_accounts"
     __table_args__ = {"extend_existing": True}
-    
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.user_id"), nullable=False)
     provider = Column(Enum(SocialProvider), nullable=False)
@@ -1655,47 +1729,53 @@ class UserSocialAccount(Base):
     token_expires_at = Column(DateTime)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
-    
+
     # 복합 유니크 제약조건
     __table_args__ = (
-        Index('idx_user_social_provider', 'user_id', 'provider'),
-        Index('idx_social_provider_id', 'provider', 'social_id'),
-        {"extend_existing": True}
+        Index("idx_user_social_provider", "user_id", "provider"),
+        Index("idx_social_provider_id", "provider", "social_id"),
+        {"extend_existing": True},
     )
-    
+
     # 관계 설정
     user = relationship("User", back_populates="social_accounts")
 
 
 class UserPreference(Base):
     """사용자 선호 설정"""
+
     __tablename__ = "user_preferences"
     __table_args__ = {"extend_existing": True}
-    
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.user_id"), nullable=False)
     preferred_regions = Column(JSONB)  # ["서울", "부산", "제주"]
     preferred_themes = Column(JSONB)  # ["문화관광", "자연관광", "음식여행"]
     preferred_activities = Column(JSONB)  # ["등산", "쇼핑", "사진촬영"]
-    weather_preferences = Column(JSONB)  # {"min_temp": 15, "max_temp": 25, "no_rain": true}
+    weather_preferences = Column(
+        JSONB
+    )  # {"min_temp": 15, "max_temp": 25, "no_rain": true}
     accessibility_needs = Column(JSONB)  # {"wheelchair": true, "parking": true}
     budget_range = Column(String)  # "BUDGET", "STANDARD", "PREMIUM"
     travel_style = Column(String)  # "RELAXED", "ACTIVE", "CULTURAL"
     notification_settings = Column(JSONB)  # 알림 설정
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
-    
+
     # 관계 설정
     user = relationship("User", back_populates="preferences")
 
 
 class TravelDay(Base):
     """여행 계획의 일별 상세"""
+
     __tablename__ = "travel_days"
     __table_args__ = {"extend_existing": True}
-    
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    travel_plan_id = Column(UUID(as_uuid=True), ForeignKey("travel_plans.plan_id"), nullable=False)
+    travel_plan_id = Column(
+        UUID(as_uuid=True), ForeignKey("travel_plans.plan_id"), nullable=False
+    )
     day_number = Column(Integer, nullable=False)  # 1일차, 2일차 등
     date = Column(Date, nullable=False)
     title = Column(String, nullable=False)  # "서울 도심 탐방"
@@ -1704,13 +1784,13 @@ class TravelDay(Base):
     weather_forecast = Column(JSONB)  # 해당 날짜 날씨 예보
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
-    
+
     # 인덱스
     __table_args__ = (
-        Index('idx_travel_plan_day', 'travel_plan_id', 'day_number'),
-        {"extend_existing": True}
+        Index("idx_travel_plan_day", "travel_plan_id", "day_number"),
+        {"extend_existing": True},
     )
-    
+
     # 관계 설정
     travel_plan = relationship("TravelPlan", back_populates="travel_days")
     destinations = relationship("TravelDayDestination", back_populates="travel_day")
@@ -1718,12 +1798,17 @@ class TravelDay(Base):
 
 class TravelDayDestination(Base):
     """일별 여행지 방문 계획"""
+
     __tablename__ = "travel_day_destinations"
     __table_args__ = {"extend_existing": True}
-    
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    travel_day_id = Column(UUID(as_uuid=True), ForeignKey("travel_days.id"), nullable=False)
-    destination_id = Column(UUID(as_uuid=True), ForeignKey("destinations.destination_id"), nullable=False)
+    travel_day_id = Column(
+        UUID(as_uuid=True), ForeignKey("travel_days.id"), nullable=False
+    )
+    destination_id = Column(
+        UUID(as_uuid=True), ForeignKey("destinations.destination_id"), nullable=False
+    )
     visit_order = Column(Integer, nullable=False)  # 방문 순서 (1, 2, 3...)
     planned_arrival_time = Column(DateTime)
     planned_departure_time = Column(DateTime)
@@ -1734,32 +1819,35 @@ class TravelDayDestination(Base):
     weather_dependency = Column(Enum(WeatherDependency))
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
-    
+
     # 인덱스
     __table_args__ = (
-        Index('idx_travel_day_order', 'travel_day_id', 'visit_order'),
-        {"extend_existing": True}
+        Index("idx_travel_day_order", "travel_day_id", "visit_order"),
+        {"extend_existing": True},
     )
-    
+
     # 관계 설정
     travel_day = relationship("TravelDay", back_populates="destinations")
     destination = relationship("Destination", back_populates="travel_day_destinations")
 
 
 # Destination 모델에 travel_day_destinations 관계 추가
-setattr(Destination, 'travel_day_destinations', relationship("TravelDayDestination", back_populates="destination"))
+Destination.travel_day_destinations = relationship("TravelDayDestination", back_populates="destination")
 
-# TravelPlan 모델에 travel_days 관계 추가  
-setattr(TravelPlan, 'travel_days', relationship("TravelDay", back_populates="travel_plan"))
+# TravelPlan 모델에 travel_days 관계 추가
+TravelPlan.travel_days = relationship("TravelDay", back_populates="travel_plan")
 
 
 class WeatherSnapshot(Base):
     """특정 시점의 날씨 데이터"""
+
     __tablename__ = "weather_snapshots"
     __table_args__ = {"extend_existing": True}
-    
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    weather_region_id = Column(UUID(as_uuid=True), ForeignKey("weather_regions.id"), nullable=False)
+    weather_region_id = Column(
+        UUID(as_uuid=True), ForeignKey("weather_regions.id"), nullable=False
+    )
     forecast_date = Column(Date, nullable=False)
     forecast_datetime = Column(DateTime, nullable=False)
     temperature = Column(Float)  # 온도 (°C)
@@ -1776,23 +1864,24 @@ class WeatherSnapshot(Base):
     air_quality_index = Column(Integer)  # 대기질 지수
     data_source = Column(String, nullable=False)  # "KMA", "OPENWEATHER" 등
     collected_at = Column(DateTime, server_default=func.now())
-    
+
     # 인덱스
     __table_args__ = (
-        Index('idx_weather_region_date', 'weather_region_id', 'forecast_date'),
-        Index('idx_forecast_datetime', 'forecast_datetime'),
-        {"extend_existing": True}
+        Index("idx_weather_region_date", "weather_region_id", "forecast_date"),
+        Index("idx_forecast_datetime", "forecast_datetime"),
+        {"extend_existing": True},
     )
-    
+
     # 관계 설정
     weather_region = relationship("WeatherRegion", back_populates="weather_snapshots")
 
 
 class WeatherRegion(Base):
     """날씨 예보 지역"""
+
     __tablename__ = "weather_regions"
     __table_args__ = {"extend_existing": True}
-    
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     region_code = Column(String, unique=True, nullable=False)  # 기상청 지역코드
     region_name = Column(String, nullable=False)  # "서울특별시 강남구"
@@ -1803,33 +1892,36 @@ class WeatherRegion(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
-    
+
     # 관계 설정
     weather_snapshots = relationship("WeatherSnapshot", back_populates="weather_region")
 
 
 class ContentApproval(Base):
     """콘텐츠 승인 관리"""
+
     __tablename__ = "content_approvals"
     __table_args__ = {"extend_existing": True}
-    
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     content_type = Column(String, nullable=False)  # "DESTINATION", "REVIEW", "IMAGE"
     content_id = Column(UUID(as_uuid=True), nullable=False)  # 관련 콘텐츠 ID
-    status = Column(String, nullable=False, default="PENDING")  # "PENDING", "APPROVED", "REJECTED"
+    status = Column(
+        String, nullable=False, default="PENDING"
+    )  # "PENDING", "APPROVED", "REJECTED"
     submitted_by = Column(UUID(as_uuid=True), ForeignKey("users.user_id"))
     reviewed_by = Column(Integer, ForeignKey("admins.admin_id"))
     review_notes = Column(Text)  # 승인/거부 사유
     submitted_at = Column(DateTime, server_default=func.now())
     reviewed_at = Column(DateTime)
-    
+
     # 인덱스
     __table_args__ = (
-        Index('idx_content_approval_status', 'content_type', 'status'),
-        Index('idx_content_approval_submitted', 'submitted_at'),
-        {"extend_existing": True}
+        Index("idx_content_approval_status", "content_type", "status"),
+        Index("idx_content_approval_submitted", "submitted_at"),
+        {"extend_existing": True},
     )
-    
+
     # 관계 설정
     submitter = relationship("User", foreign_keys=[submitted_by])
     reviewer = relationship("Admin", foreign_keys=[reviewed_by])
@@ -1838,11 +1930,14 @@ class ContentApproval(Base):
 # 관리자용 데이터 소스 및 확장성 관리
 class DataSource(Base):
     """외부 데이터 소스 관리"""
+
     __tablename__ = "data_sources"
     __table_args__ = {"extend_existing": True}
-    
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    name = Column(String, nullable=False, unique=True)  # "한국관광공사", "기상청", "구글맵"
+    name = Column(
+        String, nullable=False, unique=True
+    )  # "한국관광공사", "기상청", "구글맵"
     api_endpoint = Column(String)
     api_key_name = Column(String)  # 환경변수명
     description = Column(Text)
@@ -1856,40 +1951,51 @@ class DataSource(Base):
 
 class ExternalDestination(Base):
     """외부 수집 여행지 데이터 (승인 전)"""
+
     __tablename__ = "external_destinations"
     __table_args__ = {"extend_existing": True}
-    
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    data_source_id = Column(UUID(as_uuid=True), ForeignKey("data_sources.id"), nullable=False)
+    data_source_id = Column(
+        UUID(as_uuid=True), ForeignKey("data_sources.id"), nullable=False
+    )
     external_id = Column(String, nullable=False)  # 외부 시스템의 ID
     raw_data = Column(JSONB)  # 원본 JSON 데이터
     parsed_data = Column(JSONB)  # 파싱된 구조화 데이터
-    
+
     # 관리자 승인 상태
-    approval_status = Column(String, default="PENDING")  # PENDING, APPROVED, REJECTED, MERGED
+    approval_status = Column(
+        String, default="PENDING"
+    )  # PENDING, APPROVED, REJECTED, MERGED
     approved_by = Column(Integer, ForeignKey("admins.admin_id"))
     approved_at = Column(DateTime)
-    merged_to_destination_id = Column(UUID(as_uuid=True), ForeignKey("destinations.destination_id"))
-    
+    merged_to_destination_id = Column(
+        UUID(as_uuid=True), ForeignKey("destinations.destination_id")
+    )
+
     # 메타데이터
     quality_score = Column(Float, default=0.0)
-    duplicate_check_status = Column(String, default="UNCHECKED")  # UNCHECKED, UNIQUE, DUPLICATE
+    duplicate_check_status = Column(
+        String, default="UNCHECKED"
+    )  # UNCHECKED, UNIQUE, DUPLICATE
     duplicate_of = Column(UUID(as_uuid=True), ForeignKey("external_destinations.id"))
-    
+
     collected_at = Column(DateTime, server_default=func.now())
     last_processed_at = Column(DateTime)
-    
+
     # 인덱스
     __table_args__ = (
-        Index('idx_external_dest_source', 'data_source_id', 'external_id'),
-        Index('idx_external_dest_approval', 'approval_status'),
-        {"extend_existing": True}
+        Index("idx_external_dest_source", "data_source_id", "external_id"),
+        Index("idx_external_dest_approval", "approval_status"),
+        {"extend_existing": True},
     )
-    
+
     # 관계 설정
     data_source = relationship("DataSource")
     approver = relationship("Admin", foreign_keys=[approved_by])
-    merged_destination = relationship("Destination", foreign_keys=[merged_to_destination_id])
+    merged_destination = relationship(
+        "Destination", foreign_keys=[merged_to_destination_id]
+    )
 
 
 # 기존 Destination 모델에 추가 필드들
