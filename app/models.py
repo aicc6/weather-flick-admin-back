@@ -1047,7 +1047,6 @@ class FestivalEvent(Base):
     discount_info = Column(String)
 
     # 설명 및 이미지
-    description = Column(Text)
     overview = Column(Text)
     first_image = Column(String)
     first_image_small = Column(String)

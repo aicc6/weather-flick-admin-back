@@ -10,12 +10,12 @@ from app.routers.system import router as system_router
 from app.routers.dashboard import router as dashboard_router
 from app.routers.logs import router as logs_router
 from app.routers.travel_courses import router as travel_courses_router
+from app.routers import festivals_events
 from app.config import settings
 import logging
 from fastapi.requests import Request
 from fastapi.responses import JSONResponse
-from fastapi.exception_handlers import RequestValidationError
-from fastapi.exceptions import RequestValidationError as FastAPIRequestValidationError
+from fastapi.exceptions import RequestValidationError
 
 app = FastAPI(
     title="Weather Flick Admin API",
@@ -45,6 +45,7 @@ app.include_router(system_router, prefix="/api")
 app.include_router(dashboard_router, prefix="/api")  # 새로 추가된 대시보드 API
 app.include_router(logs_router, prefix="/api")  # 새로 추가된 로그 관리 API
 app.include_router(travel_courses_router, prefix="/api")
+app.include_router(festivals_events.router)
 
 @app.get("/")
 async def root():
@@ -74,8 +75,8 @@ async def global_exception_handler(request: Request, exc: Exception):
     logging.error(f"[GlobalError] {request.url}: {exc}")
     return JSONResponse(status_code=500, content={"detail": "서버 내부 오류"})
 
-@app.exception_handler(FastAPIRequestValidationError)
-async def validation_exception_handler(request: Request, exc: FastAPIRequestValidationError):
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
     logging.error(f"[ValidationError] {request.url}: {exc}")
     return JSONResponse(status_code=422, content={"detail": exc.errors()})
 

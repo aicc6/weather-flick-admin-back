@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import TravelCourse
 from uuid import uuid4
+from sqlalchemy import and_
 
 router = APIRouter(prefix="/travel-courses", tags=["Travel Courses"])
 
@@ -10,10 +11,17 @@ router = APIRouter(prefix="/travel-courses", tags=["Travel Courses"])
 def get_all_travel_courses(
     db: Session = Depends(get_db),
     limit: int = Query(10, ge=1, le=100),
-    offset: int = Query(0, ge=0)
+    offset: int = Query(0, ge=0),
+    course_name: str = Query(None),
+    region: str = Query(None)
 ):
-    total = db.query(TravelCourse).count()
-    courses = db.query(TravelCourse).order_by(TravelCourse.created_at.desc()).offset(offset).limit(limit).all()
+    query = db.query(TravelCourse)
+    if course_name:
+        query = query.filter(TravelCourse.course_name.ilike(f"%{course_name}%"))
+    if region:
+        query = query.filter(TravelCourse.region_code == region)
+    total = query.count()
+    courses = query.order_by(TravelCourse.created_at.desc()).offset(offset).limit(limit).all()
     return {
         "total": total,
         "items": [
@@ -26,8 +34,8 @@ def get_all_travel_courses(
                 "sub_category_code": c.sub_category_code,
                 "address": c.address,
                 "detail_address": c.detail_address,
-                "latitude": float(c.latitude) if c.latitude else None,
-                "longitude": float(c.longitude) if c.longitude else None,
+                "latitude": float(c.latitude) if c.latitude is not None else None,
+                "longitude": float(c.longitude) if c.longitude is not None else None,
                 "zipcode": c.zipcode,
                 "tel": c.tel,
                 "homepage": c.homepage,
@@ -41,9 +49,9 @@ def get_all_travel_courses(
                 "schedule": c.schedule,
                 "created_at": c.created_at,
                 "updated_at": c.updated_at,
-                "raw_data_id": str(c.raw_data_id) if c.raw_data_id else None,
+                "raw_data_id": str(c.raw_data_id) if c.raw_data_id is not None else None,
                 "last_sync_at": c.last_sync_at,
-                "data_quality_score": float(c.data_quality_score) if c.data_quality_score else None,
+                "data_quality_score": float(c.data_quality_score) if c.data_quality_score is not None else None,
                 "processing_status": c.processing_status,
                 "booktour": c.booktour,
                 "createdtime": c.createdtime,
@@ -57,6 +65,12 @@ def get_all_travel_courses(
             for c in courses
         ]
     }
+
+@router.get("/region-count")
+def get_region_count(db: Session = Depends(get_db)):
+    regions = db.query(TravelCourse.region_code).distinct().all()
+    # regions is a list of tuples like [(1,), (2,), ...]
+    return {"region_count": len(regions)}
 
 @router.get("/{content_id}")
 def get_travel_course(content_id: str, db: Session = Depends(get_db)):
