@@ -1071,6 +1071,90 @@ class FestivalEvent(Base):
     last_sync_at = Column(DateTime, server_default=func.now())
 
 
+class LeisureSports(Base):
+    __tablename__ = "leisure_sports"
+
+    content_id = Column(String(20), primary_key=True, index=True)
+    region_code = Column(String, nullable=False, index=True)
+    facility_name = Column(String, nullable=False, index=True)
+    category_code = Column(String(10))
+    sub_category_code = Column(String(10))
+    raw_data_id = Column(UUID(as_uuid=True), index=True)
+    sports_type = Column(String)
+    reservation_info = Column(String)
+    admission_fee = Column(String)
+    parking_info = Column(String)
+    rental_info = Column(String)
+    capacity = Column(String)
+    operating_hours = Column(String)
+    address = Column(String)
+    detail_address = Column(String)
+    zipcode = Column(String)
+    latitude = Column(DECIMAL(10, 8))
+    longitude = Column(DECIMAL(11, 8))
+    tel = Column(String)
+    homepage = Column(String)
+    overview = Column(Text)
+    first_image = Column(String)
+    first_image_small = Column(String)
+    data_quality_score = Column(DECIMAL(5, 2))
+    processing_status = Column(String(20), default="processed")
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    last_sync_at = Column(DateTime, server_default=func.now())
+    booktour = Column(CHAR(1))
+    createdtime = Column(String(14))
+    modifiedtime = Column(String(14))
+    telname = Column(String(100))
+    faxno = Column(String(50))
+    mlevel = Column(Integer)
+    detail_intro_info = Column(JSONB)
+    detail_additional_info = Column(JSONB)
+    sigungu_code = Column(String)
+
+class LeisureSportsResponse(BaseModel):
+    content_id: str
+    region_code: str
+    facility_name: str
+    category_code: str | None = None
+    sub_category_code: str | None = None
+    raw_data_id: str | None = None
+    sports_type: str | None = None
+    reservation_info: str | None = None
+    admission_fee: str | None = None
+    parking_info: str | None = None
+    rental_info: str | None = None
+    capacity: str | None = None
+    operating_hours: str | None = None
+    address: str | None = None
+    detail_address: str | None = None
+    zipcode: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    tel: str | None = None
+    homepage: str | None = None
+    overview: str | None = None
+    first_image: str | None = None
+    first_image_small: str | None = None
+    data_quality_score: float | None = None
+    processing_status: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    last_sync_at: datetime | None = None
+    booktour: str | None = None
+    createdtime: str | None = None
+    modifiedtime: str | None = None
+    telname: str | None = None
+    faxno: str | None = None
+    mlevel: int | None = None
+    detail_intro_info: dict | None = None
+    detail_additional_info: dict | None = None
+    sigungu_code: str | None = None
+
+    class Config:
+        from_attributes = True
+
+
 class TravelCourse(Base):
     __tablename__ = "travel_courses"
 
@@ -1437,6 +1521,49 @@ class FestivalEventResponse(BaseModel):
     first_image: str | None = None
     data_quality_score: float | None = None
     created_at: datetime | None = None
+
+    class Config:
+        from_attributes = True
+
+
+class LeisureSportsResponse(BaseModel):
+    content_id: str
+    region_code: str
+    facility_name: str
+    category_code: str | None = None
+    sub_category_code: str | None = None
+    raw_data_id: str | None = None
+    sports_type: str | None = None
+    reservation_info: str | None = None
+    admission_fee: str | None = None
+    parking_info: str | None = None
+    rental_info: str | None = None
+    capacity: str | None = None
+    operating_hours: str | None = None
+    address: str | None = None
+    detail_address: str | None = None
+    zipcode: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    tel: str | None = None
+    homepage: str | None = None
+    overview: str | None = None
+    first_image: str | None = None
+    first_image_small: str | None = None
+    data_quality_score: float | None = None
+    processing_status: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    last_sync_at: datetime | None = None
+    booktour: str | None = None
+    createdtime: str | None = None
+    modifiedtime: str | None = None
+    telname: str | None = None
+    faxno: str | None = None
+    mlevel: int | None = None
+    detail_intro_info: dict | None = None
+    detail_additional_info: dict | None = None
+    sigungu_code: str | None = None
 
     class Config:
         from_attributes = True

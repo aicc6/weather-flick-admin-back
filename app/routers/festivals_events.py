@@ -70,6 +70,17 @@ def list_festival_events(
     items = query.offset(skip).limit(limit).all()
     return {"items": items, "total": total}
 
+@router.get("/autocomplete/", response_model=list[str])
+def autocomplete_event_name(q: str = Query(...), db: Session = Depends(get_db)):
+    results = (
+        db.query(FestivalEvent.event_name)
+        .filter(FestivalEvent.event_name.ilike(f"%{q}%"))
+        .distinct()
+        .limit(10)
+        .all()
+    )
+    return [r[0] for r in results]
+
 @router.get("/{content_id}", response_model=FestivalEventResponse)
 def get_festival_event(content_id: str, db: Session = Depends(get_db)):
     event = db.query(FestivalEvent).filter(FestivalEvent.content_id == content_id).first()
