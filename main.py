@@ -1,8 +1,8 @@
 import logging
+import os
 
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError as FastAPIRequestValidationError
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.requests import Request
 from fastapi.responses import JSONResponse
 
@@ -24,25 +24,53 @@ from app.routers import festivals_events
 from app.routers import leisure_sports
 from app.routers import travel_plans
 
+# 보안 미들웨어 임포트
+from app.middleware import (
+    setup_cors,
+    create_rate_limiter,
+    InputValidationMiddleware,
+    SecurityHeadersMiddleware,
+    RequestIdMiddleware,
+    create_security_headers_config,
+    SecurityConfig
+)
+
 app = FastAPI(
     title="Weather Flick Admin API",
     description="Weather Flick Admin Backend API",
     version="1.0.0",
 )
 
-# CORS 미들웨어 설정
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:5174",
-        "http://127.0.0.1:5174"
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+# 환경 설정
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+REDIS_URL = os.getenv("REDIS_URL", None)
+
+# 1. Request ID 미들웨어 (가장 먼저 실행)
+app.add_middleware(RequestIdMiddleware)
+
+# 2. 보안 헤더 미들웨어
+security_headers_config = create_security_headers_config(ENVIRONMENT)
+app.add_middleware(SecurityHeadersMiddleware, **security_headers_config)
+
+# 3. Rate Limiting 미들웨어
+rate_limiter = create_rate_limiter(
+    redis_url=REDIS_URL,
+    default_limit=100,
+    default_window=60
 )
+app.add_middleware(lambda app: rate_limiter)
+
+# 4. 입력 검증 미들웨어
+input_validation_config = SecurityConfig(
+    max_request_size=10 * 1024 * 1024,  # 10MB
+    check_sql_injection=True,
+    check_xss=True,
+    check_path_traversal=True
+)
+app.add_middleware(InputValidationMiddleware, config=input_validation_config)
+
+# 5. CORS 설정 (보안 강화된 설정)
+setup_cors(app, environment=ENVIRONMENT)
 
 # 라우터 등록 (API prefix 통일) - Cursor 규칙에 따른 통합 구조
 app.include_router(auth_router, prefix="/api")
