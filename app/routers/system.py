@@ -24,26 +24,61 @@ router = APIRouter(prefix="/system", tags=["system"])
 
 
 # 외부 API 헬스체크 함수
-def check_external_api_status(url, timeout=3):
+def check_external_api_status(api_name, api_key, url, timeout=3):
     """
     외부 API 상태 확인
 
     Args:
+        api_name: API 이름 (로깅용)
+        api_key: API 키
         url: 확인할 API URL
         timeout: 타임아웃 시간 (초)
 
     Returns:
         dict: 상태 정보 (status, response_time)
     """
+    # API 키가 설정되지 않은 경우
+    if not api_key or api_key in ["your_weather_api_key", "your_google_api_key", "your_kakao_api_key", "your_naver_client_id", "your_naver_client_secret"]:
+        return {"status": "키 미설정", "response_time": "-"}
+    
     try:
         import time
 
         start_time = time.time()
-        resp = requests.head(url, timeout=timeout)
+        # HEAD 요청 대신 실제 API 엔드포인트에 맞는 요청 사용
+        if "weatherapi.com" in url:
+            # WeatherAPI의 경우 current weather 엔드포인트 확인
+            test_url = f"{url}/current.json?key={api_key}&q=London&aqi=no"
+            resp = requests.head(test_url, timeout=timeout)
+        elif "visitkorea.or.kr" in url:
+            # 한국관광공사 API의 경우 지역코드 API 확인
+            test_url = f"{url}/areaCode?serviceKey={api_key}&numOfRows=1&MobileOS=ETC&MobileApp=TestApp"
+            resp = requests.head(test_url, timeout=timeout)
+        elif "places.googleapis.com" in url:
+            # Google Places API의 경우 실제 엔드포인트 확인
+            test_url = f"{url}/v1/places:searchText"
+            headers = {
+                "Content-Type": "application/json",
+                "X-Goog-Api-Key": api_key,
+                "X-Goog-FieldMask": "places.id,places.displayName"
+            }
+            # POST 요청으로 간단한 텍스트 검색 테스트
+            resp = requests.post(test_url, 
+                               headers=headers,
+                               json={"textQuery": "test"},
+                               timeout=timeout)
+        else:
+            # 기타 API는 기본 HEAD 요청
+            resp = requests.head(url, timeout=timeout)
+            
         response_time = round((time.time() - start_time) * 1000, 2)  # ms
 
         if resp.status_code < 400:
             return {"status": "정상", "response_time": f"{response_time}ms"}
+        elif resp.status_code == 403:
+            return {"status": "인증오류", "response_time": f"{response_time}ms"}
+        elif resp.status_code == 404:
+            return {"status": "엔드포인트확인필요", "response_time": f"{response_time}ms"}
         else:
             return {
                 "status": f"오류({resp.status_code})",
@@ -51,7 +86,7 @@ def check_external_api_status(url, timeout=3):
             }
     except requests.exceptions.Timeout:
         return {"status": "타임아웃", "response_time": "-"}
-    except Exception:
+    except Exception as e:
         return {"status": "연결실패", "response_time": "-"}
 
 
@@ -140,9 +175,9 @@ async def get_service_status():
 
         # 외부 API 의존성 상태 확인
         external_apis_dict = {
-            "weather_api": check_external_api_status(settings.weather_api_url),
-            "tourism_api": check_external_api_status(settings.korea_tourism_api_url),
-            "google_places": check_external_api_status(settings.google_places_url),
+            "weather_api": check_external_api_status("Weather API", settings.weather_api_key, settings.weather_api_url),
+            "tourism_api": check_external_api_status("Tourism API", settings.korea_tourism_api_key, settings.korea_tourism_api_url),
+            "google_places": check_external_api_status("Google Places", settings.google_api_key, settings.google_places_url),
         }
 
         # 전체 서비스 상태 판단

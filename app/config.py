@@ -65,7 +65,7 @@ class Settings(BaseSettings):
     naver_api_url: str = "https://openapi.naver.com/v1"
 
     google_api_key: str = os.getenv("GOOGLE_API_KEY", "")
-    google_places_url: str = "https://maps.googleapis.com/maps/api/place"
+    google_places_url: str = "https://places.googleapis.com"
     google_client_id: str = os.getenv("GOOGLE_CLIENT_ID", "")
     google_client_secret: str = os.getenv("GOOGLE_CLIENT_SECRET", "")
     google_redirect_uri: str = os.getenv(

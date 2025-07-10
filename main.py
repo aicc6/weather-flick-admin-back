@@ -108,7 +108,7 @@ async def validation_exception_handler(
     request: Request, exc: FastAPIRequestValidationError
 ):
     logging.error(f"[ValidationError] {request.url}: {exc}")
-    return JSONResponse(status_code=422, content={"detail": exc.errors()})
+    return JSONResponse(status_code=422, content={"detail": str(exc)})
 
 
 if __name__ == "__main__":
