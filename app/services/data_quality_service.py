@@ -34,6 +34,10 @@ class DataQualityAnalyzer:
             "restaurants": ["name", "province", "latitude", "longitude"],  # destinations 음식점 데이터 사용
             "accommodations": ["name", "province", "latitude", "longitude"],  # destinations 숙박 데이터 사용
             "festivals_events": ["name", "province", "latitude", "longitude"],  # destinations 축제/행사 데이터 사용
+            "cultural_facilities": ["name", "province", "latitude", "longitude"],  # destinations 문화시설 데이터 사용
+            "shopping": ["name", "province", "latitude", "longitude"],  # destinations 쇼핑 데이터 사용
+            "leisure_sports": ["name", "province", "latitude", "longitude"],  # destinations 레저/스포츠 데이터 사용
+            "transportation": ["name", "province", "latitude", "longitude"],  # destinations 교통 데이터 사용
         }
 
         # 선택 필드 정의 (품질 향상에 기여)
@@ -42,6 +46,10 @@ class DataQualityAnalyzer:
             "restaurants": ["region", "image_url", "amenities", "rating"],  # destinations 음식점 데이터 필드
             "accommodations": ["region", "image_url", "amenities", "rating"],  # destinations 숙박 데이터 필드
             "festivals_events": ["region", "image_url", "amenities", "rating"],  # destinations 축제/행사 데이터 필드
+            "cultural_facilities": ["region", "image_url", "amenities", "rating"],  # destinations 문화시설 데이터 필드
+            "shopping": ["region", "image_url", "amenities", "rating"],  # destinations 쇼핑 데이터 필드
+            "leisure_sports": ["region", "image_url", "amenities", "rating"],  # destinations 레저/스포츠 데이터 필드
+            "transportation": ["region", "image_url", "amenities", "rating"],  # destinations 교통 데이터 필드
         }
 
     def calculate_destination_quality_score(
@@ -589,6 +597,72 @@ def calculate_and_update_quality_scores(
             WHERE category = '축제/행사'
             ORDER BY created_at DESC 
             LIMIT :limit
+        """,
+        "cultural_facilities": """
+            SELECT destination_id as content_id, name as facility_name, province as region_code, 
+                   category as facility_type, NULL as address, latitude, longitude,
+                   CASE WHEN amenities ? 'tel' THEN amenities->>'tel' ELSE NULL END as tel,
+                   CASE WHEN amenities ? 'homepage' THEN amenities->>'homepage' ELSE NULL END as homepage,
+                   NULL as operating_hours, NULL as admission_fee, NULL as parking_info,
+                   created_at, NULL as updated_at, NULL as last_sync_at
+            FROM destinations 
+            WHERE category = '문화시설'
+            ORDER BY created_at DESC 
+            LIMIT :limit
+        """,
+        "shopping": """
+            SELECT destination_id as content_id, name as shop_name, province as region_code, 
+                   category as shopping_type, NULL as address, latitude, longitude,
+                   CASE WHEN amenities ? 'tel' THEN amenities->>'tel' ELSE NULL END as tel,
+                   CASE WHEN amenities ? 'homepage' THEN amenities->>'homepage' ELSE NULL END as homepage,
+                   NULL as operating_hours, NULL as parking_info, NULL as facilities,
+                   created_at, NULL as updated_at, NULL as last_sync_at
+            FROM destinations 
+            WHERE (name ILIKE '%시장%' OR name ILIKE '%쇼핑%' OR name ILIKE '%마트%' 
+                   OR name ILIKE '%마켓%' OR name ILIKE '%백화점%' OR name ILIKE '%상가%'
+                   OR name ILIKE '%아울렛%' OR name ILIKE '%플라자%' OR name ILIKE '%상점%'
+                   OR name ILIKE '%매장%' OR tags @> '["쇼핑"]' OR tags @> '["시장"]' OR tags @> '["상가"]')
+            ORDER BY created_at DESC 
+            LIMIT :limit
+        """,
+        "leisure_sports": """
+            SELECT destination_id as content_id, name as facility_name, province as region_code, 
+                   category as sports_type, NULL as address, latitude, longitude,
+                   CASE WHEN amenities ? 'tel' THEN amenities->>'tel' ELSE NULL END as tel,
+                   CASE WHEN amenities ? 'homepage' THEN amenities->>'homepage' ELSE NULL END as homepage,
+                   NULL as operating_hours, NULL as reservation_info, NULL as admission_fee,
+                   NULL as parking_info, NULL as rental_info, NULL as capacity,
+                   created_at, NULL as updated_at, NULL as last_sync_at
+            FROM destinations 
+            WHERE (name ILIKE '%골프%' OR name ILIKE '%스포츠%' OR name ILIKE '%체육%' 
+                   OR name ILIKE '%헬스%' OR name ILIKE '%수영%' OR name ILIKE '%테니스%'
+                   OR name ILIKE '%볼링%' OR name ILIKE '%당구%' OR name ILIKE '%배드민턴%'
+                   OR name ILIKE '%야구%' OR name ILIKE '%축구%' OR name ILIKE '%농구%'
+                   OR name ILIKE '%체육관%' OR name ILIKE '%운동%' OR name ILIKE '%레저%'
+                   OR name ILIKE '%리조트%' OR name ILIKE '%스키%' OR name ILIKE '%스케이트%'
+                   OR tags @> '["스포츠"]' OR tags @> '["레저"]' OR tags @> '["골프"]' OR tags @> '["체육"]')
+            ORDER BY created_at DESC 
+            LIMIT :limit
+        """,
+        "transportation": """
+            SELECT destination_id as content_id, name as facility_name, province as region_code, 
+                   category as transport_type, NULL as address, latitude, longitude,
+                   CASE WHEN amenities ? 'tel' THEN amenities->>'tel' ELSE NULL END as tel,
+                   CASE WHEN amenities ? 'homepage' THEN amenities->>'homepage' ELSE NULL END as homepage,
+                   NULL as operating_hours, NULL as route_info, NULL as fare_info,
+                   NULL as parking_info, NULL as accessibility, NULL as transfer_info,
+                   created_at, NULL as updated_at, NULL as last_sync_at
+            FROM destinations 
+            WHERE (name ILIKE '%역%' OR name ILIKE '%터미널%' OR name ILIKE '%공항%' 
+                   OR name ILIKE '%항구%' OR name ILIKE '%항만%' OR name ILIKE '%버스정류장%'
+                   OR name ILIKE '%지하철%' OR name ILIKE '%전철%' OR name ILIKE '%기차역%'
+                   OR name ILIKE '%KTX%' OR name ILIKE '%고속버스%' OR name ILIKE '%시외버스%'
+                   OR name ILIKE '%선착장%' OR name ILIKE '%여객터미널%' OR name ILIKE '%교통%'
+                   OR name ILIKE '%택시%' OR name ILIKE '%렌터카%'
+                   OR tags @> '["교통"]' OR tags @> '["역"]' OR tags @> '["터미널"]' 
+                   OR tags @> '["공항"]' OR tags @> '["항구"]')
+            ORDER BY created_at DESC 
+            LIMIT :limit
         """
     }
 
@@ -627,8 +701,8 @@ def calculate_and_update_quality_scores(
                         "id": record_dict["destination_id"],
                     },
                 )
-            elif table_name in ["restaurants", "accommodations", "festivals_events"]:
-                # restaurants, accommodations, festivals_events는 destinations 테이블의 가상 테이블이므로
+            elif table_name in ["restaurants", "accommodations", "festivals_events", "cultural_facilities", "shopping", "leisure_sports", "transportation"]:
+                # restaurants, accommodations, festivals_events, cultural_facilities, shopping, leisure_sports, transportation는 destinations 테이블의 가상 테이블이므로
                 # destinations 테이블의 destination_id를 이용해 업데이트
                 update_query = text(
                     """

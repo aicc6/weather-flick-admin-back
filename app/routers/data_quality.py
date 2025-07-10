@@ -29,6 +29,10 @@ def get_data_quality_overview(
             "restaurants",
             "accommodations",
             "festivals_events",
+            "cultural_facilities",
+            "shopping",
+            "leisure_sports",
+            "transportation",
         ]
         table_stats = {}
 
@@ -197,6 +201,8 @@ def calculate_quality_scores(
         "restaurants",
         "accommodations",
         "festivals_events",
+        "cultural_facilities",
+        "shopping",
     ]
 
     if table_name not in valid_tables:
@@ -244,6 +250,10 @@ def calculate_all_quality_scores(
                 "restaurants",
             "accommodations",
             "festivals_events",
+            "cultural_facilities",
+            "shopping",
+            "leisure_sports",
+            "transportation",
         ]
         results = {}
         total_processed = 0
@@ -310,6 +320,8 @@ def get_records_by_quality(
         "restaurants",
         "accommodations",
         "festivals_events",
+        "cultural_facilities",
+        "shopping",
     ]
 
     if table_name not in valid_tables:
@@ -333,6 +345,10 @@ def get_records_by_quality(
                 "restaurants": "name",  # destinations 테이블에서는 name 필드 사용
                 "accommodations": "name",
                 "festivals_events": "name",  # destinations 테이블에서는 name 필드 사용
+                "cultural_facilities": "name",  # destinations 테이블에서는 name 필드 사용
+                "shopping": "name",  # destinations 테이블에서는 name 필드 사용
+                "leisure_sports": "name",  # destinations 테이블에서는 name 필드 사용
+                "transportation": "name",  # destinations 테이블에서는 name 필드 사용
             }.get(table_name, "name")
 
             base_query = f"""
@@ -454,6 +470,8 @@ def analyze_record_quality(
         "restaurants",
         "accommodations",
         "festivals_events",
+        "cultural_facilities",
+        "shopping",
     ]
 
     if table_name not in valid_tables:
@@ -512,6 +530,79 @@ def analyze_record_quality(
                     WHERE category = '축제/행사' AND destination_id::text = :record_id
                 """
                 )
+            elif table_name == "cultural_facilities":
+                query = text(
+                    """
+                    SELECT destination_id as content_id, name as facility_name, province as region_code, 
+                           category as facility_type, NULL as address, latitude, longitude,
+                           CASE WHEN amenities ? 'tel' THEN amenities->>'tel' ELSE NULL END as tel,
+                           CASE WHEN amenities ? 'homepage' THEN amenities->>'homepage' ELSE NULL END as homepage,
+                           NULL as operating_hours, NULL as admission_fee, NULL as parking_info,
+                           created_at, NULL as updated_at, NULL as last_sync_at
+                    FROM destinations 
+                    WHERE category = '문화시설' AND destination_id::text = :record_id
+                """
+                )
+            elif table_name == "shopping":
+                query = text(
+                    """
+                    SELECT destination_id as content_id, name as shop_name, province as region_code, 
+                           category as shopping_type, NULL as address, latitude, longitude,
+                           CASE WHEN amenities ? 'tel' THEN amenities->>'tel' ELSE NULL END as tel,
+                           CASE WHEN amenities ? 'homepage' THEN amenities->>'homepage' ELSE NULL END as homepage,
+                           NULL as operating_hours, NULL as parking_info, NULL as facilities,
+                           created_at, NULL as updated_at, NULL as last_sync_at
+                    FROM destinations 
+                    WHERE (name ILIKE '%시장%' OR name ILIKE '%쇼핑%' OR name ILIKE '%마트%' 
+                           OR name ILIKE '%마켓%' OR name ILIKE '%백화점%' OR name ILIKE '%상가%'
+                           OR name ILIKE '%아울렛%' OR name ILIKE '%플라자%' OR name ILIKE '%상점%'
+                           OR name ILIKE '%매장%' OR tags @> '["쇼핑"]' OR tags @> '["시장"]' OR tags @> '["상가"]')
+                          AND destination_id::text = :record_id
+                """
+                )
+            elif table_name == "leisure_sports":
+                query = text(
+                    """
+                    SELECT destination_id as content_id, name as facility_name, province as region_code, 
+                           category as sports_type, NULL as address, latitude, longitude,
+                           CASE WHEN amenities ? 'tel' THEN amenities->>'tel' ELSE NULL END as tel,
+                           CASE WHEN amenities ? 'homepage' THEN amenities->>'homepage' ELSE NULL END as homepage,
+                           NULL as operating_hours, NULL as reservation_info, NULL as admission_fee,
+                           NULL as parking_info, NULL as rental_info, NULL as capacity,
+                           created_at, NULL as updated_at, NULL as last_sync_at
+                    FROM destinations 
+                    WHERE (name ILIKE '%골프%' OR name ILIKE '%스포츠%' OR name ILIKE '%체육%' 
+                           OR name ILIKE '%헬스%' OR name ILIKE '%수영%' OR name ILIKE '%테니스%'
+                           OR name ILIKE '%볼링%' OR name ILIKE '%당구%' OR name ILIKE '%배드민턴%'
+                           OR name ILIKE '%야구%' OR name ILIKE '%축구%' OR name ILIKE '%농구%'
+                           OR name ILIKE '%체육관%' OR name ILIKE '%운동%' OR name ILIKE '%레저%'
+                           OR name ILIKE '%리조트%' OR name ILIKE '%스키%' OR name ILIKE '%스케이트%'
+                           OR tags @> '["스포츠"]' OR tags @> '["레저"]' OR tags @> '["골프"]' OR tags @> '["체육"]')
+                          AND destination_id::text = :record_id
+                """
+                )
+            elif table_name == "transportation":
+                query = text(
+                    """
+                    SELECT destination_id as content_id, name as facility_name, province as region_code, 
+                           category as transport_type, NULL as address, latitude, longitude,
+                           CASE WHEN amenities ? 'tel' THEN amenities->>'tel' ELSE NULL END as tel,
+                           CASE WHEN amenities ? 'homepage' THEN amenities->>'homepage' ELSE NULL END as homepage,
+                           NULL as operating_hours, NULL as route_info, NULL as fare_info,
+                           NULL as parking_info, NULL as accessibility, NULL as transfer_info,
+                           created_at, NULL as updated_at, NULL as last_sync_at
+                    FROM destinations 
+                    WHERE (name ILIKE '%역%' OR name ILIKE '%터미널%' OR name ILIKE '%공항%' 
+                           OR name ILIKE '%항구%' OR name ILIKE '%항만%' OR name ILIKE '%버스정류장%'
+                           OR name ILIKE '%지하철%' OR name ILIKE '%전철%' OR name ILIKE '%기차역%'
+                           OR name ILIKE '%KTX%' OR name ILIKE '%고속버스%' OR name ILIKE '%시외버스%'
+                           OR name ILIKE '%선착장%' OR name ILIKE '%여객터미널%' OR name ILIKE '%교통%'
+                           OR name ILIKE '%택시%' OR name ILIKE '%렌터카%'
+                           OR tags @> '["교통"]' OR tags @> '["역"]' OR tags @> '["터미널"]' 
+                           OR tags @> '["공항"]' OR tags @> '["항구"]')
+                          AND destination_id::text = :record_id
+                """
+                )
 
         result = db.execute(query, {"record_id": record_id})
         record = result.fetchone()
@@ -560,6 +651,10 @@ def get_quality_improvement_suggestions(
                 "restaurants",
             "accommodations",
             "festivals_events",
+            "cultural_facilities",
+            "shopping",
+            "leisure_sports",
+            "transportation",
         ]
 
         for table in tables:
