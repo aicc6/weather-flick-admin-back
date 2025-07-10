@@ -8,6 +8,13 @@ from sqlalchemy.exc import NoResultFound
 def get_travel_plans(db: Session, skip: int = 0, limit: int = 20):
     return db.query(TravelPlan).order_by(TravelPlan.created_at.desc()).offset(skip).limit(limit).all()
 
+def get_travel_plans_with_count(db: Session, skip: int = 0, limit: int = 20):
+    """페이지네이션을 위한 여행 계획 목록 조회 (총 개수 포함)"""
+    query = db.query(TravelPlan)
+    total = query.count()
+    plans = query.order_by(TravelPlan.created_at.desc()).offset(skip).limit(limit).all()
+    return plans, total
+
 # 단건 조회
 
 def get_travel_plan(db: Session, plan_id):
