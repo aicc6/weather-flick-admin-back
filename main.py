@@ -25,6 +25,8 @@ from app.routers.system import router as system_router
 from app.routers.users import router as users_router
 from app.routers.weather import router as weather_router
 from app.routers.travel_courses import router as travel_courses_router
+from app.routers.regions import router as regions_router
+from app.routers.roles import router as roles_router
 from app.routers import festivals_events
 from app.routers import leisure_sports
 from app.routers import travel_plans
@@ -36,6 +38,7 @@ from app.routers import ai_notifications
 from app.routers import ai_predictive
 from app.routers import ai_recommendations
 from app.routers import ai_trends
+from app.routers import batch
 
 # 보안 미들웨어 임포트
 from app.middleware import (
@@ -102,6 +105,8 @@ app.include_router(system_router, prefix="/api")
 app.include_router(dashboard_router, prefix="/api")  # 새로 추가된 대시보드 API
 app.include_router(logs_router, prefix="/api")  # 새로 추가된 로그 관리 API
 app.include_router(travel_courses_router)
+app.include_router(regions_router, prefix="/api")  # 지역 정보 관리 API
+app.include_router(roles_router, prefix="/api")  # 권한/역할 관리 API
 app.include_router(festivals_events.router, prefix="/api")
 app.include_router(leisure_sports.router, prefix="/api")  # 레저/스포츠 시설 관리 API
 app.include_router(travel_plans.router, prefix="/api")
@@ -113,6 +118,9 @@ app.include_router(ai_notifications.router, prefix="/api")
 app.include_router(ai_predictive.router, prefix="/api")
 app.include_router(ai_recommendations.router, prefix="/api")
 app.include_router(ai_trends.router, prefix="/api")
+
+# 배치 관리 라우터 등록
+app.include_router(batch.router, prefix="/api")
 
 
 @app.get("/")
