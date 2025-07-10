@@ -326,7 +326,7 @@ def get_records_by_quality(
             count_query = "SELECT COUNT(*) as total FROM destinations WHERE data_quality_score IS NOT NULL"
         else:
             name_field = {
-                "restaurants": "restaurant_name",
+                "restaurants": "name",  # destinations 테이블에서는 name 필드 사용
                 "accommodations": "name",
             }.get(table_name, "name")
 
@@ -473,11 +473,13 @@ def analyze_record_quality(
             if table_name == "restaurants":
                 query = text(
                     """
-                    SELECT content_id, restaurant_name, region_code, cuisine_type,
-                           address, latitude, longitude, tel, homepage, operating_hours,
-                           created_at, updated_at, last_sync_at
-                    FROM restaurants 
-                    WHERE content_id = :record_id
+                    SELECT destination_id as content_id, name as restaurant_name, province as region_code, 
+                           category as cuisine_type, NULL as address, latitude, longitude,
+                           CASE WHEN amenities ? 'tel' THEN amenities->>'tel' ELSE NULL END as tel,
+                           CASE WHEN amenities ? 'homepage' THEN amenities->>'homepage' ELSE NULL END as homepage,
+                           NULL as operating_hours, created_at, NULL as updated_at, NULL as last_sync_at
+                    FROM destinations 
+                    WHERE category = '음식점' AND destination_id::text = :record_id
                 """
                 )
             elif table_name == "accommodations":

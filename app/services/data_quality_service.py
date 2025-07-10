@@ -31,14 +31,14 @@ class DataQualityAnalyzer:
         # 필수 필드 정의
         self.required_fields = {
             "destinations": ["name", "province", "latitude", "longitude"],
-            "restaurants": ["restaurant_name", "region_code"],
+            "restaurants": ["name", "province", "latitude", "longitude"],  # destinations 음식점 데이터 사용
             "accommodations": ["name", "province", "latitude", "longitude"],  # destinations 숙박 데이터 사용
         }
 
         # 선택 필드 정의 (품질 향상에 기여)
         self.optional_fields = {
             "destinations": ["region", "category", "image_url", "amenities", "rating"],
-            "restaurants": ["cuisine_type", "operating_hours", "tel", "homepage"],
+            "restaurants": ["region", "image_url", "amenities", "rating"],  # destinations 음식점 데이터 필드
             "accommodations": ["region", "image_url", "amenities", "rating"],  # destinations 숙박 데이터 필드
         }
 
@@ -556,11 +556,14 @@ def calculate_and_update_quality_scores(
             LIMIT :limit
         """,
         "restaurants": """
-            SELECT content_id, restaurant_name, region_code, cuisine_type,
-                   address, latitude, longitude, tel, homepage, operating_hours,
-                   created_at, updated_at, last_sync_at
-            FROM restaurants 
-            ORDER BY updated_at DESC 
+            SELECT destination_id as content_id, name as restaurant_name, province as region_code, 
+                   category as cuisine_type, NULL as address, latitude, longitude,
+                   CASE WHEN amenities ? 'tel' THEN amenities->>'tel' ELSE NULL END as tel,
+                   CASE WHEN amenities ? 'homepage' THEN amenities->>'homepage' ELSE NULL END as homepage,
+                   NULL as operating_hours, created_at, NULL as updated_at, NULL as last_sync_at
+            FROM destinations 
+            WHERE category = '음식점'
+            ORDER BY created_at DESC 
             LIMIT :limit
         """,
         "accommodations": """
@@ -608,6 +611,23 @@ def calculate_and_update_quality_scores(
                     {
                         "score": quality_result["total_score"],
                         "id": record_dict["destination_id"],
+                    },
+                )
+            elif table_name in ["restaurants", "accommodations"]:
+                # restaurants와 accommodations는 destinations 테이블의 가상 테이블이므로
+                # destinations 테이블의 destination_id를 이용해 업데이트
+                update_query = text(
+                    """
+                    UPDATE destinations 
+                    SET data_quality_score = :score
+                    WHERE destination_id = :id
+                """
+                )
+                db.execute(
+                    update_query,
+                    {
+                        "score": quality_result["total_score"],
+                        "id": record_dict["content_id"],
                     },
                 )
             else:
