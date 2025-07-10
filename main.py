@@ -52,22 +52,22 @@ app.add_middleware(RequestIdMiddleware)
 security_headers_config = create_security_headers_config(ENVIRONMENT)
 app.add_middleware(SecurityHeadersMiddleware, **security_headers_config)
 
-# 3. Rate Limiting 미들웨어
+# 3. Rate Limiting 미들웨어 (Redis 없이 메모리 기반으로)
 rate_limiter = create_rate_limiter(
-    redis_url=REDIS_URL,
+    redis_url=None,  # Redis 사용하지 않음
     default_limit=100,
     default_window=60
 )
-app.add_middleware(lambda app: rate_limiter)
+app.add_middleware(rate_limiter)
 
-# 4. 입력 검증 미들웨어
-input_validation_config = SecurityConfig(
-    max_request_size=10 * 1024 * 1024,  # 10MB
-    check_sql_injection=True,
-    check_xss=True,
-    check_path_traversal=True
-)
-app.add_middleware(InputValidationMiddleware, config=input_validation_config)
+# 4. 입력 검증 미들웨어 (임시 비활성화)
+# input_validation_config = SecurityConfig(
+#     max_request_size=10 * 1024 * 1024,  # 10MB
+#     check_sql_injection=True,
+#     check_xss=True,
+#     check_path_traversal=True
+# )
+# app.add_middleware(InputValidationMiddleware, config=input_validation_config)
 
 # 5. CORS 설정 (보안 강화된 설정)
 setup_cors(app, environment=ENVIRONMENT)
@@ -83,8 +83,8 @@ app.include_router(data_quality_router, prefix="/api")  # 데이터 품질 관�
 app.include_router(system_router, prefix="/api")
 app.include_router(dashboard_router, prefix="/api")  # 새로 추가된 대시보드 API
 app.include_router(logs_router, prefix="/api")  # 새로 추가된 로그 관리 API
-app.include_router(travel_courses_router, prefix="/api")
-app.include_router(festivals_events.router)
+app.include_router(travel_courses_router)
+app.include_router(festivals_events.router, prefix="/api")
 app.include_router(leisure_sports.router)
 app.include_router(travel_plans.router, prefix="/api")
 

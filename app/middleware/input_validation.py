@@ -241,6 +241,9 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
                 "message": f"문자열 길이가 제한을 초과했습니다. (최대: {self.config.max_string_length})"
             }
         
+        # 이메일 주소인지 확인 (Command Injection 검사에서 제외)
+        is_email = self._is_email_address(value)
+        
         # SQL Injection 검사
         if self.config.check_sql_injection:
             for pattern in self.sql_patterns:
@@ -263,15 +266,16 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
                         "message": "잠재적으로 위험한 스크립트 패턴이 감지되었습니다."
                     }
         
-        # Command Injection 검사
-        for pattern in self.cmd_patterns:
-            if pattern.search(value):
-                logger.warning(f"Command Injection 패턴 감지: {value[:100]}")
-                return {
-                    "valid": False,
-                    "error_code": "COMMAND_INJECTION_DETECTED",
-                    "message": "잠재적으로 위험한 명령어 패턴이 감지되었습니다."
-                }
+        # Command Injection 검사 (이메일이 아닌 경우에만)
+        if not is_email:
+            for pattern in self.cmd_patterns:
+                if pattern.search(value):
+                    logger.warning(f"Command Injection 패턴 감지: {value[:100]}")
+                    return {
+                        "valid": False,
+                        "error_code": "COMMAND_INJECTION_DETECTED",
+                        "message": "잠재적으로 위험한 명령어 패턴이 감지되었습니다."
+                    }
         
         return {"valid": True}
     
@@ -287,6 +291,12 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
         """파라미터 이름 유효성 검사"""
         # 영문, 숫자, 언더스코어, 대시만 허용
         return bool(re.match(r"^[a-zA-Z0-9_-]+$", name))
+    
+    def _is_email_address(self, value: str) -> bool:
+        """이메일 주소인지 확인"""
+        # 기본적인 이메일 패턴 검사
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        return bool(re.match(email_pattern, value))
     
     def _get_json_depth(self, obj: Any, current_depth: int = 0) -> int:
         """JSON 객체의 최대 깊이 계산"""

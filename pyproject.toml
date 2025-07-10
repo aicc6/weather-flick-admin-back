@@ -16,12 +16,26 @@ dependencies = [
     "sqlalchemy>=2.0.0",
     "alembic>=1.11.0",
     "psycopg2-binary>=2.9.6",
+    "asyncpg>=0.30.0",
     "redis>=4.6.0",
     "python-jose[cryptography]>=3.3.0",
     "passlib[bcrypt]>=1.7.4",
     "python-multipart>=0.0.6",
     "httpx>=0.24.0",
     "python-dotenv>=1.0.0",
+    # AI/ML Dependencies for Admin Analytics
+    "numpy>=1.26.0",
+    "pandas>=2.2.0",
+    "scikit-learn>=1.5.0",
+    "torch>=2.5.0",
+    "openai>=1.40.0",
+    "joblib>=1.4.0",
+    "matplotlib>=3.9.0",
+    "seaborn>=0.13.0",
+    "scipy>=1.14.0",
+    "xgboost>=2.1.0",
+    "lightgbm>=4.5.0",
+    "statsmodels>=0.14.0",
 ]
 
 [project.optional-dependencies]
@@ -59,7 +73,7 @@ profile = "black"
 multi_line_output = 3
 line_length = 88
 known_first_party = ["app"]
-known_third_party = ["fastapi", "pydantic", "sqlalchemy", "alembic"]
+known_third_party = ["fastapi", "pydantic", "sqlalchemy", "alembic", "numpy", "pandas", "sklearn", "torch", "openai", "matplotlib", "seaborn"]
 
 [tool.mypy]
 python_version = "3.11"
@@ -82,6 +96,22 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "psycopg2.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    "numpy.*",
+    "pandas.*",
+    "sklearn.*",
+    "torch.*",
+    "matplotlib.*",
+    "seaborn.*",
+    "scipy.*",
+    "xgboost.*",
+    "lightgbm.*",
+    "statsmodels.*",
+    "joblib.*"
+]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

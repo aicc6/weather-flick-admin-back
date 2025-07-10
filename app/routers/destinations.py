@@ -2,9 +2,10 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import and_, or_
 
 from ..database import get_db
-from ..models import TouristAttraction
+from ..models import Destination, Region
 
 router = APIRouter(prefix="/tourist-attractions", tags=["Tourist Attractions"])
 
@@ -15,10 +16,10 @@ def get_all_tourist_attractions(
     limit: int = Query(10, ge=1, le=100),
     offset: int = Query(0, ge=0),
 ):
-    total = db.query(TouristAttraction).count()
-    attractions = (
-        db.query(TouristAttraction)
-        .order_by(TouristAttraction.created_at.desc())
+    total = db.query(Destination).count()
+    destinations = (
+        db.query(Destination)
+        .order_by(Destination.created_at.desc())
         .offset(offset)
         .limit(limit)
         .all()
@@ -27,46 +28,54 @@ def get_all_tourist_attractions(
         "total": total,
         "items": [
             {
-                "content_id": a.content_id,
-                "attraction_name": a.attraction_name,
-                "description": a.description,
-                "address": a.address,
-                "image_url": a.image_url,
-                "latitude": float(a.latitude) if a.latitude else None,
-                "longitude": float(a.longitude) if a.longitude else None,
-                "category_code": a.category_code,
-                "category_name": a.category_name,
-                "region_code": a.region_code,
-                "created_at": a.created_at,
-                "updated_at": a.updated_at,
+                "content_id": str(d.destination_id),
+                "attraction_name": d.name,
+                "description": None,  # destinations 테이블에는 description 없음
+                "address": None,  # destinations 테이블에는 address 없음  
+                "image_url": d.image_url,
+                "latitude": float(d.latitude) if d.latitude else None,
+                "longitude": float(d.longitude) if d.longitude else None,
+                "category_code": d.category,
+                "category_name": d.category,
+                "region_code": d.province,
+                "region_name": d.region,
+                "tags": d.tags,
+                "amenities": d.amenities,
+                "rating": d.rating,
+                "created_at": d.created_at,
+                "updated_at": None,  # destinations 테이블에는 updated_at 없음
             }
-            for a in attractions
+            for d in destinations
         ],
     }
 
 
 @router.get("/{content_id}")
 def get_tourist_attraction(content_id: str, db: Session = Depends(get_db)):
-    attraction = (
-        db.query(TouristAttraction)
-        .filter(TouristAttraction.content_id == content_id)
+    destination = (
+        db.query(Destination)
+        .filter(Destination.destination_id == content_id)
         .first()
     )
-    if not attraction:
+    if not destination:
         raise HTTPException(status_code=404, detail="관광지를 찾을 수 없습니다.")
     return {
-        "content_id": attraction.content_id,
-        "attraction_name": attraction.attraction_name,
-        "description": attraction.description,
-        "address": attraction.address,
-        "image_url": attraction.image_url,
-        "latitude": float(attraction.latitude) if attraction.latitude else None,
-        "longitude": float(attraction.longitude) if attraction.longitude else None,
-        "category_code": attraction.category_code,
-        "category_name": attraction.category_name,
-        "region_code": attraction.region_code,
-        "created_at": attraction.created_at,
-        "updated_at": attraction.updated_at,
+        "content_id": str(destination.destination_id),
+        "attraction_name": destination.name,
+        "description": None,  # destinations 테이블에는 description 없음
+        "address": None,  # destinations 테이블에는 address 없음
+        "image_url": destination.image_url,
+        "latitude": float(destination.latitude) if destination.latitude else None,
+        "longitude": float(destination.longitude) if destination.longitude else None,
+        "category_code": destination.category,
+        "category_name": destination.category,
+        "region_code": destination.province,
+        "region_name": destination.region,
+        "tags": destination.tags,
+        "amenities": destination.amenities,
+        "rating": destination.rating,
+        "created_at": destination.created_at,
+        "updated_at": None,  # destinations 테이블에는 updated_at 없음
     }
 
 
@@ -79,16 +88,16 @@ def search_tourist_attractions(
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
 ):
-    query = db.query(TouristAttraction)
+    query = db.query(Destination)
     if name:
-        query = query.filter(TouristAttraction.attraction_name.ilike(f"%{name}%"))
+        query = query.filter(Destination.name.ilike(f"%{name}%"))
     if category:
-        query = query.filter(TouristAttraction.category_name.ilike(f"%{category}%"))
+        query = query.filter(Destination.category.ilike(f"%{category}%"))
     if region:
-        query = query.filter(TouristAttraction.region_code == region)
+        query = query.filter(Destination.province == region)
     total = query.count()
     results = (
-        query.order_by(TouristAttraction.created_at.desc())
+        query.order_by(Destination.created_at.desc())
         .offset(offset)
         .limit(limit)
         .all()
@@ -97,20 +106,24 @@ def search_tourist_attractions(
         "total": total,
         "items": [
             {
-                "content_id": a.content_id,
-                "attraction_name": a.attraction_name,
-                "description": a.description,
-                "address": a.address,
-                "image_url": a.image_url,
-                "latitude": float(a.latitude) if a.latitude else None,
-                "longitude": float(a.longitude) if a.longitude else None,
-                "category_code": a.category_code,
-                "category_name": a.category_name,
-                "region_code": a.region_code,
-                "created_at": a.created_at,
-                "updated_at": a.updated_at,
+                "content_id": str(d.destination_id),
+                "attraction_name": d.name,
+                "description": None,  # destinations 테이블에는 description 없음
+                "address": None,  # destinations 테이블에는 address 없음
+                "image_url": d.image_url,
+                "latitude": float(d.latitude) if d.latitude else None,
+                "longitude": float(d.longitude) if d.longitude else None,
+                "category_code": d.category,
+                "category_name": d.category,
+                "region_code": d.province,
+                "region_name": d.region,
+                "tags": d.tags,
+                "amenities": d.amenities,
+                "rating": d.rating,
+                "created_at": d.created_at,
+                "updated_at": None,  # destinations 테이블에는 updated_at 없음
             }
-            for a in results
+            for d in results
         ],
     }
 

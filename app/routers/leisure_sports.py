@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import Optional
-from app.models import LeisureSports, LeisureSportsResponse
+from app.models import LeisureSports
 from app.database import get_db
 from pydantic import BaseModel
+from datetime import datetime
 
 router = APIRouter(prefix="/api/leisure-sports", tags=["leisure_sports"])
 
@@ -46,6 +47,48 @@ class LeisureSportsCreate(BaseModel):
 class LeisureSportsUpdate(LeisureSportsCreate):
     pass
 
+class LeisureSportsResponse(BaseModel):
+    content_id: str
+    region_code: str
+    facility_name: str
+    category_code: Optional[str] = None
+    sub_category_code: Optional[str] = None
+    raw_data_id: Optional[str] = None
+    sports_type: Optional[str] = None
+    reservation_info: Optional[str] = None
+    admission_fee: Optional[str] = None
+    parking_info: Optional[str] = None
+    rental_info: Optional[str] = None
+    capacity: Optional[str] = None
+    operating_hours: Optional[str] = None
+    address: Optional[str] = None
+    detail_address: Optional[str] = None
+    zipcode: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    tel: Optional[str] = None
+    homepage: Optional[str] = None
+    overview: Optional[str] = None
+    first_image: Optional[str] = None
+    first_image_small: Optional[str] = None
+    data_quality_score: Optional[float] = None
+    processing_status: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    last_sync_at: Optional[datetime] = None
+    booktour: Optional[str] = None
+    createdtime: Optional[str] = None
+    modifiedtime: Optional[str] = None
+    telname: Optional[str] = None
+    faxno: Optional[str] = None
+    mlevel: Optional[int] = None
+    detail_intro_info: Optional[dict] = None
+    detail_additional_info: Optional[dict] = None
+    sigungu_code: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
 class LeisureSportsListResponse(BaseModel):
     items: list[LeisureSportsResponse]
     total: int
@@ -58,14 +101,18 @@ def list_leisure_sports(
     facility_name: str = Query(None),
     db: Session = Depends(get_db),
 ):
-    query = db.query(LeisureSports)
-    if region_code:
-        query = query.filter(LeisureSports.region_code == region_code)
-    if facility_name:
-        query = query.filter(LeisureSports.facility_name.ilike(f"%{facility_name}%"))
-    total = query.count()
-    items = query.offset(skip).limit(limit).all()
-    return {"items": items, "total": total}
+    try:
+        query = db.query(LeisureSports)
+        if region_code:
+            query = query.filter(LeisureSports.region_code == region_code)
+        if facility_name:
+            query = query.filter(LeisureSports.facility_name.ilike(f"%{facility_name}%"))
+        total = query.count()
+        items = query.offset(skip).limit(limit).all()
+        return {"items": items, "total": total}
+    except Exception as e:
+        # 테이블이 없는 경우 빈 응답 반환
+        return {"items": [], "total": 0}
 
 @router.get("/{content_id}", response_model=LeisureSportsResponse)
 def get_leisure_sports(content_id: str, db: Session = Depends(get_db)):

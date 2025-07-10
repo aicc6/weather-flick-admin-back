@@ -152,74 +152,60 @@ def test_log(
     )
 
 
-@router.get("/status", response_model=SuccessResponse[SystemStatusData])
+@router.get("/status")
 async def get_system_status():
     """
-    시스템 상태 조회 (개선된 버전)
-    
-    - 전체 시스템 상태 (HEALTHY, DEGRADED, UNHEALTHY, UNKNOWN)
-    - 데이터베이스 연결 상태
-    - 외부 API 의존성 상태  
-    - 시스템 리소스 상태
-    - 가동 시간 및 상세 정보
+    시스템 상태 조회 (간소화된 버전)
     """
     try:
         # 시스템 서비스를 통한 상태 조회
         system_status = await system_service.get_system_status()
         
-        return SuccessResponse(
-            data=system_status,
-            message="시스템 상태를 성공적으로 조회했습니다."
-        )
+        return {
+            "success": True,
+            "data": {
+                "overall_status": system_status.overall_status.value,
+                "service_status": system_status.service_status.value,
+                "health_level": system_status.health_level.value,
+                "message": system_status.message,
+                "last_check": system_status.last_check.isoformat(),
+                "uptime_seconds": system_status.uptime_seconds,
+                "database": {
+                    "status": system_status.database.status.value,
+                    "response_time": system_status.database.response_time,
+                    "message": system_status.database.message
+                },
+                "external_apis": {
+                    "weather_api": {
+                        "status": system_status.external_apis.weather_api.status.value,
+                        "message": system_status.external_apis.weather_api.message
+                    },
+                    "tourism_api": {
+                        "status": system_status.external_apis.tourism_api.status.value,
+                        "message": system_status.external_apis.tourism_api.message
+                    },
+                    "google_places": {
+                        "status": system_status.external_apis.google_places.status.value,
+                        "message": system_status.external_apis.google_places.message
+                    }
+                }
+            },
+            "message": "시스템 상태를 성공적으로 조회했습니다."
+        }
         
     except Exception as e:
         import logging
+        import traceback
         
         logging.error(f"System status error: {e}")
+        logging.error(traceback.format_exc())
         
-        # 오류 발생 시 기본 응답
-        from datetime import timezone
-        
-        error_status = SystemStatusData(
-            overall_status=SystemStatus.UNKNOWN,
-            service_status=ServiceStatus.DOWN,
-            health_level=HealthLevel.CRITICAL,
-            message=f"시스템 상태 조회 실패: {str(e)}",
-            last_check=datetime.now(timezone.utc),
-            uptime_seconds=0,
-            database=DatabaseStatus(
-                status=ServiceStatus.DOWN,
-                response_time=0.0,
-                message="조회 실패",
-                last_check=datetime.now(timezone.utc)
-            ),
-            external_apis=ExternalApisStatus(
-                weather_api=ExternalApiStatus(
-                    status=ServiceStatus.DOWN,
-                    response_time=0.0,
-                    message="조회 실패",
-                    last_check=datetime.now(timezone.utc)
-                ),
-                tourism_api=ExternalApiStatus(
-                    status=ServiceStatus.DOWN,
-                    response_time=0.0,
-                    message="조회 실패",
-                    last_check=datetime.now(timezone.utc)
-                ),
-                google_places=ExternalApiStatus(
-                    status=ServiceStatus.DOWN,
-                    response_time=0.0,
-                    message="조회 실패",
-                    last_check=datetime.now(timezone.utc)
-                )
-            ),
-            details={"error": str(e)}
-        )
-        
-        return SuccessResponse(
-            data=error_status,
-            message="시스템 상태 조회 중 오류가 발생했지만 기본 정보를 반환합니다."
-        )
+        return {
+            "success": False,
+            "data": None,
+            "message": f"시스템 상태 조회 중 오류 발생: {str(e)}",
+            "error": str(e)
+        }
 
 
 # 기존 호환성을 위한 레거시 엔드포인트 (deprecated)

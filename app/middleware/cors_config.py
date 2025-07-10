@@ -6,7 +6,7 @@ Cross-Origin Resource Sharing 정책을 통한 보안 강화
 from typing import List, Optional, Dict
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseSettings
+from pydantic_settings import BaseSettings
 import re
 
 
@@ -60,9 +60,7 @@ class CorsSettings(BaseSettings):
     # 개발 모드에서 모든 origin 허용
     ALLOW_ALL_ORIGINS_IN_DEV: bool = True
     
-    class Config:
-        env_prefix = "CORS_"
-        env_file = ".env"
+    model_config = {"extra": "ignore", "env_prefix": "CORS_", "env_file": ".env"}
 
 
 def setup_cors(
@@ -103,7 +101,7 @@ class DynamicCorsMiddleware:
     ):
         """
         Args:
-            allowed_origin_patterns: 정규식 패턴 리스트 (예: [r"https://.*\.weatherflick\.com"])
+            allowed_origin_patterns: 정규식 패턴 리스트 (예: [r"https://.*\\.weatherflick\\.com"])
             allowed_origin_checker: Origin 검증 함수
         """
         self.patterns = []

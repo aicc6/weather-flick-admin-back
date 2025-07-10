@@ -8,12 +8,10 @@ from datetime import datetime, timezone
 from typing import Dict, Any
 
 import psutil
-import asyncpg
 import httpx
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 
-from app.core.database import get_db
+from app.database import get_db
 from app.schemas.system import (
     SystemStatus,
     ServiceStatus,
@@ -38,9 +36,9 @@ class SystemStatusService:
         
         try:
             # 데이터베이스 세션 가져오기
-            async for db in get_db():
+            for db in get_db():
                 # 간단한 쿼리 실행
-                result = await db.execute(text("SELECT 1"))
+                result = db.execute(text("SELECT 1"))
                 result.fetchone()
                 
                 response_time = (time.time() - start_time) * 1000  # 밀리초로 변환

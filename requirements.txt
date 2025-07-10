@@ -8,6 +8,7 @@ pydantic-settings==2.10.1
 sqlalchemy==2.0.35
 alembic==1.13.3
 psycopg2-binary==2.9.10
+asyncpg==0.30.0
 
 # Authentication
 python-jose[cryptography]==3.3.0
@@ -32,6 +33,30 @@ python-dotenv==1.0.1
 pytest==8.3.3
 pytest-cov==6.0.0
 pytest-asyncio==0.24.0
+
+# AI/ML Libraries for Admin Analytics
+numpy==1.26.4
+pandas==2.2.3
+scikit-learn==1.5.2
+torch==2.5.1
+openai>=1.40.0
+
+# Model serialization and storage
+joblib==1.4.2
+
+# Data visualization for admin dashboards
+matplotlib==3.9.2
+seaborn==0.13.2
+
+# Statistical analysis
+scipy==1.14.1
+
+# Advanced ML algorithms
+xgboost==2.1.1
+lightgbm==4.5.0
+
+# Time series analysis for trend prediction
+statsmodels==0.14.4
 
 # Code quality tools
 black==24.10.0

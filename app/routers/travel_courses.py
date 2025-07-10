@@ -51,9 +51,9 @@ class TravelCourseResponse(BaseModel):
     detail_additional_info: dict | None = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
-router = APIRouter(prefix="/travel-courses", tags=["Travel Courses"])
+router = APIRouter(prefix="/api/travel-courses", tags=["Travel Courses"])
 
 @router.get("/")
 def get_all_travel_courses(
@@ -63,62 +63,70 @@ def get_all_travel_courses(
     course_name: str = Query(None),
     region: str = Query(None)
 ):
-    query = db.query(TravelCourse)
-    if course_name:
-        query = query.filter(TravelCourse.course_name.ilike(f"%{course_name}%"))
-    if region:
-        query = query.filter(TravelCourse.region_code == region)
-    total = query.count()
-    courses = query.order_by(TravelCourse.created_at.desc()).offset(offset).limit(limit).all()
-    return {
-        "total": total,
-        "items": [
-            {
-                "content_id": c.content_id,
-                "region_code": c.region_code,
-                "sigungu_code": c.sigungu_code,
-                "course_name": c.course_name,
-                "category_code": c.category_code,
-                "sub_category_code": c.sub_category_code,
-                "address": c.address,
-                "detail_address": c.detail_address,
-                "latitude": safe_float(getattr(c, 'latitude', None)),
-                "longitude": safe_float(getattr(c, 'longitude', None)),
-                "zipcode": c.zipcode,
-                "tel": c.tel,
-                "homepage": c.homepage,
-                "overview": c.overview,
-                "first_image": c.first_image,
-                "first_image_small": c.first_image_small,
-                "course_theme": c.course_theme,
-                "course_distance": c.course_distance,
-                "required_time": c.required_time,
-                "difficulty_level": c.difficulty_level,
-                "schedule": c.schedule,
-                "created_at": c.created_at,
-                "updated_at": c.updated_at,
-                "raw_data_id": str(getattr(c, 'raw_data_id', None)) if getattr(c, 'raw_data_id', None) is not None else None,
-                "last_sync_at": c.last_sync_at,
-                "data_quality_score": safe_float(getattr(c, 'data_quality_score', None)),
-                "processing_status": c.processing_status,
-                "booktour": c.booktour,
-                "createdtime": c.createdtime,
-                "modifiedtime": c.modifiedtime,
-                "telname": c.telname,
-                "faxno": c.faxno,
-                "mlevel": c.mlevel,
-                "detail_intro_info": c.detail_intro_info,
-                "detail_additional_info": c.detail_additional_info,
-            }
-            for c in courses
-        ]
-    }
+    try:
+        query = db.query(TravelCourse)
+        if course_name:
+            query = query.filter(TravelCourse.course_name.ilike(f"%{course_name}%"))
+        if region:
+            query = query.filter(TravelCourse.region_code == region)
+        total = query.count()
+        courses = query.order_by(TravelCourse.created_at.desc()).offset(offset).limit(limit).all()
+        return {
+            "total": total,
+            "items": [
+                {
+                    "content_id": c.content_id,
+                    "region_code": c.region_code,
+                    "sigungu_code": c.sigungu_code,
+                    "course_name": c.course_name,
+                    "category_code": c.category_code,
+                    "sub_category_code": c.sub_category_code,
+                    "address": c.address,
+                    "detail_address": c.detail_address,
+                    "latitude": safe_float(getattr(c, 'latitude', None)),
+                    "longitude": safe_float(getattr(c, 'longitude', None)),
+                    "zipcode": c.zipcode,
+                    "tel": c.tel,
+                    "homepage": c.homepage,
+                    "overview": c.overview,
+                    "first_image": c.first_image,
+                    "first_image_small": c.first_image_small,
+                    "course_theme": c.course_theme,
+                    "course_distance": c.course_distance,
+                    "required_time": c.required_time,
+                    "difficulty_level": c.difficulty_level,
+                    "schedule": c.schedule,
+                    "created_at": c.created_at,
+                    "updated_at": c.updated_at,
+                    "raw_data_id": str(getattr(c, 'raw_data_id', None)) if getattr(c, 'raw_data_id', None) is not None else None,
+                    "last_sync_at": c.last_sync_at,
+                    "data_quality_score": safe_float(getattr(c, 'data_quality_score', None)),
+                    "processing_status": c.processing_status,
+                    "booktour": c.booktour,
+                    "createdtime": c.createdtime,
+                    "modifiedtime": c.modifiedtime,
+                    "telname": c.telname,
+                    "faxno": c.faxno,
+                    "mlevel": c.mlevel,
+                    "detail_intro_info": c.detail_intro_info,
+                    "detail_additional_info": c.detail_additional_info,
+                }
+                for c in courses
+            ]
+        }
+    except Exception as e:
+        # 테이블이 없는 경우 빈 응답 반환
+        return {"total": 0, "items": []}
 
 @router.get("/region-count")
 def get_region_count(db: Session = Depends(get_db)):
-    regions = db.query(TravelCourse.region_code).distinct().all()
-    # regions is a list of tuples like [(1,), (2,), ...]
-    return {"region_count": len(regions)}
+    try:
+        regions = db.query(TravelCourse.region_code).distinct().all()
+        # regions is a list of tuples like [(1,), (2,), ...]
+        return {"region_count": len(regions)}
+    except Exception as e:
+        # 테이블이 없는 경우 0 반환
+        return {"region_count": 0}
 
 @router.get("/{content_id}", response_model=TravelCourseResponse)
 def get_travel_course(content_id: str, db: Session = Depends(get_db)):

@@ -281,7 +281,21 @@ def create_rate_limiter(
         "GET:/api/system/status": (60, 60),  # 1분에 60번 (1초에 1번)
     }
     
-    return RateLimitMiddleware(
+    class RateLimitMiddlewareWrapper:
+        def __init__(self, redis_client, endpoint_limits, **kwargs):
+            self.redis_client = redis_client
+            self.endpoint_limits = endpoint_limits
+            self.kwargs = kwargs
+            
+        def __call__(self, app):
+            return RateLimitMiddleware(
+                app=app,
+                redis_client=self.redis_client,
+                endpoint_limits=self.endpoint_limits,
+                **self.kwargs
+            )
+    
+    return RateLimitMiddlewareWrapper(
         redis_client=redis_client,
         endpoint_limits=endpoint_limits,
         **kwargs
