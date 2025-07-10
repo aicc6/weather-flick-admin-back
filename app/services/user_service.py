@@ -193,6 +193,8 @@ class UserService:
                 .count()
             )
 
+            inactive_users = total_users - active_users
+            
             return UserStats(
                 total_users=total_users,
                 active_users=active_users,
@@ -200,6 +202,12 @@ class UserService:
                 admin_users=admin_users,
                 recent_registrations=recent_registrations,
                 recent_logins=recent_logins,
+                # 프론트엔드 호환성을 위한 필드들
+                total=total_users,
+                active=active_users,
+                inactive=inactive_users,
+                verified=verified_users,
+                admin=admin_users,
             )
 
         except Exception as e:

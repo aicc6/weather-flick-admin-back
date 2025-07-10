@@ -83,6 +83,13 @@ class UserStats(BaseModel):
     admin_users: int
     recent_registrations: int  # 최근 30일
     recent_logins: int  # 최근 7일
+    
+    # 프론트엔드 호환성을 위한 추가 필드
+    total: int
+    active: int
+    inactive: int
+    verified: int
+    admin: int
 
 
 class UserSearchParams(BaseModel):

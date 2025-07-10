@@ -82,7 +82,7 @@ class User(Base):
     )  # OAuth 사용자는 비밀번호가 없을 수 있음
     nickname = Column(String, index=True, nullable=False)
     profile_image = Column(String)
-    preferences = Column(JSONB, default=dict)
+    preferences = Column(JSONB)
     preferred_region = Column(String)  # 선호 지역
     preferred_theme = Column(String)  # 선호 테마
     bio = Column(Text)  # 자기소개
@@ -105,7 +105,7 @@ class User(Base):
     reviews = relationship("Review", back_populates="user")
     activity_logs = relationship("UserActivityLog", back_populates="user")
     social_accounts = relationship("UserSocialAccount", back_populates="user")
-    preferences = relationship("UserPreference", back_populates="user", uselist=False)
+    user_preferences = relationship("UserPreference", back_populates="user", uselist=False)
 
 
 class Admin(Base):
@@ -176,8 +176,8 @@ class Destination(Base):
     category = Column(String)
     is_indoor = Column(Boolean, default=False)  # 실내/실외 여부
     tags = Column(JSONB)  # 여행지 특성 태그
-    latitude = Column(DECIMAL(10, 8))
-    longitude = Column(DECIMAL(11, 8))
+    latitude = Column(Numeric(10, 8))
+    longitude = Column(Numeric(11, 8))
     amenities = Column(JSONB)
     image_url = Column(String)
     rating = Column(Float)
@@ -937,8 +937,8 @@ class TouristAttraction(Base):
     address = Column(String)
     detail_address = Column(String)
     zipcode = Column(String(10))
-    latitude = Column(DECIMAL(10, 8))
-    longitude = Column(DECIMAL(11, 8))
+    latitude = Column(Numeric(10, 8))
+    longitude = Column(Numeric(11, 8))
 
     # 연락처 정보
     tel = Column(String(50))
@@ -1009,8 +1009,8 @@ class CulturalFacility(Base):
     address = Column(String)
     detail_address = Column(String)
     zipcode = Column(String(10))
-    latitude = Column(DECIMAL(10, 8))
-    longitude = Column(DECIMAL(11, 8))
+    latitude = Column(Numeric(10, 8))
+    longitude = Column(Numeric(11, 8))
 
     # 연락처 정보
     tel = Column(String(50))
@@ -1078,8 +1078,8 @@ class FestivalEvent(Base):
     address = Column(String)
     detail_address = Column(String)
     zipcode = Column(String(10))
-    latitude = Column(DECIMAL(10, 8))
-    longitude = Column(DECIMAL(11, 8))
+    latitude = Column(Numeric(10, 8))
+    longitude = Column(Numeric(11, 8))
 
     # 연락처 정보
     tel = Column(String(50))
@@ -1138,8 +1138,8 @@ class LeisureSports(Base):
     address = Column(String)
     detail_address = Column(String)
     zipcode = Column(String)
-    latitude = Column(DECIMAL(10, 8))
-    longitude = Column(DECIMAL(11, 8))
+    latitude = Column(Numeric(10, 8))
+    longitude = Column(Numeric(11, 8))
     tel = Column(String)
     homepage = Column(String)
     overview = Column(Text)
@@ -1273,8 +1273,8 @@ class Shopping(Base):
     address = Column(String)
     detail_address = Column(String)
     zipcode = Column(String(10))
-    latitude = Column(DECIMAL(10, 8))
-    longitude = Column(DECIMAL(11, 8))
+    latitude = Column(Numeric(10, 8))
+    longitude = Column(Numeric(11, 8))
 
     # 연락처 정보
     tel = Column(String(50))
@@ -1336,8 +1336,8 @@ class PetTourInfo(Base):
 
     # 주소 및 위치 정보
     address = Column(String)
-    latitude = Column(DECIMAL(10, 8))
-    longitude = Column(DECIMAL(11, 8))
+    latitude = Column(Numeric(10, 8))
+    longitude = Column(Numeric(11, 8))
     area_code = Column(String)
     sigungu_code = Column(String)
 
@@ -1763,7 +1763,7 @@ class UserPreference(Base):
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
     # 관계 설정
-    user = relationship("User", back_populates="preferences")
+    user = relationship("User", back_populates="user_preferences")
 
 
 class TravelDay(Base):
