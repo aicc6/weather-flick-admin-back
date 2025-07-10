@@ -24,6 +24,14 @@ from app.routers import festivals_events
 from app.routers import leisure_sports
 from app.routers import travel_plans
 
+# AI 관련 라우터들
+from app.routers import ai_behavior
+from app.routers import ai_ml_models
+from app.routers import ai_notifications
+from app.routers import ai_predictive
+from app.routers import ai_recommendations
+from app.routers import ai_trends
+
 # 보안 미들웨어 임포트
 from app.middleware import (
     setup_cors,
@@ -87,6 +95,14 @@ app.include_router(travel_courses_router)
 app.include_router(festivals_events.router, prefix="/api")
 app.include_router(leisure_sports.router)
 app.include_router(travel_plans.router, prefix="/api")
+
+# AI 라우터 등록 (관리자 전용)
+app.include_router(ai_behavior.router, prefix="/api")
+app.include_router(ai_ml_models.router, prefix="/api")
+app.include_router(ai_notifications.router, prefix="/api")
+app.include_router(ai_predictive.router, prefix="/api")
+app.include_router(ai_recommendations.router, prefix="/api")
+app.include_router(ai_trends.router, prefix="/api")
 
 
 @app.get("/")

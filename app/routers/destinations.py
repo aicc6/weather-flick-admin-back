@@ -130,88 +130,93 @@ def search_tourist_attractions(
 
 @router.post("/", status_code=201)
 def create_tourist_attraction(
-    attraction_name: str = Body(...),
-    description: str = Body(None),
-    address: str = Body(None),
-    image_url: str = Body(None),
+    name: str = Body(...),
+    province: str = Body(...),
+    region: str = Body(None),
+    category: str = Body(None),
+    is_indoor: bool = Body(False),
+    tags: list[str] = Body([]),
     latitude: float = Body(None),
     longitude: float = Body(None),
-    category_code: str = Body(None),
-    category_name: str = Body(None),
-    region_code: str = Body(None),
+    amenities: dict = Body({}),
+    image_url: str = Body(None),
     db: Session = Depends(get_db),
 ):
-    new_attraction = TouristAttraction(
-        content_id=str(uuid4()),
-        attraction_name=attraction_name,
-        description=description,
-        address=address,
-        image_url=image_url,
+    new_destination = Destination(
+        destination_id=uuid4(),
+        name=name,
+        province=province,
+        region=region,
+        category=category,
+        is_indoor=is_indoor,
+        tags=tags,
         latitude=latitude,
         longitude=longitude,
-        category_code=category_code,
-        category_name=category_name,
-        region_code=region_code,
+        amenities=amenities,
+        image_url=image_url,
     )
-    db.add(new_attraction)
+    db.add(new_destination)
     db.commit()
-    db.refresh(new_attraction)
-    return {"content_id": new_attraction.content_id}
+    db.refresh(new_destination)
+    return {"content_id": str(new_destination.destination_id)}
 
 
 @router.put("/{content_id}")
 def update_tourist_attraction(
     content_id: str,
-    attraction_name: str = Body(None),
-    description: str = Body(None),
-    address: str = Body(None),
-    image_url: str = Body(None),
+    name: str = Body(None),
+    province: str = Body(None),
+    region: str = Body(None),
+    category: str = Body(None),
+    is_indoor: bool = Body(None),
+    tags: list[str] = Body(None),
     latitude: float = Body(None),
     longitude: float = Body(None),
-    category_code: str = Body(None),
-    category_name: str = Body(None),
-    region_code: str = Body(None),
+    amenities: dict = Body(None),
+    image_url: str = Body(None),
     db: Session = Depends(get_db),
 ):
-    attraction = (
-        db.query(TouristAttraction)
-        .filter(TouristAttraction.content_id == content_id)
+    destination = (
+        db.query(Destination)
+        .filter(Destination.destination_id == content_id)
         .first()
     )
-    if not attraction:
+    if not destination:
         raise HTTPException(status_code=404, detail="관광지를 찾을 수 없습니다.")
-    if attraction_name is not None:
-        attraction.attraction_name = attraction_name
-    if description is not None:
-        attraction.description = description
-    if address is not None:
-        attraction.address = address
-    if image_url is not None:
-        attraction.image_url = image_url
+    if name is not None:
+        destination.name = name
+    if province is not None:
+        destination.province = province
+    if region is not None:
+        destination.region = region
+    if category is not None:
+        destination.category = category
+    if is_indoor is not None:
+        destination.is_indoor = is_indoor
+    if tags is not None:
+        destination.tags = tags
     if latitude is not None:
-        attraction.latitude = latitude
+        destination.latitude = latitude
     if longitude is not None:
-        attraction.longitude = longitude
-    if category_code is not None:
-        attraction.category_code = category_code
-    if category_name is not None:
-        attraction.category_name = category_name
-    if region_code is not None:
-        attraction.region_code = region_code
+        destination.longitude = longitude
+    if amenities is not None:
+        destination.amenities = amenities
+    if image_url is not None:
+        destination.image_url = image_url
     db.commit()
-    db.refresh(attraction)
-    return {"content_id": attraction.content_id}
+    db.refresh(destination)
+    return {"content_id": str(destination.destination_id)}
 
 
 @router.delete("/{content_id}", status_code=204)
 def delete_tourist_attraction(content_id: str, db: Session = Depends(get_db)):
-    attraction = (
-        db.query(TouristAttraction)
-        .filter(TouristAttraction.content_id == content_id)
+    destination = (
+        db.query(Destination)
+        .filter(Destination.destination_id == content_id)
         .first()
     )
-    if not attraction:
+    if not destination:
         raise HTTPException(status_code=404, detail="관광지를 찾을 수 없습니다.")
-    db.delete(attraction)
+    db.delete(destination)
     db.commit()
     return None

@@ -26,7 +26,6 @@ def get_data_quality_overview(
         # 테이블별 품질 점수 통계
         tables = [
             "destinations",
-            "tourist_attractions",
             "restaurants",
             "accommodations",
         ]
@@ -194,7 +193,6 @@ def calculate_quality_scores(
     """
     valid_tables = [
         "destinations",
-        "tourist_attractions",
         "restaurants",
         "accommodations",
     ]
@@ -241,8 +239,7 @@ def calculate_all_quality_scores(
     try:
         tables = [
             "destinations",
-            "tourist_attractions",
-            "restaurants",
+                "restaurants",
             "accommodations",
         ]
         results = {}
@@ -307,7 +304,6 @@ def get_records_by_quality(
     """
     valid_tables = [
         "destinations",
-        "tourist_attractions",
         "restaurants",
         "accommodations",
     ]
@@ -330,7 +326,6 @@ def get_records_by_quality(
             count_query = "SELECT COUNT(*) as total FROM destinations WHERE data_quality_score IS NOT NULL"
         else:
             name_field = {
-                "tourist_attractions": "attraction_name",
                 "restaurants": "restaurant_name",
                 "accommodations": "name",
             }.get(table_name, "name")
@@ -451,7 +446,6 @@ def analyze_record_quality(
     """
     valid_tables = [
         "destinations",
-        "tourist_attractions",
         "restaurants",
         "accommodations",
     ]
@@ -476,17 +470,7 @@ def analyze_record_quality(
             )
         else:
             # 각 테이블에 맞는 쿼리 (모든 필드 포함)
-            if table_name == "tourist_attractions":
-                query = text(
-                    """
-                    SELECT content_id, attraction_name, region_code, category_name,
-                           address, latitude, longitude, tel, homepage,
-                           first_image, overview, created_at, updated_at, last_sync_at
-                    FROM tourist_attractions 
-                    WHERE content_id = :record_id
-                """
-                )
-            elif table_name == "restaurants":
+            if table_name == "restaurants":
                 query = text(
                     """
                     SELECT content_id, restaurant_name, region_code, cuisine_type,
@@ -551,8 +535,7 @@ def get_quality_improvement_suggestions(
         # 각 테이블별 낮은 품질 레코드 분석
         tables = [
             "destinations",
-            "tourist_attractions",
-            "restaurants",
+                "restaurants",
             "accommodations",
         ]
 

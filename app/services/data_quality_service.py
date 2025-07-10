@@ -31,7 +31,6 @@ class DataQualityAnalyzer:
         # 필수 필드 정의
         self.required_fields = {
             "destinations": ["name", "province", "latitude", "longitude"],
-            "tourist_attractions": ["attraction_name", "region_code", "address"],
             "restaurants": ["restaurant_name", "region_code"],
             "accommodations": ["name", "region_code", "address"],
         }
@@ -560,14 +559,6 @@ def calculate_and_update_quality_scores(
                    latitude, longitude, amenities, image_url, rating,
                    created_at, updated_at
             FROM destinations 
-            ORDER BY updated_at DESC 
-            LIMIT :limit
-        """,
-        "tourist_attractions": """
-            SELECT content_id, attraction_name, region_code, category_name,
-                   address, latitude, longitude, tel, homepage, 
-                   first_image, overview, created_at, updated_at, last_sync_at
-            FROM tourist_attractions 
             ORDER BY updated_at DESC 
             LIMIT :limit
         """,
