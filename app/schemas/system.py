@@ -3,22 +3,51 @@
 """
 
 from datetime import datetime
+from enum import Enum
 
 from pydantic import BaseModel, Field
+
+
+class SystemStatus(str, Enum):
+    """시스템 상태 열거형"""
+    HEALTHY = "HEALTHY"
+    DEGRADED = "DEGRADED"
+    UNHEALTHY = "UNHEALTHY"
+    UNKNOWN = "UNKNOWN"
+
+
+class ServiceStatus(str, Enum):
+    """서비스 상태 열거형"""
+    UP = "UP"
+    DOWN = "DOWN"
+    MAINTENANCE = "MAINTENANCE"
+    PARTIAL = "PARTIAL"
+
+
+class HealthLevel(str, Enum):
+    """건강 상태 레벨"""
+    CRITICAL = "CRITICAL"
+    WARNING = "WARNING"
+    INFO = "INFO"
+    SUCCESS = "SUCCESS"
 
 
 class DatabaseStatus(BaseModel):
     """데이터베이스 상태"""
 
-    status: str = Field(..., description="데이터베이스 연결 상태")
-    response_time: str = Field(..., description="응답 시간")
+    status: ServiceStatus = Field(..., description="데이터베이스 연결 상태")
+    response_time: float = Field(..., description="응답 시간 (밀리초)")
+    message: str = Field("", description="상태 메시지")
+    last_check: datetime = Field(..., description="마지막 체크 시간")
 
 
 class ExternalApiStatus(BaseModel):
     """외부 API 상태"""
 
-    status: str = Field(..., description="API 상태")
-    response_time: str = Field(..., description="응답 시간")
+    status: ServiceStatus = Field(..., description="API 상태")
+    response_time: float = Field(..., description="응답 시간 (밀리초)")
+    message: str = Field("", description="상태 메시지")
+    last_check: datetime = Field(..., description="마지막 체크 시간")
 
 
 class ExternalApisStatus(BaseModel):
@@ -32,9 +61,15 @@ class ExternalApisStatus(BaseModel):
 class SystemStatusData(BaseModel):
     """시스템 상태 데이터"""
 
-    service_status: str = Field(..., description="전체 서비스 상태")
+    overall_status: SystemStatus = Field(..., description="전체 시스템 상태")
+    service_status: ServiceStatus = Field(..., description="서비스 상태")
+    health_level: HealthLevel = Field(..., description="건강 상태 레벨")
+    message: str = Field("", description="시스템 상태 메시지")
+    last_check: datetime = Field(..., description="마지막 체크 시간")
+    uptime_seconds: int = Field(..., description="가동 시간 (초)")
     database: DatabaseStatus = Field(..., description="데이터베이스 상태")
     external_apis: ExternalApisStatus = Field(..., description="외부 API 상태")
+    details: dict = Field(default_factory=dict, description="상세 정보")
 
 
 class SystemLogOut(BaseModel):

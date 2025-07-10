@@ -17,8 +17,12 @@ from app.schemas.system import (
     SystemLogTestRequest,
     SystemLogTestResponse,
     SystemStatusData,
+    SystemStatus,
+    ServiceStatus,
+    HealthLevel,
 )
 from app.services.system_log import log_system_event
+from app.services.system_service import system_service
 
 router = APIRouter(prefix="/system", tags=["system"])
 
@@ -148,18 +152,86 @@ def test_log(
     )
 
 
-# 서비스 상태 확인 API (하드웨어 모니터링 제거, 서비스 의존성 중심으로 변경)
-@router.get("/status", response_model=Any)
-async def get_service_status():
+@router.get("/status", response_model=SuccessResponse[SystemStatusData])
+async def get_system_status():
     """
-    서비스 상태 조회
-
+    시스템 상태 조회 (개선된 버전)
+    
+    - 전체 시스템 상태 (HEALTHY, DEGRADED, UNHEALTHY, UNKNOWN)
     - 데이터베이스 연결 상태
-    - 외부 API 의존성 상태
+    - 외부 API 의존성 상태  
+    - 시스템 리소스 상태
+    - 가동 시간 및 상세 정보
+    """
+    try:
+        # 시스템 서비스를 통한 상태 조회
+        system_status = await system_service.get_system_status()
+        
+        return SuccessResponse(
+            data=system_status,
+            message="시스템 상태를 성공적으로 조회했습니다."
+        )
+        
+    except Exception as e:
+        import logging
+        
+        logging.error(f"System status error: {e}")
+        
+        # 오류 발생 시 기본 응답
+        from datetime import timezone
+        
+        error_status = SystemStatusData(
+            overall_status=SystemStatus.UNKNOWN,
+            service_status=ServiceStatus.DOWN,
+            health_level=HealthLevel.CRITICAL,
+            message=f"시스템 상태 조회 실패: {str(e)}",
+            last_check=datetime.now(timezone.utc),
+            uptime_seconds=0,
+            database=DatabaseStatus(
+                status=ServiceStatus.DOWN,
+                response_time=0.0,
+                message="조회 실패",
+                last_check=datetime.now(timezone.utc)
+            ),
+            external_apis=ExternalApisStatus(
+                weather_api=ExternalApiStatus(
+                    status=ServiceStatus.DOWN,
+                    response_time=0.0,
+                    message="조회 실패",
+                    last_check=datetime.now(timezone.utc)
+                ),
+                tourism_api=ExternalApiStatus(
+                    status=ServiceStatus.DOWN,
+                    response_time=0.0,
+                    message="조회 실패",
+                    last_check=datetime.now(timezone.utc)
+                ),
+                google_places=ExternalApiStatus(
+                    status=ServiceStatus.DOWN,
+                    response_time=0.0,
+                    message="조회 실패",
+                    last_check=datetime.now(timezone.utc)
+                )
+            ),
+            details={"error": str(e)}
+        )
+        
+        return SuccessResponse(
+            data=error_status,
+            message="시스템 상태 조회 중 오류가 발생했지만 기본 정보를 반환합니다."
+        )
+
+
+# 기존 호환성을 위한 레거시 엔드포인트 (deprecated)
+@router.get("/status/legacy", response_model=Any, deprecated=True)
+async def get_service_status_legacy():
+    """
+    서비스 상태 조회 (레거시)
+    
+    @deprecated: /system/status 사용을 권장합니다.
     """
     try:
         import time
-
         from app.config import settings
 
         # 데이터베이스 연결 상태 확인
@@ -185,29 +257,20 @@ async def get_service_status():
             api["status"] in ["정상", "타임아웃"] for api in external_apis_dict.values()
         )
 
-        # Pydantic 모델로 변환
-        database_status = DatabaseStatus(**db_status_dict)
-        external_apis_status = ExternalApisStatus(
-            weather_api=ExternalApiStatus(**external_apis_dict["weather_api"]),
-            tourism_api=ExternalApiStatus(**external_apis_dict["tourism_api"]),
-            google_places=ExternalApiStatus(**external_apis_dict["google_places"]),
-        )
-
-        system_status_data = SystemStatusData(
-            service_status="정상" if service_healthy else "문제발생",
-            database=database_status,
-            external_apis=external_apis_status,
-        )
-
-        return SuccessResponse(
-            data=system_status_data, message="시스템 상태를 성공적으로 조회했습니다."
-        )
+        return {
+            "success": True,
+            "data": {
+                "service_status": "정상" if service_healthy else "문제발생",
+                "database": db_status_dict,
+                "external_apis": external_apis_dict,
+            },
+            "message": "시스템 상태를 성공적으로 조회했습니다.",
+            "timestamp": datetime.now().isoformat(),
+        }
 
     except Exception as e:
         import logging
-
         logging.error(f"System status error: {e}")
-        # 간단한 응답 반환
         return {
             "success": False,
             "data": None,
