@@ -347,17 +347,6 @@ class FavoritePlace(Base):
 
 
 
-class CityInfo(Base):
-    __tablename__ = "city_info"
-    id = Column(Integer, primary_key=True, index=True)
-    city_name = Column(String, nullable=False, unique=True)
-    region = Column(String, nullable=False)
-    population = Column(Integer)
-    area = Column(Float)
-    description = Column(Text)
-    attractions = Column(JSONB)
-    weather_info = Column(JSONB)
-    created_at = Column(DateTime, server_default=func.now())
 
 
 # Pydantic 모델들

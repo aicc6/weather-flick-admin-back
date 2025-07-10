@@ -219,22 +219,22 @@ async def get_batch_job_status(job_id: str):
 async def get_running_batch_jobs():
     """실행 중인 배치 작업 목록 조회"""
     
-    running_job_list = []
-    current_time = datetime.now()
+    # 배치 API 서버에서 실행 중인 작업 목록 조회
+    batch_running_jobs = await batch_api_request("GET", "/api/batch/jobs/running")
     
-    for job_id, job_info in running_jobs.items():
-        if job_info["status"] == "running":
-            duration = int((current_time - job_info["start_time"]).total_seconds())
-            
-            running_job_list.append(BatchJobStatus(
-                job_id=job_id,
-                execution_id=job_info["execution_id"],
-                status=job_info["status"],
-                start_time=job_info["start_time"],
-                duration=duration,
-                output=job_info.get("output"),
-                error=job_info.get("error")
-            ))
+    # 응답 형식 변환
+    running_job_list = []
+    for job in batch_running_jobs:
+        running_job_list.append(BatchJobStatus(
+            job_id=job["job_id"],
+            execution_id=job["execution_id"],
+            status=job["status"],
+            start_time=datetime.fromisoformat(job["start_time"]),
+            end_time=datetime.fromisoformat(job["end_time"]) if job.get("end_time") else None,
+            duration=job.get("duration"),
+            output=job.get("output"),
+            error=job.get("error")
+        ))
     
     return SuccessResponse(
         data=running_job_list,
@@ -246,168 +246,20 @@ async def get_running_batch_jobs():
 async def cancel_batch_job(job_id: str, db: Session = Depends(get_db)):
     """배치 작업 취소 (실행 중인 작업만)"""
     
-    if job_id not in running_jobs:
-        raise HTTPException(
-            status_code=404,
-            detail="실행 중인 작업을 찾을 수 없습니다."
-        )
+    # 배치 API 서버에 작업 취소 요청
+    batch_response = await batch_api_request("DELETE", f"/api/batch/jobs/{job_id}/cancel")
     
-    job_info = running_jobs[job_id]
+    # 시스템 로그 기록
+    log_system_event(
+        level="WARNING",
+        message=f"배치 작업 '{job_id}' 사용자에 의해 취소됨",
+        source="batch_manager",
+        context={"job_id": job_id},
+        db=db
+    )
     
-    if job_info["status"] != "running":
-        raise HTTPException(
-            status_code=400,
-            detail="실행 중이지 않은 작업은 취소할 수 없습니다."
-        )
-    
-    # 프로세스 종료 시도 (실제 구현에서는 프로세스 PID 관리 필요)
-    try:
-        # 작업 상태를 cancelled로 변경
-        running_jobs[job_id]["status"] = "cancelled"
-        running_jobs[job_id]["end_time"] = datetime.now()
-        running_jobs[job_id]["error"] = "사용자에 의해 취소됨"
-        
-        # 시스템 로그 기록
-        log_system_event(
-            level="WARNING",
-            message=f"배치 작업 '{job_id}' 사용자에 의해 취소됨",
-            source="batch_manager",
-            context={"execution_id": job_info["execution_id"]},
-            db=db
-        )
-        
-        return SuccessResponse(
-            data={"job_id": job_id, "status": "cancelled"},
-            message="배치 작업이 취소되었습니다."
-        )
-        
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"작업 취소 중 오류가 발생했습니다: {str(e)}"
-        )
+    return SuccessResponse(
+        data=batch_response,
+        message="배치 작업이 취소되었습니다."
+    )
 
-
-async def run_batch_job_background(
-    job_id: str,
-    execution_id: str,
-    job_config: Dict[str, Any],
-    parameters: Dict[str, Any],
-    db: Session
-):
-    """백그라운드에서 배치 작업 실행"""
-    
-    try:
-        # 배치 프로젝트 경로 확인
-        if not BATCH_PROJECT_PATH.exists():
-            raise Exception(f"배치 프로젝트 경로를 찾을 수 없습니다: {BATCH_PROJECT_PATH}")
-        
-        script_path = BATCH_PROJECT_PATH / job_config["script"]
-        if not script_path.exists():
-            raise Exception(f"배치 스크립트를 찾을 수 없습니다: {script_path}")
-        
-        # 실행 명령어 구성
-        cmd = ["python", str(script_path)] + job_config["args"]
-        
-        # 매개변수가 있는 경우 추가
-        if parameters:
-            for key, value in parameters.items():
-                cmd.extend([f"--{key}", str(value)])
-        
-        # 프로세스 실행
-        process = await asyncio.create_subprocess_exec(
-            *cmd,
-            cwd=BATCH_PROJECT_PATH,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
-        )
-        
-        # 타임아웃과 함께 프로세스 대기
-        try:
-            stdout, stderr = await asyncio.wait_for(
-                process.communicate(),
-                timeout=job_config["timeout"]
-            )
-            
-            # 결과 처리
-            end_time = datetime.now()
-            output = stdout.decode('utf-8') if stdout else ""
-            error = stderr.decode('utf-8') if stderr else ""
-            
-            if process.returncode == 0:
-                status = "completed"
-            else:
-                status = "failed"
-            
-            # 실행 결과 업데이트
-            running_jobs[job_id].update({
-                "status": status,
-                "end_time": end_time,
-                "output": output,
-                "error": error,
-                "exit_code": process.returncode
-            })
-            
-            # 시스템 로그 기록
-            log_system_event(
-                level="INFO" if status == "completed" else "ERROR",
-                message=f"배치 작업 '{job_config['name']}' 실행 {status}",
-                source="batch_manager",
-                context={
-                    "job_id": job_id,
-                    "execution_id": execution_id,
-                    "exit_code": process.returncode,
-                    "duration": int((end_time - running_jobs[job_id]["start_time"]).total_seconds())
-                },
-                db=db
-            )
-            
-        except asyncio.TimeoutError:
-            # 타임아웃 발생
-            process.kill()
-            await process.wait()
-            
-            running_jobs[job_id].update({
-                "status": "timeout",
-                "end_time": datetime.now(),
-                "error": f"작업이 {job_config['timeout']}초 타임아웃으로 종료되었습니다.",
-                "exit_code": -1
-            })
-            
-            log_system_event(
-                level="ERROR",
-                message=f"배치 작업 '{job_config['name']}' 타임아웃 발생",
-                source="batch_manager",
-                context={
-                    "job_id": job_id,
-                    "execution_id": execution_id,
-                    "timeout": job_config["timeout"]
-                },
-                db=db
-            )
-            
-    except Exception as e:
-        # 실행 오류 처리
-        running_jobs[job_id].update({
-            "status": "failed",
-            "end_time": datetime.now(),
-            "error": str(e),
-            "exit_code": -1
-        })
-        
-        log_system_event(
-            level="ERROR",
-            message=f"배치 작업 '{job_config['name']}' 실행 오류: {str(e)}",
-            source="batch_manager",
-            context={
-                "job_id": job_id,
-                "execution_id": execution_id,
-                "error": str(e)
-            },
-            db=db
-        )
-    
-    # 완료된 작업은 일정 시간 후 정리 (선택사항)
-    # await asyncio.sleep(3600)  # 1시간 후 정리
-    # if job_id in running_jobs and running_jobs[job_id]["status"] != "running":
-    #     del running_jobs[job_id]

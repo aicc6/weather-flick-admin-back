@@ -79,6 +79,10 @@ class Settings(BaseSettings):
 
     # 프론트엔드 설정
     admin_frontend_url: str = os.getenv("ADMIN_FRONTEND_URL", "http://localhost:5174")
+    
+    # 배치 API 서버 설정
+    batch_api_url: str = os.getenv("BATCH_API_URL", "http://localhost:8001")
+    batch_api_timeout: int = int(os.getenv("BATCH_API_TIMEOUT", "30"))
 
     @field_validator("secret_key")
     @classmethod
