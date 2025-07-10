@@ -483,11 +483,12 @@ def analyze_record_quality(
             elif table_name == "accommodations":
                 query = text(
                     """
-                    SELECT content_id, name, region_code, type, address,
-                           latitude, longitude, phone, rating, amenities,
-                           created_at, updated_at, last_sync_at
-                    FROM accommodations 
-                    WHERE content_id = :record_id
+                    SELECT destination_id as content_id, name, province as region_code, 
+                           category as type, NULL as address, latitude, longitude,
+                           CASE WHEN amenities ? 'tel' THEN amenities->>'tel' ELSE NULL END as phone,
+                           rating, amenities, created_at, NULL as updated_at, NULL as last_sync_at
+                    FROM destinations 
+                    WHERE category = '숙박' AND destination_id::text = :record_id
                 """
                 )
 

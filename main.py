@@ -12,6 +12,7 @@ from app.routers.admins import router as admins_router
 # 통합된 라우터들 사용
 from app.routers.auth import router as auth_router
 from app.routers.dashboard import router as dashboard_router
+from app.routers.accommodations import router as accommodations_router
 from app.routers.data_quality import router as data_quality_router
 from app.routers.destinations import router as destinations_router
 from app.routers.duplicates import router as duplicates_router
@@ -86,6 +87,7 @@ app.include_router(admins_router, prefix="/api")
 app.include_router(weather_router, prefix="/api")
 app.include_router(users_router, prefix="/api")
 app.include_router(destinations_router, prefix="/api")
+app.include_router(accommodations_router, prefix="/api")  # 숙박시설 관리 API
 app.include_router(duplicates_router, prefix="/api")  # 중복 관리 API
 app.include_router(data_quality_router, prefix="/api")  # 데이터 품질 관리 API
 app.include_router(system_router, prefix="/api")

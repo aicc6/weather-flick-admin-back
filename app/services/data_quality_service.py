@@ -32,21 +32,14 @@ class DataQualityAnalyzer:
         self.required_fields = {
             "destinations": ["name", "province", "latitude", "longitude"],
             "restaurants": ["restaurant_name", "region_code"],
-            "accommodations": ["name", "region_code", "address"],
+            "accommodations": ["name", "province", "latitude", "longitude"],  # destinations 숙박 데이터 사용
         }
 
         # 선택 필드 정의 (품질 향상에 기여)
         self.optional_fields = {
             "destinations": ["region", "category", "image_url", "amenities", "rating"],
-            "tourist_attractions": [
-                "category_name",
-                "tel",
-                "homepage",
-                "first_image",
-                "overview",
-            ],
             "restaurants": ["cuisine_type", "operating_hours", "tel", "homepage"],
-            "accommodations": ["type", "amenities", "rating", "phone"],
+            "accommodations": ["region", "image_url", "amenities", "rating"],  # destinations 숙박 데이터 필드
         }
 
     def calculate_destination_quality_score(
@@ -571,13 +564,15 @@ def calculate_and_update_quality_scores(
             LIMIT :limit
         """,
         "accommodations": """
-            SELECT content_id, name, region_code, type, address,
-                   latitude, longitude, phone, rating, amenities,
-                   created_at, updated_at, last_sync_at
-            FROM accommodations 
-            ORDER BY updated_at DESC 
+            SELECT destination_id as content_id, name, province as region_code, category as type, 
+                   NULL as address, latitude, longitude, 
+                   CASE WHEN amenities ? 'tel' THEN amenities->>'tel' ELSE NULL END as phone,
+                   rating, amenities, created_at, NULL as updated_at, NULL as last_sync_at
+            FROM destinations 
+            WHERE category = '숙박'
+            ORDER BY created_at DESC 
             LIMIT :limit
-        """,
+        """
     }
 
     if table_name not in table_queries:
