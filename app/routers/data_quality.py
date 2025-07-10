@@ -28,6 +28,7 @@ def get_data_quality_overview(
             "destinations",
             "restaurants",
             "accommodations",
+            "festivals_events",
         ]
         table_stats = {}
 
@@ -195,6 +196,7 @@ def calculate_quality_scores(
         "destinations",
         "restaurants",
         "accommodations",
+        "festivals_events",
     ]
 
     if table_name not in valid_tables:
@@ -241,6 +243,7 @@ def calculate_all_quality_scores(
             "destinations",
                 "restaurants",
             "accommodations",
+            "festivals_events",
         ]
         results = {}
         total_processed = 0
@@ -306,6 +309,7 @@ def get_records_by_quality(
         "destinations",
         "restaurants",
         "accommodations",
+        "festivals_events",
     ]
 
     if table_name not in valid_tables:
@@ -328,6 +332,7 @@ def get_records_by_quality(
             name_field = {
                 "restaurants": "name",  # destinations 테이블에서는 name 필드 사용
                 "accommodations": "name",
+                "festivals_events": "name",  # destinations 테이블에서는 name 필드 사용
             }.get(table_name, "name")
 
             base_query = f"""
@@ -448,6 +453,7 @@ def analyze_record_quality(
         "destinations",
         "restaurants",
         "accommodations",
+        "festivals_events",
     ]
 
     if table_name not in valid_tables:
@@ -491,6 +497,19 @@ def analyze_record_quality(
                            rating, amenities, created_at, NULL as updated_at, NULL as last_sync_at
                     FROM destinations 
                     WHERE category = '숙박' AND destination_id::text = :record_id
+                """
+                )
+            elif table_name == "festivals_events":
+                query = text(
+                    """
+                    SELECT destination_id as content_id, name as event_name, province as region_code, 
+                           region as event_place, NULL as address, latitude, longitude,
+                           CASE WHEN amenities ? 'tel' THEN amenities->>'tel' ELSE NULL END as tel,
+                           CASE WHEN amenities ? 'homepage' THEN amenities->>'homepage' ELSE NULL END as homepage,
+                           NULL as event_start_date, NULL as event_end_date, NULL as event_program,
+                           created_at, NULL as updated_at, NULL as last_sync_at
+                    FROM destinations 
+                    WHERE category = '축제/행사' AND destination_id::text = :record_id
                 """
                 )
 
@@ -540,6 +559,7 @@ def get_quality_improvement_suggestions(
             "destinations",
                 "restaurants",
             "accommodations",
+            "festivals_events",
         ]
 
         for table in tables:

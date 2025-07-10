@@ -33,6 +33,7 @@ class DataQualityAnalyzer:
             "destinations": ["name", "province", "latitude", "longitude"],
             "restaurants": ["name", "province", "latitude", "longitude"],  # destinations 음식점 데이터 사용
             "accommodations": ["name", "province", "latitude", "longitude"],  # destinations 숙박 데이터 사용
+            "festivals_events": ["name", "province", "latitude", "longitude"],  # destinations 축제/행사 데이터 사용
         }
 
         # 선택 필드 정의 (품질 향상에 기여)
@@ -40,6 +41,7 @@ class DataQualityAnalyzer:
             "destinations": ["region", "category", "image_url", "amenities", "rating"],
             "restaurants": ["region", "image_url", "amenities", "rating"],  # destinations 음식점 데이터 필드
             "accommodations": ["region", "image_url", "amenities", "rating"],  # destinations 숙박 데이터 필드
+            "festivals_events": ["region", "image_url", "amenities", "rating"],  # destinations 축제/행사 데이터 필드
         }
 
     def calculate_destination_quality_score(
@@ -575,6 +577,18 @@ def calculate_and_update_quality_scores(
             WHERE category = '숙박'
             ORDER BY created_at DESC 
             LIMIT :limit
+        """,
+        "festivals_events": """
+            SELECT destination_id as content_id, name as event_name, province as region_code, 
+                   region as event_place, NULL as address, latitude, longitude,
+                   CASE WHEN amenities ? 'tel' THEN amenities->>'tel' ELSE NULL END as tel,
+                   CASE WHEN amenities ? 'homepage' THEN amenities->>'homepage' ELSE NULL END as homepage,
+                   NULL as event_start_date, NULL as event_end_date, NULL as event_program,
+                   created_at, NULL as updated_at, NULL as last_sync_at
+            FROM destinations 
+            WHERE category = '축제/행사'
+            ORDER BY created_at DESC 
+            LIMIT :limit
         """
     }
 
@@ -613,8 +627,8 @@ def calculate_and_update_quality_scores(
                         "id": record_dict["destination_id"],
                     },
                 )
-            elif table_name in ["restaurants", "accommodations"]:
-                # restaurants와 accommodations는 destinations 테이블의 가상 테이블이므로
+            elif table_name in ["restaurants", "accommodations", "festivals_events"]:
+                # restaurants, accommodations, festivals_events는 destinations 테이블의 가상 테이블이므로
                 # destinations 테이블의 destination_id를 이용해 업데이트
                 update_query = text(
                     """

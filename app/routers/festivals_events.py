@@ -1,117 +1,248 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from uuid import uuid4
+
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from typing import List, Optional, Any
-from app.models import FestivalEvent, FestivalEventResponse
-from app.database import get_db
-from datetime import date
-from pydantic import BaseModel
+from sqlalchemy import and_, or_
 
-router = APIRouter(prefix="/api/festivals-events", tags=["festivals_events"])
+from ..database import get_db
+from ..models import Destination, Region
 
-class FestivalEventCreate(BaseModel):
-    region_code: str
-    raw_data_id: Optional[str] = None
-    event_name: str
-    category_code: Optional[str] = None
-    event_start_date: Optional[date] = None
-    event_end_date: Optional[date] = None
-    event_place: Optional[str] = None
-    address: Optional[str] = None
-    detail_address: Optional[str] = None
-    zipcode: Optional[str] = None
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
-    tel: Optional[str] = None
-    homepage: Optional[str] = None
-    event_program: Optional[str] = None
-    sponsor: Optional[str] = None
-    organizer: Optional[str] = None
-    play_time: Optional[str] = None
-    age_limit: Optional[str] = None
-    cost_info: Optional[str] = None
-    discount_info: Optional[str] = None
-    description: Optional[str] = None
-    overview: Optional[str] = None
-    first_image: Optional[str] = None
-    first_image_small: Optional[str] = None
-    booktour: Optional[str] = None
-    createdtime: Optional[str] = None
-    modifiedtime: Optional[str] = None
-    telname: Optional[str] = None
-    faxno: Optional[str] = None
-    mlevel: Optional[int] = None
-    detail_intro_info: Optional[dict[str, Any]] = None
-    detail_additional_info: Optional[dict[str, Any]] = None
-    data_quality_score: Optional[float] = None
-    processing_status: Optional[str] = None
-    last_sync_at: Optional[str] = None
+router = APIRouter(prefix="/festivals-events", tags=["Festivals & Events"])
 
-class FestivalEventUpdate(FestivalEventCreate):
-    pass
 
-class FestivalEventListResponse(BaseModel):
-    items: list[FestivalEventResponse]
-    total: int
-
-@router.get("/", response_model=FestivalEventListResponse)
-def list_festival_events(
-    skip: int = 0,
-    limit: int = 50,
-    region_code: str = Query(None),
-    event_name: str = Query(None),
+@router.get("/")
+def get_all_festivals_events(
     db: Session = Depends(get_db),
+    limit: int = Query(10, ge=1, le=100),
+    offset: int = Query(0, ge=0),
 ):
-    query = db.query(FestivalEvent)
-    if region_code:
-        query = query.filter(FestivalEvent.region_code == region_code)
-    if event_name:
-        query = query.filter(FestivalEvent.event_name.ilike(f"%{event_name}%"))
-    total = query.count()
-    items = query.offset(skip).limit(limit).all()
-    return {"items": items, "total": total}
-
-@router.get("/autocomplete/", response_model=list[str])
-def autocomplete_event_name(q: str = Query(...), db: Session = Depends(get_db)):
-    results = (
-        db.query(FestivalEvent.event_name)
-        .filter(FestivalEvent.event_name.ilike(f"%{q}%"))
-        .distinct()
-        .limit(10)
+    """축제/행사 목록 조회 (destinations 테이블의 축제/행사 데이터 사용)"""
+    total = db.query(Destination).filter(Destination.category == '축제/행사').count()
+    festivals_events = (
+        db.query(Destination)
+        .filter(Destination.category == '축제/행사')
+        .order_by(Destination.created_at.desc())
+        .offset(offset)
+        .limit(limit)
         .all()
     )
-    return [r[0] for r in results]
+    return {
+        "total": total,
+        "items": [
+            {
+                "content_id": str(fe.destination_id),
+                "event_name": fe.name,
+                "region_code": fe.province,
+                "event_place": fe.region,
+                "address": None,  # destinations 테이블에는 address 없음
+                "tel": fe.amenities.get('tel') if fe.amenities else None,
+                "homepage": fe.amenities.get('homepage') if fe.amenities else None,
+                "event_start_date": None,  # destinations 테이블에는 날짜 정보 없음
+                "event_end_date": None,
+                "event_program": None,  # destinations 테이블에는 프로그램 정보 없음
+                "latitude": float(fe.latitude) if fe.latitude else None,
+                "longitude": float(fe.longitude) if fe.longitude else None,
+                "region_name": fe.region,
+                "image_url": fe.image_url,
+                "rating": fe.rating,
+                "amenities": fe.amenities,
+                "tags": fe.tags,
+                "created_at": fe.created_at,
+                "updated_at": None,  # destinations 테이블에는 updated_at 없음
+            }
+            for fe in festivals_events
+        ],
+    }
 
-@router.get("/{content_id}", response_model=FestivalEventResponse)
+
+@router.get("/{content_id}")
 def get_festival_event(content_id: str, db: Session = Depends(get_db)):
-    event = db.query(FestivalEvent).filter(FestivalEvent.content_id == content_id).first()
-    if not event:
-        raise HTTPException(status_code=404, detail="Festival event not found")
-    return event
+    """축제/행사 상세 조회"""
+    festival_event = (
+        db.query(Destination)
+        .filter(Destination.destination_id == content_id)
+        .filter(Destination.category == '축제/행사')
+        .first()
+    )
+    if not festival_event:
+        raise HTTPException(status_code=404, detail="축제/행사를 찾을 수 없습니다.")
+    return {
+        "content_id": str(festival_event.destination_id),
+        "event_name": festival_event.name,
+        "region_code": festival_event.province,
+        "event_place": festival_event.region,
+        "address": None,  # destinations 테이블에는 address 없음
+        "tel": festival_event.amenities.get('tel') if festival_event.amenities else None,
+        "homepage": festival_event.amenities.get('homepage') if festival_event.amenities else None,
+        "event_start_date": None,  # destinations 테이블에는 날짜 정보 없음
+        "event_end_date": None,
+        "event_program": None,  # destinations 테이블에는 프로그램 정보 없음
+        "latitude": float(festival_event.latitude) if festival_event.latitude else None,
+        "longitude": float(festival_event.longitude) if festival_event.longitude else None,
+        "region_name": festival_event.region,
+        "image_url": festival_event.image_url,
+        "rating": festival_event.rating,
+        "amenities": festival_event.amenities,
+        "tags": festival_event.tags,
+        "created_at": festival_event.created_at,
+        "updated_at": None,  # destinations 테이블에는 updated_at 없음
+    }
 
-@router.post("/", response_model=FestivalEventResponse, status_code=status.HTTP_201_CREATED)
-def create_festival_event(event: FestivalEventCreate, db: Session = Depends(get_db)):
-    db_event = FestivalEvent(**event.model_dump())
-    db.add(db_event)
+
+@router.get("/search/")
+def search_festivals_events(
+    name: str = Query(None, description="축제/행사명"),
+    region: str = Query(None, description="지역코드"),
+    limit: int = Query(10, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+):
+    """축제/행사 검색"""
+    query = db.query(Destination).filter(Destination.category == '축제/행사')
+    if name:
+        query = query.filter(Destination.name.ilike(f"%{name}%"))
+    if region:
+        query = query.filter(Destination.province == region)
+    total = query.count()
+    results = (
+        query.order_by(Destination.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+    return {
+        "total": total,
+        "items": [
+            {
+                "content_id": str(fe.destination_id),
+                "event_name": fe.name,
+                "region_code": fe.province,
+                "event_place": fe.region,
+                "address": None,  # destinations 테이블에는 address 없음
+                "tel": fe.amenities.get('tel') if fe.amenities else None,
+                "homepage": fe.amenities.get('homepage') if fe.amenities else None,
+                "event_start_date": None,  # destinations 테이블에는 날짜 정보 없음
+                "event_end_date": None,
+                "event_program": None,  # destinations 테이블에는 프로그램 정보 없음
+                "latitude": float(fe.latitude) if fe.latitude else None,
+                "longitude": float(fe.longitude) if fe.longitude else None,
+                "region_name": fe.region,
+                "image_url": fe.image_url,
+                "rating": fe.rating,
+                "amenities": fe.amenities,
+                "tags": fe.tags,
+                "created_at": fe.created_at,
+                "updated_at": None,  # destinations 테이블에는 updated_at 없음
+            }
+            for fe in results
+        ],
+    }
+
+
+@router.post("/", status_code=201)
+def create_festival_event(
+    event_name: str = Body(...),
+    province: str = Body(...),
+    region: str = Body(None),
+    tel: str = Body(None),
+    homepage: str = Body(None),
+    latitude: float = Body(None),
+    longitude: float = Body(None),
+    amenities: dict = Body({}),
+    image_url: str = Body(None),
+    db: Session = Depends(get_db),
+):
+    """축제/행사 등록 (destinations 테이블에 축제/행사 카테고리로 추가)"""
+    # amenities에 연락처 정보 추가
+    event_amenities = amenities.copy()
+    if tel:
+        event_amenities['tel'] = tel
+    if homepage:
+        event_amenities['homepage'] = homepage
+    
+    new_festival_event = Destination(
+        destination_id=uuid4(),
+        name=event_name,
+        province=province,
+        region=region,
+        category='축제/행사',
+        is_indoor=False,  # 축제/행사는 일반적으로 야외
+        tags=['축제', '행사', '이벤트', '문화'],
+        latitude=latitude,
+        longitude=longitude,
+        amenities=event_amenities,
+        image_url=image_url,
+    )
+    db.add(new_festival_event)
     db.commit()
-    db.refresh(db_event)
-    return db_event
+    db.refresh(new_festival_event)
+    return {"content_id": str(new_festival_event.destination_id)}
 
-@router.put("/{content_id}", response_model=FestivalEventResponse)
-def update_festival_event(content_id: str, event: FestivalEventUpdate, db: Session = Depends(get_db)):
-    db_event = db.query(FestivalEvent).filter(FestivalEvent.content_id == content_id).first()
-    if not db_event:
-        raise HTTPException(status_code=404, detail="Festival event not found")
-    for key, value in event.model_dump(exclude_unset=True).items():
-        setattr(db_event, key, value)
+
+@router.put("/{content_id}")
+def update_festival_event(
+    content_id: str,
+    event_name: str = Body(None),
+    province: str = Body(None),
+    region: str = Body(None),
+    tel: str = Body(None),
+    homepage: str = Body(None),
+    latitude: float = Body(None),
+    longitude: float = Body(None),
+    amenities: dict = Body(None),
+    image_url: str = Body(None),
+    db: Session = Depends(get_db),
+):
+    """축제/행사 정보 수정"""
+    festival_event = (
+        db.query(Destination)
+        .filter(Destination.destination_id == content_id)
+        .filter(Destination.category == '축제/행사')
+        .first()
+    )
+    if not festival_event:
+        raise HTTPException(status_code=404, detail="축제/행사를 찾을 수 없습니다.")
+    
+    if event_name is not None:
+        festival_event.name = event_name
+    if province is not None:
+        festival_event.province = province
+    if region is not None:
+        festival_event.region = region
+    if latitude is not None:
+        festival_event.latitude = latitude
+    if longitude is not None:
+        festival_event.longitude = longitude
+    if image_url is not None:
+        festival_event.image_url = image_url
+    
+    # amenities 업데이트
+    if amenities is not None or tel is not None or homepage is not None:
+        current_amenities = festival_event.amenities or {}
+        if amenities is not None:
+            current_amenities.update(amenities)
+        if tel is not None:
+            current_amenities['tel'] = tel
+        if homepage is not None:
+            current_amenities['homepage'] = homepage
+        festival_event.amenities = current_amenities
+    
     db.commit()
-    db.refresh(db_event)
-    return db_event
+    db.refresh(festival_event)
+    return {"content_id": str(festival_event.destination_id)}
 
-@router.delete("/{content_id}", status_code=status.HTTP_204_NO_CONTENT)
+
+@router.delete("/{content_id}", status_code=204)
 def delete_festival_event(content_id: str, db: Session = Depends(get_db)):
-    db_event = db.query(FestivalEvent).filter(FestivalEvent.content_id == content_id).first()
-    if not db_event:
-        raise HTTPException(status_code=404, detail="Festival event not found")
-    db.delete(db_event)
+    """축제/행사 삭제"""
+    festival_event = (
+        db.query(Destination)
+        .filter(Destination.destination_id == content_id)
+        .filter(Destination.category == '축제/행사')
+        .first()
+    )
+    if not festival_event:
+        raise HTTPException(status_code=404, detail="축제/행사를 찾을 수 없습니다.")
+    db.delete(festival_event)
     db.commit()
     return None
