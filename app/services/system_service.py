@@ -65,7 +65,22 @@ class SystemStatusService:
         
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
-                response = await client.get(url)
+                # Google Places API는 POST 요청과 특별한 헤더가 필요
+                if "google_places" in name and "searchText" in url:
+                    from app.config import settings
+                    headers = {
+                        "Content-Type": "application/json",
+                        "X-Goog-Api-Key": settings.google_api_key,
+                        "X-Goog-FieldMask": "places.id"
+                    }
+                    response = await client.post(
+                        url, 
+                        headers=headers,
+                        json={"textQuery": "test"}
+                    )
+                else:
+                    response = await client.get(url)
+                    
                 response_time = (time.time() - start_time) * 1000
                 
                 if response.status_code == 200:
@@ -102,11 +117,13 @@ class SystemStatusService:
 
     async def check_external_apis(self) -> ExternalApisStatus:
         """모든 외부 API 상태 체크"""
-        # API 엔드포인트들 (실제 환경에서는 환경변수로 관리)
+        from app.config import settings
+        
+        # API 엔드포인트들
         apis = {
-            "weather_api": "https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtNcst",
-            "tourism_api": "https://apis.data.go.kr/B551011/KorService1/areaBasedList1",
-            "google_places": "https://maps.googleapis.com/maps/api/place/textsearch/json"
+            "weather_api": f"{settings.weather_api_url}/current.json?key={settings.weather_api_key}&q=Seoul",
+            "tourism_api": f"{settings.korea_tourism_api_url}/areaCode?serviceKey={settings.korea_tourism_api_key}&numOfRows=1&pageNo=1&MobileOS=ETC&MobileApp=AdminTest&_type=json",
+            "google_places": f"{settings.google_places_url}/v1/places:searchText"
         }
         
         # 병렬로 API 체크
