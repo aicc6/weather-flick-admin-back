@@ -1,0 +1,34 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Travel Plans API Router Guide
+
+The main API router for travel plans is defined in [app/routers/travel_plans.py](mdc:app/routers/travel_plans.py).
+
+## Key Points
+- Endpoints are registered under the `/travel-plans` prefix.
+- The router uses Pydantic response models (`TravelPlanResponse`) for all GET endpoints.
+- When returning a list or single travel plan, SQLAlchemy models are explicitly converted to Pydantic models using `TravelPlanResponse.model_validate(plan)`.
+- The `itinerary` field, which may be stored as a JSON string in the database, is checked: if it is a string, it is parsed with `json.loads` before being passed to the Pydantic model. This ensures the API always returns a dictionary for `itinerary`, as expected by the frontend and the Pydantic schema.
+- If parsing fails, `itinerary` is set to `None`.
+- This approach prevents 500 errors due to type mismatches between the database and the API schema.
+
+## Example
+```python
+@router.get("/", response_model=List[TravelPlanResponse])
+def list_travel_plans(...):
+    plans = service.get_travel_plans(...)
+    result = []
+    for plan in plans:
+        if isinstance(plan.itinerary, str):
+            try:
+                plan.itinerary = json.loads(plan.itinerary)
+            except Exception:
+                plan.itinerary = None
+        result.append(TravelPlanResponse.model_validate(plan))
+    return result
+```
+
+- See [app/routers/travel_plans.py](mdc:app/routers/travel_plans.py) for full implementation details.
