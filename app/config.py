@@ -21,8 +21,8 @@ class Settings(BaseSettings):
     environment: str = "development"
 
     # 서버 설정
-    host: str = "127.0.0.1"
-    port: int = 9000
+    host: str = os.getenv("HOST", "127.0.0.1")
+    port: int = int(os.getenv("PORT", "9000"))
 
     # CORS 설정
     cors_origins: list[str] = ["*"]
@@ -51,9 +51,9 @@ class Settings(BaseSettings):
 
     # 외부 API 설정
     weather_api_key: str = os.getenv("WEATHER_API_KEY", "")
-    weather_api_url: str = "http://api.weatherapi.com/v1"
+    weather_api_url: str = "https://api.weatherapi.com"
 
-    kto_api_key: str = os.getenv("KTO_API_KEY", "")
+    kto_api_key: str = os.getenv("KOREA_TOURISM_API_KEY", "")
     kto_forecast_url: str = "http://api.visitkorea.or.kr/openapi/service/rest/KorService"
 
     kakao_api_key: str = os.getenv("KAKAO_API_KEY", "")
@@ -64,16 +64,20 @@ class Settings(BaseSettings):
     naver_api_url: str = "https://openapi.naver.com/v1"
 
     google_api_key: str = os.getenv("GOOGLE_API_KEY", "")
-    google_places_url: str = "https://maps.googleapis.com/maps/api/place"
+    google_places_url: str = "https://maps.googleapis.com"
     google_client_id: str = os.getenv("GOOGLE_CLIENT_ID", "")
     google_client_secret: str = os.getenv("GOOGLE_CLIENT_SECRET", "")
     google_redirect_uri: str = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/auth/google/callback")
 
     korea_tourism_api_key: str = os.getenv("KOREA_TOURISM_API_KEY", "")
-    korea_tourism_api_url: str = "http://api.visitkorea.or.kr/openapi/service/rest/KorService"
+    korea_tourism_api_url: str = "http://apis.data.go.kr"
 
     # 프론트엔드 설정
     admin_frontend_url: str = os.getenv("ADMIN_FRONTEND_URL", "http://localhost:5174")
+    
+    # 배치 시스템 API 설정
+    batch_api_url: str = os.getenv("BATCH_API_URL", "http://localhost:9000")
+    batch_api_key: str = os.getenv("BATCH_API_KEY", "batch-api-secret-key")
 
     @field_validator("secret_key")
     @classmethod

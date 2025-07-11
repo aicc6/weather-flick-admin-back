@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field, ConfigDict
+from pydantic import BaseModel, EmailStr, Field, ConfigDict, field_validator
 from typing import Optional, Dict, Any
 from datetime import datetime
 from uuid import UUID
@@ -19,6 +19,17 @@ class UserBase(BaseModel):
     preferred_region: Optional[str] = None
     preferred_theme: Optional[str] = None
     bio: Optional[str] = None
+
+    @field_validator('preferences', mode='before')
+    @classmethod
+    def validate_preferences(cls, v):
+        """preferences 필드 검증 - 빈 배열이나 None을 빈 딕셔너리로 변환"""
+        if v is None or v == []:
+            return {}
+        if isinstance(v, list):
+            # 리스트가 비어있지 않은 경우에도 빈 딕셔너리로 변환
+            return {}
+        return v
 
 
 class UserCreate(UserBase):

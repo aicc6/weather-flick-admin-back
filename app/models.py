@@ -1651,3 +1651,59 @@ class UnifiedRegionResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+
+# 배치 작업 관련 모델
+class AdminBatchJob(Base):
+    """관리자 페이지용 배치 작업 실행 이력"""
+    __tablename__ = "admin_batch_jobs"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    job_type = Column(String(50), nullable=False, index=True)
+    status = Column(String(20), nullable=False, default="PENDING", index=True)
+    parameters = Column(JSONB, default={})
+    progress = Column(Float, default=0.0)
+    current_step = Column(String(255))
+    total_steps = Column(Integer)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_by = Column(Integer, ForeignKey("admins.admin_id"))
+    started_at = Column(DateTime(timezone=True))
+    completed_at = Column(DateTime(timezone=True))
+    error_message = Column(Text)
+    result_summary = Column(JSONB)
+    stopped_by = Column(Integer, ForeignKey("admins.admin_id"))
+    priority = Column(Integer, default=5)
+    notification_email = Column(String(255))
+    
+    # 관계
+    creator = relationship("Admin", foreign_keys=[created_by])
+    stopper = relationship("Admin", foreign_keys=[stopped_by])
+    logs = relationship("AdminBatchJobDetail", back_populates="job", cascade="all, delete-orphan")
+    
+    # 인덱스
+    __table_args__ = (
+        Index("idx_admin_batch_jobs_type_status", "job_type", "status"),
+        Index("idx_admin_batch_jobs_created_at", "created_at"),
+    )
+
+
+class AdminBatchJobDetail(Base):
+    """관리자 페이지용 배치 작업 상세 로그"""
+    __tablename__ = "admin_batch_job_details"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    job_id = Column(UUID(as_uuid=True), ForeignKey("admin_batch_jobs.id", ondelete="CASCADE"), nullable=False)
+    timestamp = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    level = Column(String(20), nullable=False, index=True)
+    message = Column(Text, nullable=False)
+    details = Column(JSONB)
+    
+    # 관계
+    job = relationship("AdminBatchJob", back_populates="logs")
+    
+    # 인덱스
+    __table_args__ = (
+        Index("idx_admin_batch_job_details_job_level", "job_id", "level"),
+        Index("idx_admin_batch_job_details_timestamp", "timestamp"),
+    )

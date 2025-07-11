@@ -13,6 +13,7 @@ from app.routers.travel_courses import router as travel_courses_router
 from app.routers import festivals_events
 from app.routers import leisure_sports
 from app.routers import travel_plans
+from app.routers.batch import router as batch_router
 from app.config import settings
 import logging
 from fastapi.requests import Request
@@ -30,7 +31,9 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
-        "http://127.0.0.1:5173"
+        "http://127.0.0.1:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:5174"
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -50,6 +53,7 @@ app.include_router(travel_courses_router, prefix="/api")
 app.include_router(festivals_events.router)
 app.include_router(leisure_sports.router)
 app.include_router(travel_plans.router, prefix="/api")
+app.include_router(batch_router)  # 배치 작업 API 추가
 
 @app.get("/")
 async def root():
