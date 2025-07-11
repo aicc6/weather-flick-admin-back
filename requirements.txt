@@ -1,6 +1,6 @@
 # Weather Flick Admin Backend Dependencies
 # Production dependencies
-fastapi>=0.111.0
+fastapi[standard]>=0.111.0
 uvicorn[standard]>=0.22.0
 pydantic>=2.7.1
 pydantic-settings>=2.0.0
