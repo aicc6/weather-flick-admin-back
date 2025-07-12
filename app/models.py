@@ -129,7 +129,6 @@ class Admin(Base):
     last_login_at = Column(DateTime)
     created_at = Column(DateTime, server_default=func.now())
 
-    roles = relationship("AdminRole", back_populates="admin")
 
 
 class AdminActivityLog(Base):
@@ -153,26 +152,6 @@ class AdminActivityLog(Base):
         return f"<AdminActivityLog(admin_id='{self.admin_id}', action='{self.action}', severity='{self.severity}')>"
 
 
-class Role(Base):
-    __tablename__ = "roles"
-    role_id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, unique=True, nullable=False)
-    display_name = Column(String)
-    description = Column(Text)
-    is_active = Column(Boolean, default=True)
-
-    admins = relationship("AdminRole", back_populates="role")
-
-
-class AdminRole(Base):
-    __tablename__ = "admin_roles"
-    admin_id = Column(Integer, ForeignKey("admins.admin_id"), primary_key=True)
-    role_id = Column(Integer, ForeignKey("roles.role_id"), primary_key=True)
-    assigned_at = Column(DateTime, server_default=func.now())
-    is_active = Column(Boolean, default=True)
-
-    admin = relationship("Admin", back_populates="roles")
-    role = relationship("Role", back_populates="admins")
 
 
 class Destination(Base):
