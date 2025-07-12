@@ -167,6 +167,12 @@ async def update_admin(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="자신의 계정 상태는 변경할 수 없습니다",
             )
+        # 슈퍼관리자의 상태는 변경할 수 없음
+        if admin.is_superuser and admin_update.status != admin.status:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="슈퍼관리자의 상태는 변경할 수 없습니다.",
+            )
         admin.status = admin_update.status
 
     db.commit()
@@ -195,6 +201,13 @@ async def update_admin_status(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="자신의 계정 상태는 변경할 수 없습니다",
+        )
+
+    # 슈퍼관리자는 상태 변경할 수 없음
+    if admin.is_superuser:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="슈퍼관리자는 비활성화할 수 없습니다.",
         )
 
     # 상태 값 검증
@@ -233,6 +246,13 @@ async def deactivate_admin(
             detail="자신의 계정은 비활성화할 수 없습니다",
         )
 
+    # 슈퍼관리자는 비활성화할 수 없음
+    if admin.is_superuser:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="슈퍼관리자는 비활성화할 수 없습니다.",
+        )
+
     # 이미 비활성화된 계정인지 확인
     if admin.status == AdminStatus.INACTIVE:
         raise HTTPException(
@@ -252,8 +272,8 @@ async def delete_admin_permanently(
     db: Session = Depends(get_db),
 ):
     """관리자 계정 완전 삭제 (superadmin만 가능)"""
-    # superadmin 권한 확인
-    if current_admin.email != "admin@weatherflick.com":
+    # superadmin 권한 확인 (is_superuser 필드 사용)
+    if not current_admin.is_superuser:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="관리자 삭제는 슈퍼 관리자만 가능합니다"
@@ -271,6 +291,13 @@ async def delete_admin_permanently(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="자신의 계정은 삭제할 수 없습니다",
+        )
+
+    # 슈퍼관리자는 삭제할 수 없음
+    if admin.is_superuser:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="슈퍼관리자는 삭제할 수 없습니다.",
         )
 
     admin_name = admin.name or admin.email

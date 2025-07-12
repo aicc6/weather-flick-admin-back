@@ -125,6 +125,7 @@ class Admin(Base):
     name = Column(String)
     phone = Column(String)
     status = Column(Enum(AdminStatus), default=AdminStatus.ACTIVE)
+    is_superuser = Column(Boolean, default=False)  # 슈퍼관리자 여부
     last_login_at = Column(DateTime)
     created_at = Column(DateTime, server_default=func.now())
 

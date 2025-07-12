@@ -18,6 +18,7 @@ class AdminResponse(BaseModel):
     name: Optional[str]
     phone: Optional[str]
     status: Optional[str]
+    is_superuser: bool = False  # 데이터베이스 필드로부터 직접 가져옴
     last_login_at: Optional[datetime]
     created_at: datetime
 
@@ -41,17 +42,6 @@ class AdminResponse(BaseModel):
     def is_active(self) -> bool:
         """프론트엔드 호환을 위한 is_active 필드"""
         return self.status == "ACTIVE"
-
-    @computed_field
-    @property
-    def is_superuser(self) -> bool:
-        """프론트엔드 호환을 위한 is_superuser 필드"""
-        # admin@weatherflick.com은 슈퍼유저로 처리
-        # 또는 name이 "Super Admin"인 경우도 슈퍼유저로 처리
-        return (
-            self.email == "admin@weatherflick.com" or
-            (self.name and "Super Admin" in self.name)
-        )
 
 class AdminListResponse(BaseModel):
     admins: List[AdminResponse]
