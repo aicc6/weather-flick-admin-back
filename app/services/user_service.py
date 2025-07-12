@@ -96,7 +96,7 @@ class UserService:
         try:
             # 기본 쿼리
             query = self.db.query(User)
-            
+
             # 삭제된 사용자 제외 옵션 (소프트 삭제된 사용자)
             if not include_deleted:
                 query = query.filter(~User.email.like('deleted_%'))
@@ -168,14 +168,14 @@ class UserService:
                 User.role == DBUserRole.ADMIN,
                 ~User.email.like('deleted_%')
             ).count()
-            
+
             # 최근 30일 가입자
             thirty_days_ago = datetime.utcnow() - timedelta(days=30)
             recent_registrations = self.db.query(User).filter(
                 User.created_at >= thirty_days_ago,
                 ~User.email.like('deleted_%')
             ).count()
-            
+
             # 최근 7일 로그인 사용자 (NULL 값 제외)
             seven_days_ago = datetime.utcnow() - timedelta(days=7)
             recent_logins = self.db.query(User).filter(
@@ -271,7 +271,7 @@ class UserService:
             user.is_active = False
             user.email = f"deleted_{user_id}_{user.email}"  # 이메일 충돌 방지
             user.updated_at = datetime.utcnow()
-            
+
             self.db.commit()
 
             logger.info(f"사용자 삭제 완료 (소프트 삭제): {user_id}")
@@ -349,6 +349,29 @@ class UserService:
 
         except Exception as e:
             logger.error(f"지역별 사용자 조회 실패 (지역: {region}): {e}")
+            raise
+
+    def hard_delete_user(self, user_id: str) -> bool:
+        """
+        탈퇴 회원(이메일이 deleted_로 시작) 하드 삭제 (DB에서 완전 삭제)
+        """
+        try:
+            user = self.get_user_by_id(user_id)
+            if not user:
+                return False
+
+            # deleted_로 시작하는 이메일만 하드 삭제 허용
+            if not user.email or not user.email.startswith('deleted_'):
+                raise ValueError("탈퇴 회원만 영구 삭제할 수 있습니다.")
+
+            self.db.delete(user)
+            self.db.commit()
+            logger.info(f"탈퇴 회원 하드 삭제 완료: {user_id}")
+            return True
+
+        except Exception as e:
+            logger.error(f"탈퇴 회원 하드 삭제 실패 (ID: {user_id}): {e}")
+            self.db.rollback()
             raise
 
 

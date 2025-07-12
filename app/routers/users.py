@@ -101,7 +101,7 @@ async def get_user_statistics(
     """
     try:
         stats = user_service.get_user_statistics()
-        
+
         # 관리자 활동 로그 (데이터베이스 저장 포함)
         await log_admin_activity(
             admin_user.admin_id,
@@ -109,7 +109,7 @@ async def get_user_statistics(
             f"사용자 통계 조회 (전체: {stats.total_users}명, 활성: {stats.active_users}명)",
             db=db
         )
-        
+
         return {
             "success": True,
             "data": stats,
@@ -371,3 +371,37 @@ async def reset_user_password(
     except Exception as e:
         logger.error(f"사용자 비밀번호 초기화 실패 (ID: {user_id}): {e}")
         raise HTTPException(status_code=500, detail="사용자 비밀번호 초기화 중 오류가 발생했습니다.")
+
+@router.delete("/{user_id}/hard")
+async def hard_delete_user(
+    user_id: str = Path(..., description="사용자 ID"),
+    user_service: UserService = Depends(get_user_service),
+    admin_user: Admin = Depends(require_super_admin)  # 슈퍼관리자 권한 필수
+):
+    """
+    탈퇴 회원(이메일이 deleted_로 시작) 영구 삭제 (DB에서 완전 삭제)
+
+    - **user_id**: 삭제할 사용자의 UUID
+    - **주의**: 이 작업은 되돌릴 수 없습니다.
+    """
+    try:
+        success = user_service.hard_delete_user(user_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
+
+        # 관리자 활동 로그
+        await log_admin_activity(
+            admin_user.admin_id,
+            "USER_HARD_DELETE",
+            f"탈퇴 회원 영구 삭제 (ID: {user_id})"
+        )
+
+        return {"message": "탈퇴 회원이 영구 삭제되었습니다.", "user_id": user_id}
+
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"탈퇴 회원 하드 삭제 실패 (ID: {user_id}): {e}")
+        raise HTTPException(status_code=500, detail="탈퇴 회원 영구 삭제 중 오류가 발생했습니다.")

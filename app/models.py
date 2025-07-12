@@ -78,9 +78,9 @@ class User(Base):
     def id(self):
         return self.user_id
 
-    travel_plans = relationship("TravelPlan", back_populates="user")
-    reviews = relationship("Review", back_populates="user")
-    activity_logs = relationship("UserActivityLog", back_populates="user")
+    travel_plans = relationship("TravelPlan", back_populates="user", cascade="all, delete-orphan")
+    reviews = relationship("Review", back_populates="user", cascade="all, delete-orphan")
+    activity_logs = relationship("UserActivityLog", back_populates="user", cascade="all, delete-orphan")
 
 
 class CityWeatherData(Base):
@@ -1658,7 +1658,7 @@ class UnifiedRegionResponse(BaseModel):
 class AdminBatchJob(Base):
     """관리자 페이지용 배치 작업 실행 이력"""
     __tablename__ = "admin_batch_jobs"
-    
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     job_type = Column(String(50), nullable=False, index=True)
     status = Column(String(20), nullable=False, default="PENDING", index=True)
@@ -1675,12 +1675,12 @@ class AdminBatchJob(Base):
     stopped_by = Column(Integer, ForeignKey("admins.admin_id"))
     priority = Column(Integer, default=5)
     notification_email = Column(String(255))
-    
+
     # 관계
     creator = relationship("Admin", foreign_keys=[created_by])
     stopper = relationship("Admin", foreign_keys=[stopped_by])
     logs = relationship("AdminBatchJobDetail", back_populates="job", cascade="all, delete-orphan")
-    
+
     # 인덱스
     __table_args__ = (
         Index("idx_admin_batch_jobs_type_status", "job_type", "status"),
@@ -1691,17 +1691,17 @@ class AdminBatchJob(Base):
 class AdminBatchJobDetail(Base):
     """관리자 페이지용 배치 작업 상세 로그"""
     __tablename__ = "admin_batch_job_details"
-    
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     job_id = Column(UUID(as_uuid=True), ForeignKey("admin_batch_jobs.id", ondelete="CASCADE"), nullable=False)
     timestamp = Column(DateTime(timezone=True), server_default=func.now(), index=True)
     level = Column(String(20), nullable=False, index=True)
     message = Column(Text, nullable=False)
     details = Column(JSONB)
-    
+
     # 관계
     job = relationship("AdminBatchJob", back_populates="logs")
-    
+
     # 인덱스
     __table_args__ = (
         Index("idx_admin_batch_job_details_job_level", "job_id", "level"),
