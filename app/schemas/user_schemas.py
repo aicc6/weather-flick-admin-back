@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field, ConfigDict, field_validator
+from pydantic import BaseModel, EmailStr, Field, ConfigDict, field_validator, validator
 from typing import Optional, Dict, Any
 from datetime import datetime
 from uuid import UUID
@@ -12,7 +12,7 @@ class UserRole(str, Enum):
 
 class UserBase(BaseModel):
     """사용자 기본 정보"""
-    email: EmailStr
+    email: str
     nickname: str
     profile_image: Optional[str] = None
     preferences: Optional[Dict[str, Any]] = None
@@ -29,6 +29,12 @@ class UserBase(BaseModel):
         if isinstance(v, list):
             # 리스트가 비어있지 않은 경우에도 빈 딕셔너리로 변환
             return {}
+        return v
+
+    @field_validator('email', mode='before')
+    def validate_email(cls, v):
+        if '@' not in v:
+            raise ValueError('Invalid email: missing "@"')
         return v
 
 
