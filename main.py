@@ -14,6 +14,7 @@ from app.routers import festivals_events
 from app.routers import leisure_sports
 from app.routers import travel_plans
 from app.routers.batch import router as batch_router
+from app.routers.regions import router as regions_router
 from app.config import settings
 from app.logging_config import setup_logging
 import logging
@@ -81,6 +82,7 @@ app.include_router(festivals_events.router)
 app.include_router(leisure_sports.router)
 app.include_router(travel_plans.router, prefix="/api")
 app.include_router(batch_router)  # 배치 작업 API 추가
+app.include_router(regions_router)  # 지역 관리 API 추가
 
 @app.get("/")
 async def root():
