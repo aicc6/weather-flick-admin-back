@@ -90,15 +90,20 @@ class UserService:
         page: int = 1,
         size: int = 20,
         search_params: Optional[UserSearchParams] = None,
-        include_deleted: bool = False
+        include_deleted: bool = False,
+        only_deleted: bool = False
     ) -> UserListResponse:
         """사용자 목록 조회 (페이징, 필터링 지원)"""
         try:
             # 기본 쿼리
             query = self.db.query(User)
 
-            # 삭제된 사용자 제외 옵션 (소프트 삭제된 사용자)
-            if not include_deleted:
+            # 삭제된 사용자 필터링
+            if only_deleted:
+                # 삭제된 사용자만 조회
+                query = query.filter(User.email.like('deleted_%'))
+            elif not include_deleted:
+                # 삭제된 사용자 제외 (기본값)
                 query = query.filter(~User.email.like('deleted_%'))
 
             # 검색 조건 적용

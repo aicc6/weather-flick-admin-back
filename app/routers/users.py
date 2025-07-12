@@ -33,6 +33,7 @@ async def get_users(
     is_email_verified: Optional[bool] = Query(None, description="이메일 인증 상태 필터"),
     preferred_region: Optional[str] = Query(None, description="선호 지역 필터"),
     include_deleted: bool = Query(False, description="삭제된 사용자 포함 여부"),
+    only_deleted: bool = Query(False, description="삭제된 사용자만 조회"),
     user_service: UserService = Depends(get_user_service),
     admin_user: Admin = Depends(require_admin)  # 관리자 권한 필수
 ):
@@ -53,7 +54,13 @@ async def get_users(
             preferred_region=preferred_region
         )
 
-        return user_service.get_users(page=page, size=size, search_params=search_params, include_deleted=include_deleted)
+        return user_service.get_users(
+            page=page, 
+            size=size, 
+            search_params=search_params, 
+            include_deleted=include_deleted,
+            only_deleted=only_deleted
+        )
 
     except Exception as e:
         logger.error(f"사용자 목록 조회 실패: {e}")
