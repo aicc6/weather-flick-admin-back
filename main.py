@@ -15,10 +15,14 @@ from app.routers import leisure_sports
 from app.routers import travel_plans
 from app.routers.batch import router as batch_router
 from app.config import settings
+from app.logging_config import setup_logging
 import logging
 from fastapi.requests import Request
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
+
+# 로깅 설정 초기화
+setup_logging(log_dir="logs", log_level="DEBUG" if settings.debug else "INFO")
 
 app = FastAPI(
     title="Weather Flick Admin API",
@@ -34,6 +38,34 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 요청 로깅 미들웨어
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    import time
+    start_time = time.time()
+    
+    # 요청 로깅
+    logging.info(f"[REQUEST] {request.method} {request.url.path}")
+    
+    try:
+        response = await call_next(request)
+        process_time = time.time() - start_time
+        
+        # 응답 로깅
+        logging.info(
+            f"[RESPONSE] {request.method} {request.url.path} - "
+            f"Status: {response.status_code} - Time: {process_time:.3f}s"
+        )
+        
+        return response
+    except Exception as e:
+        process_time = time.time() - start_time
+        logging.error(
+            f"[ERROR] {request.method} {request.url.path} - "
+            f"Error: {str(e)} - Time: {process_time:.3f}s"
+        )
+        raise
 
 # 라우터 등록 (API prefix 통일) - Cursor 규칙에 따른 통합 구조
 app.include_router(auth_router, prefix="/api")
@@ -61,15 +93,20 @@ async def health_check():
 @app.on_event("startup")
 async def startup_event():
     """애플리케이션 시작 시 실행"""
-    print(f"🚀 {settings.app_name} v{settings.app_version} 시작")
+    logging.info(f"🚀 {settings.app_name} v{settings.app_version} 시작")
+    logging.info(f"환경: {settings.environment}")
+    logging.info(f"디버그 모드: {settings.debug}")
+    logging.info(f"서버 주소: http://{settings.host}:{settings.port}")
 
     # 개발 환경에서만 자동으로 테이블 생성 및 초기 데이터 설정
     if settings.debug:
         try:
             from app.init_data import init_database
+            logging.info("데이터베이스 초기화 시작...")
             init_database()
+            logging.info("데이터베이스 초기화 완료")
         except Exception as e:
-            print(f"⚠️  초기화 중 오류 발생: {e}")
+            logging.error(f"⚠️  초기화 중 오류 발생: {e}", exc_info=True)
 
 
 # 전역 에러 핸들러
