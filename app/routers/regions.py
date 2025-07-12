@@ -11,11 +11,131 @@ from app.schemas.regions import (
     RegionResponse,
     RegionListResponse
 )
+from app.data.region_coordinates import get_all_coordinates
 import logging
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/regions", tags=["regions"])
+
+
+@router.get("/missing-coordinates")
+async def get_missing_coordinates(
+    db: Session = Depends(get_db),
+    current_admin = Depends(get_current_admin)
+):
+    """좌표가 없는 지역 목록 조회"""
+    try:
+        # 좌표가 없는 지역 조회
+        regions = db.query(Region).filter(
+            or_(
+                Region.latitude == None,
+                Region.longitude == None
+            )
+        ).order_by(Region.region_code).all()
+        
+        return {
+            "total": len(regions),
+            "regions": [{
+                "region_code": r.region_code,
+                "region_name": r.region_name,
+                "region_level": r.region_level,
+                "parent_region_code": r.parent_region_code
+            } for r in regions]
+        }
+    except Exception as e:
+        logger.error(f"Failed to get missing coordinates: {str(e)}")
+        raise HTTPException(status_code=500, detail="좌표 누락 지역 조회 실패")
+
+
+@router.post("/update-coordinates")
+async def update_region_coordinates(
+    db: Session = Depends(get_db),
+    current_admin = Depends(get_current_admin)
+):
+    """모든 지역의 좌표를 일괄 업데이트"""
+    try:
+        # 관리자 권한 확인 (super_admin만 가능) - 일단 모든 관리자에게 허용
+        # TODO: super_admin 역할 확인 로직 추가 필요
+        
+        # 좌표 데이터 가져오기
+        coordinates_data = get_all_coordinates()
+        
+        updated_count = 0
+        skipped_count = 0
+        not_found_count = 0
+        
+        for region_code, coord_info in coordinates_data.items():
+            region = db.query(Region).filter(Region.region_code == region_code).first()
+            
+            if region:
+                # 이미 좌표가 있는 경우 스킵
+                if region.latitude and region.longitude:
+                    skipped_count += 1
+                    continue
+                
+                # 좌표 업데이트
+                region.latitude = coord_info["latitude"]
+                region.longitude = coord_info["longitude"]
+                updated_count += 1
+            else:
+                not_found_count += 1
+                logger.warning(f"Region not found: {region_code} - {coord_info['name']}")
+        
+        db.commit()
+        
+        logger.info(f"Region coordinates updated by {current_admin.email}: "
+                   f"updated={updated_count}, skipped={skipped_count}, not_found={not_found_count}")
+        
+        return {
+            "message": "지역 좌표 업데이트 완료",
+            "updated": updated_count,
+            "skipped": skipped_count,
+            "not_found": not_found_count,
+            "total": len(coordinates_data)
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to update region coordinates: {str(e)}")
+        raise HTTPException(status_code=500, detail="지역 좌표 업데이트 실패")
+
+
+@router.get("/tree/hierarchy")
+async def get_region_tree(
+    db: Session = Depends(get_db),
+    current_admin = Depends(get_current_admin)
+):
+    """지역 계층 구조 조회"""
+    try:
+        # 모든 지역 조회
+        regions = db.query(Region).order_by(Region.region_level, Region.region_code).all()
+        
+        # 계층 구조로 변환
+        region_map = {r.region_code: {
+            "region_code": r.region_code,
+            "region_name": r.region_name,
+            "region_level": r.region_level,
+            "latitude": r.latitude,
+            "longitude": r.longitude,
+            "children": []
+        } for r in regions}
+        
+        # 트리 구성
+        tree = []
+        for region in regions:
+            if region.parent_region_code and region.parent_region_code in region_map:
+                region_map[region.parent_region_code]["children"].append(
+                    region_map[region.region_code]
+                )
+            elif not region.parent_region_code:
+                tree.append(region_map[region.region_code])
+        
+        return {"tree": tree}
+    except Exception as e:
+        logger.error(f"Failed to get region tree: {str(e)}")
+        raise HTTPException(status_code=500, detail="지역 계층 구조 조회 실패")
 
 
 @router.get("", response_model=RegionListResponse)
@@ -174,39 +294,3 @@ async def delete_region(
         db.rollback()
         logger.error(f"Failed to delete region: {str(e)}")
         raise HTTPException(status_code=500, detail="지역 삭제 실패")
-
-
-@router.get("/tree/hierarchy")
-async def get_region_tree(
-    db: Session = Depends(get_db),
-    current_admin = Depends(get_current_admin)
-):
-    """지역 계층 구조 조회"""
-    try:
-        # 모든 지역 조회
-        regions = db.query(Region).order_by(Region.region_level, Region.region_code).all()
-        
-        # 계층 구조로 변환
-        region_map = {r.region_code: {
-            "region_code": r.region_code,
-            "region_name": r.region_name,
-            "region_level": r.region_level,
-            "latitude": r.latitude,
-            "longitude": r.longitude,
-            "children": []
-        } for r in regions}
-        
-        # 트리 구성
-        tree = []
-        for region in regions:
-            if region.parent_region_code and region.parent_region_code in region_map:
-                region_map[region.parent_region_code]["children"].append(
-                    region_map[region.region_code]
-                )
-            elif not region.parent_region_code:
-                tree.append(region_map[region.region_code])
-        
-        return {"tree": tree}
-    except Exception as e:
-        logger.error(f"Failed to get region tree: {str(e)}")
-        raise HTTPException(status_code=500, detail="지역 계층 구조 조회 실패")
