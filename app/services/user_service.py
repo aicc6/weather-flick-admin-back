@@ -89,12 +89,17 @@ class UserService:
         self,
         page: int = 1,
         size: int = 20,
-        search_params: Optional[UserSearchParams] = None
+        search_params: Optional[UserSearchParams] = None,
+        include_deleted: bool = False
     ) -> UserListResponse:
         """사용자 목록 조회 (페이징, 필터링 지원)"""
         try:
-            # 삭제된 사용자 제외 (소프트 삭제된 사용자)
-            query = self.db.query(User).filter(~User.email.like('deleted_%'))
+            # 기본 쿼리
+            query = self.db.query(User)
+            
+            # 삭제된 사용자 제외 옵션 (소프트 삭제된 사용자)
+            if not include_deleted:
+                query = query.filter(~User.email.like('deleted_%'))
 
             # 검색 조건 적용
             if search_params:
@@ -149,22 +154,34 @@ class UserService:
         """사용자 통계 조회"""
         try:
             # 간단한 개별 쿼리로 안정성 확보 (복잡한 CASE 문 대신)
-            total_users = self.db.query(User).count()
-            active_users = self.db.query(User).filter(User.is_active == True).count()
-            verified_users = self.db.query(User).filter(User.is_email_verified == True).count()
-            admin_users = self.db.query(User).filter(User.role == DBUserRole.ADMIN).count()
+            # 탈퇴한 사용자 제외 (deleted_로 시작하는 이메일)
+            total_users = self.db.query(User).filter(~User.email.like('deleted_%')).count()
+            active_users = self.db.query(User).filter(
+                User.is_active == True,
+                ~User.email.like('deleted_%')
+            ).count()
+            verified_users = self.db.query(User).filter(
+                User.is_email_verified == True,
+                ~User.email.like('deleted_%')
+            ).count()
+            admin_users = self.db.query(User).filter(
+                User.role == DBUserRole.ADMIN,
+                ~User.email.like('deleted_%')
+            ).count()
             
             # 최근 30일 가입자
             thirty_days_ago = datetime.utcnow() - timedelta(days=30)
             recent_registrations = self.db.query(User).filter(
-                User.created_at >= thirty_days_ago
+                User.created_at >= thirty_days_ago,
+                ~User.email.like('deleted_%')
             ).count()
             
             # 최근 7일 로그인 사용자 (NULL 값 제외)
             seven_days_ago = datetime.utcnow() - timedelta(days=7)
             recent_logins = self.db.query(User).filter(
                 User.last_login.isnot(None),
-                User.last_login >= seven_days_ago
+                User.last_login >= seven_days_ago,
+                ~User.email.like('deleted_%')
             ).count()
 
             return UserStats(
