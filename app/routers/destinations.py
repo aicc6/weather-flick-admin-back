@@ -15,8 +15,10 @@ def get_all_tourist_attractions(
     total = db.query(TouristAttraction).count()
     attractions = db.query(TouristAttraction).order_by(TouristAttraction.created_at.desc()).offset(offset).limit(limit).all()
     return {
-        "total": total,
-        "items": [
+        "count": total,
+        "next": None,
+        "previous": None,
+        "results": [
             {
                 "content_id": a.content_id,
                 "attraction_name": a.attraction_name,

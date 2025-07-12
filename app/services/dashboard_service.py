@@ -129,16 +129,31 @@ class DashboardService:
     async def _get_system_statistics(self) -> Dict[str, Any]:
         """시스템 관련 통계"""
         try:
-            # 날씨 데이터 통계
-            weather_data_count = self.db.query(func.count(CityWeatherData.id)).scalar() or 0
+            # 데이터베이스 연결 테스트
+            db_status = "healthy"
+            try:
+                # 간단한 쿼리로 DB 연결 확인
+                from sqlalchemy import text
+                self.db.execute(text("SELECT 1"))
+                db_status = "healthy"
+            except Exception:
+                db_status = "error"
             
-            # 최신 날씨 데이터 시간
-            latest_weather = self.db.query(func.max(CityWeatherData.forecast_time)).scalar()
+            # 날씨 데이터 통계 (테이블이 있을 경우만)
+            weather_data_count = 0
+            latest_weather = None
+            
+            try:
+                weather_data_count = self.db.query(func.count(CityWeatherData.id)).scalar() or 0
+                latest_weather = self.db.query(func.max(CityWeatherData.forecast_time)).scalar()
+            except Exception as e:
+                # 테이블이 없거나 다른 문제가 있어도 계속 진행
+                logger.debug(f"날씨 데이터 조회 실패 (무시): {e}")
             
             return {
                 "weather_data_count": weather_data_count,
                 "latest_weather_time": latest_weather.isoformat() if latest_weather else None,
-                "database_status": "healthy"  # 실제로는 연결 테스트 결과
+                "database_status": db_status
             }
             
         except Exception as e:

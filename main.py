@@ -114,7 +114,7 @@ async def startup_event():
 # 전역 에러 핸들러
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    logging.error(f"[GlobalError] {request.url}: {exc}")
+    logging.error(f"[GlobalError] {request.url}: {exc}", exc_info=True)
     return JSONResponse(status_code=500, content={"detail": "서버 내부 오류"})
 
 @app.exception_handler(RequestValidationError)

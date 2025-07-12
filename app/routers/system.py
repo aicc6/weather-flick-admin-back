@@ -50,7 +50,7 @@ def check_external_api_status(url, timeout=3):
         return {"status": "연결실패", "response_time": "-"}
 
 
-@router.get("/logs", response_model=PaginatedResponse[SystemLogOut])
+@router.get("/logs")
 def get_system_logs(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
@@ -72,8 +72,20 @@ def get_system_logs(
     query = query.order_by(SystemLog.created_at.desc())
     logs = query.offset((page - 1) * size).limit(size).all()
     
+    # SystemLog 객체를 딕셔너리로 변환
+    log_items = []
+    for log in logs:
+        log_items.append({
+            "log_id": log.log_id,
+            "level": log.level,
+            "source": log.source,
+            "message": log.message,
+            "context": log.context,
+            "created_at": log.created_at
+        })
+    
     return PaginatedResponse(
-        items=logs,
+        items=log_items,
         total=total,
         page=page,
         size=size,
