@@ -56,7 +56,7 @@ async def get_batch_jobs(
     - **limit**: 페이지당 항목 수
     """
     service = BatchJobService(db)
-    return service.get_jobs(
+    return await service.get_jobs(
         job_type=job_type,
         status=status,
         start_date=start_date,
@@ -228,7 +228,7 @@ async def get_batch_statistics(
     - **end_date**: 통계 종료일 (옵션)
     """
     service = BatchJobService(db)
-    return service.get_statistics(
+    return await service.get_statistics(
         start_date=start_date,
         end_date=end_date
     )
