@@ -65,29 +65,115 @@ class EmailService:
     <meta charset="UTF-8">
     <title>Weather Flick 임시 비밀번호</title>
     <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background-color: #4A90E2; color: white; padding: 20px; text-align: center; }
-        .content { padding: 20px; background-color: #f9f9f9; }
-        .password-box { 
-            background-color: #e8f4fd; 
-            border: 2px solid #4A90E2; 
-            padding: 15px; 
-            margin: 20px 0; 
-            text-align: center; 
-            font-size: 18px; 
-            font-weight: bold; 
-            letter-spacing: 2px;
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6; 
+            color: #333;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f6f9;
         }
-        .warning { color: #e74c3c; font-weight: bold; }
-        .footer { text-align: center; margin-top: 30px; color: #666; font-size: 12px; }
+        .container { 
+            max-width: 600px; 
+            margin: 20px auto; 
+            background: white;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        .header { 
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white; 
+            padding: 40px 30px;
+            text-align: center;
+        }
+        .logo {
+            width: 64px;
+            height: 64px;
+            border-radius: 12px;
+            margin: 0 auto 20px;
+            display: block;
+            box-shadow: 0 4px 12px rgba(255,255,255,0.2);
+        }
+        .header h1 {
+            margin: 0 0 10px 0;
+            font-size: 28px;
+            font-weight: 700;
+        }
+        .header h2 {
+            margin: 0;
+            font-size: 16px;
+            opacity: 0.9;
+            font-weight: 400;
+        }
+        .content { 
+            padding: 40px 30px;
+            background: white;
+        }
+        .password-box { 
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border: 3px solid #f59e0b;
+            padding: 25px;
+            text-align: center; 
+            border-radius: 12px; 
+            margin: 30px 0;
+            font-size: 28px; 
+            font-weight: 700;
+            color: #92400e;
+            letter-spacing: 2px;
+            font-family: 'Courier New', monospace;
+        }
+        .warning { 
+            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+            border-left: 4px solid #ef4444;
+            padding: 25px;
+            margin: 25px 0;
+            border-radius: 8px;
+        }
+        .warning p {
+            margin: 0 0 15px 0;
+            color: #dc2626;
+            font-size: 18px;
+            font-weight: 600;
+        }
+        .warning ul {
+            margin: 15px 0;
+            padding-left: 20px;
+        }
+        .warning li {
+            margin: 10px 0;
+            color: #7f1d1d;
+        }
+        .footer { 
+            text-align: center; 
+            padding: 30px;
+            background: #f8fafc;
+            color: #64748b;
+            font-size: 14px;
+            border-top: 1px solid #e2e8f0;
+        }
+        .footer p {
+            margin: 8px 0;
+        }
+        h2 { 
+            color: #1e293b;
+            font-size: 24px;
+            margin: 0 0 20px 0;
+            font-weight: 600;
+        }
+        p { 
+            margin: 16px 0;
+            color: #475569;
+            font-size: 16px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🌤️ Weather Flick</h1>
-            <h2>임시 비밀번호 발급</h2>
+            <img src="https://wf-dev.seongjunlee.dev/newicon.jpg" alt="Weather Flick Logo" class="logo">
+            <h1>Weather Flick</h1>
+            <h2>관리자 임시 비밀번호 발급</h2>
         </div>
         
         <div class="content">
@@ -99,13 +185,15 @@ class EmailService:
                 {{ temp_password }}
             </div>
             
-            <p class="warning">⚠️ 보안을 위해 다음 사항을 꼭 지켜주세요:</p>
-            <ul>
-                <li>이 임시 비밀번호는 <strong>24시간 후 자동 만료</strong>됩니다</li>
-                <li>첫 로그인 후 <strong>반드시 새로운 비밀번호로 변경</strong>해주세요</li>
-                <li>이 이메일을 타인과 공유하지 마세요</li>
-                <li>로그인 후 즉시 이 이메일을 삭제하는 것을 권장합니다</li>
-            </ul>
+            <div class="warning">
+                <p>⚠️ 보안을 위해 다음 사항을 꼭 지켜주세요:</p>
+                <ul>
+                    <li>이 임시 비밀번호는 <strong>24시간 후 자동 만료</strong>됩니다</li>
+                    <li>첫 로그인 후 <strong>반드시 새로운 비밀번호로 변경</strong>해주세요</li>
+                    <li>이 이메일을 타인과 공유하지 마세요</li>
+                    <li>로그인 후 즉시 이 이메일을 삭제하는 것을 권장합니다</li>
+                </ul>
+            </div>
             
             <p>문의사항이 있으시면 시스템 관리자에게 연락해주세요.</p>
         </div>
@@ -157,17 +245,91 @@ class EmailService:
     <meta charset="UTF-8">
     <title>Weather Flick 비밀번호 변경 완료</title>
     <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background-color: #27AE60; color: white; padding: 20px; text-align: center; }
-        .content { padding: 20px; background-color: #f9f9f9; }
-        .footer { text-align: center; margin-top: 30px; color: #666; font-size: 12px; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6; 
+            color: #333;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f6f9;
+        }
+        .container { 
+            max-width: 600px; 
+            margin: 20px auto; 
+            background: white;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        .header { 
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white; 
+            padding: 40px 30px;
+            text-align: center;
+        }
+        .logo {
+            width: 64px;
+            height: 64px;
+            border-radius: 12px;
+            margin: 0 auto 20px;
+            display: block;
+            box-shadow: 0 4px 12px rgba(255,255,255,0.2);
+        }
+        .header h1 {
+            margin: 0 0 10px 0;
+            font-size: 28px;
+            font-weight: 700;
+        }
+        .header h2 {
+            margin: 0;
+            font-size: 16px;
+            opacity: 0.9;
+            font-weight: 400;
+        }
+        .content { 
+            padding: 40px 30px;
+            background: white;
+        }
+        .success-info {
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+            border-left: 4px solid #10b981;
+            padding: 25px;
+            margin: 25px 0;
+            border-radius: 8px;
+        }
+        .success-info p {
+            margin: 8px 0;
+            color: #065f46;
+        }
+        .footer { 
+            text-align: center; 
+            padding: 30px;
+            background: #f8fafc;
+            color: #64748b;
+            font-size: 14px;
+            border-top: 1px solid #e2e8f0;
+        }
+        .footer p {
+            margin: 8px 0;
+        }
+        h2 { 
+            color: #1e293b;
+            font-size: 24px;
+            margin: 0 0 20px 0;
+            font-weight: 600;
+        }
+        p { 
+            margin: 16px 0;
+            color: #475569;
+            font-size: 16px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🌤️ Weather Flick</h1>
+            <img src="https://wf-dev.seongjunlee.dev/newicon.jpg" alt="Weather Flick Logo" class="logo">
+            <h1>Weather Flick</h1>
             <h2>비밀번호 변경 완료</h2>
         </div>
         
@@ -176,7 +338,10 @@ class EmailService:
             
             <p>Weather Flick 관리자 계정의 비밀번호가 성공적으로 변경되었습니다.</p>
             
-            <p><strong>변경 시간:</strong> {{ current_time }}</p>
+            <div class="success-info">
+                <p><strong>✅ 변경 완료 시간:</strong> {{ current_time }}</p>
+                <p><strong>🛡️ 계정 보안이 강화되었습니다.</strong></p>
+            </div>
             
             <p>만약 본인이 변경하지 않았다면 즉시 시스템 관리자에게 연락해주세요.</p>
         </div>
