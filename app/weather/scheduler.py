@@ -5,7 +5,6 @@ from concurrent.futures import ThreadPoolExecutor, as_completed, Future
 
 from ..database import get_db
 from ..services.weather_service import KTOWeatherService
-from ..services.weather_database_service import WeatherDatabaseService
 from .models import WeatherInfo
 
 logger = logging.getLogger(__name__)
@@ -18,15 +17,10 @@ class WeatherDataCollector:
         self.weather_service = KTOWeatherService()
 
     async def collect_all_cities_weather(self, include_forecast: bool = False) -> Dict[str, Any]:
-        """모든 주요 도시의 날씨 데이터를 수집하고 저장"""
+        """모든 주요 도시의 날씨 데이터를 수집"""
         logger.info("Starting weather data collection for all cities")
 
-        # 데이터베이스 세션 가져오기
-        db_gen = get_db()
-        db = next(db_gen)
-
         try:
-            db_service = WeatherDatabaseService(db)
             cities: List[Dict[str, Any]] = self.weather_service.get_major_cities()
 
             results: Dict[str, Any] = {
@@ -41,12 +35,11 @@ class WeatherDataCollector:
             # 병렬로 날씨 데이터 수집
             weather_data_list: List[WeatherInfo] = await self._collect_weather_parallel(cities, include_forecast)
 
-            # 성공한 데이터들을 데이터베이스에 저장
+            # 성공한 데이터들 처리
             successful_data: List[WeatherInfo] = [data for data in weather_data_list if data is not None]
 
             if successful_data:
-                saved_count = db_service.save_multiple_weather_data(successful_data)
-                results["success_count"] = saved_count
+                results["success_count"] = len(successful_data)
 
                 for weather_info in successful_data:
                     results["cities_data"].append({
@@ -69,8 +62,6 @@ class WeatherDataCollector:
                 return results
             else:
                 return {"errors": [str(e)]}
-        finally:
-            db.close()
 
     async def collect_current_weather_only(self) -> Dict[str, Any]:
         """현재 날씨만 수집 (예보 제외)"""
@@ -126,20 +117,15 @@ class WeatherDataCollector:
 
     async def get_collection_stats(self) -> Dict[str, Any]:
         """수집 통계 조회"""
-        db_gen = get_db()
-        db = next(db_gen)
-
         try:
-            db_service = WeatherDatabaseService(db)
-            stats = db_service.get_weather_statistics()
-
             return {
-                "database_stats": stats,
                 "last_collection": datetime.now().isoformat(),
-                "available_cities": [city["name"] for city in self.weather_service.get_major_cities()]
+                "available_cities": [city["name"] for city in self.weather_service.get_major_cities()],
+                "message": "Weather data is now managed by weather-flick-batch service"
             }
-        finally:
-            db.close()
+        except Exception as e:
+            logger.error(f"Error getting collection stats: {str(e)}")
+            return {"error": str(e)}
 
 
 # 전역 인스턴스

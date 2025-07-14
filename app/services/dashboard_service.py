@@ -8,7 +8,7 @@ from typing import Dict, Any, List
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_
 
-from ..models import User, Admin, AdminActivityLog, CityWeatherData
+from ..models import User, Admin, AdminActivityLog
 from ..auth.logging import AdminLogService
 
 logger = logging.getLogger(__name__)
@@ -139,16 +139,10 @@ class DashboardService:
             except Exception:
                 db_status = "error"
             
-            # 날씨 데이터 통계 (테이블이 있을 경우만)
+            # CityWeatherData 테이블이 제거되어 관련 통계를 제외합니다.
+            # 날씨 데이터는 이제 weather_forecasts 테이블에서 관리됩니다.
             weather_data_count = 0
             latest_weather = None
-            
-            try:
-                weather_data_count = self.db.query(func.count(CityWeatherData.id)).scalar() or 0
-                latest_weather = self.db.query(func.max(CityWeatherData.forecast_time)).scalar()
-            except Exception as e:
-                # 테이블이 없거나 다른 문제가 있어도 계속 진행
-                logger.debug(f"날씨 데이터 조회 실패 (무시): {e}")
             
             return {
                 "weather_data_count": weather_data_count,

@@ -11,10 +11,8 @@ from ..weather.models import (
     UltraSrtNcstRequest, UltraSrtFcstRequest, VilageFcstRequest,
     WeatherResponse
 )
-from ..services.weather_database_service import WeatherDatabaseService
 from ..weather.scheduler import weather_collector
 from ..database import get_db
-from ..models import CityWeatherData
 
 logger = logging.getLogger(__name__)
 
@@ -233,118 +231,8 @@ async def weather_health_check(weather_service: KTOWeatherService = Depends(get_
 
 
 # ==================== 데이터베이스 관련 엔드포인트 ====================
-
-@router.get("/database/stats")
-async def get_database_stats(db: Session = Depends(get_db)):
-    """
-    저장된 날씨 데이터 통계 조회
-    """
-    try:
-        db_service = WeatherDatabaseService(db)
-        stats = db_service.get_weather_statistics()
-        return stats
-    except Exception as e:
-        logger.error(f"Database stats error: {e}")
-        raise HTTPException(status_code=500, detail="통계 조회 중 오류가 발생했습니다.")
-
-
-@router.get("/database/data")
-async def get_stored_weather_data(
-    city_name: Optional[str] = Query(None, description="특정 도시 데이터만 조회"),
-    limit: int = Query(100, description="조회할 레코드 수"),
-    db: Session = Depends(get_db)
-):
-    """
-    저장된 날씨 데이터 조회
-    """
-    try:
-        db_service = WeatherDatabaseService(db)
-        data = db_service.get_latest_weather_data(city_name, limit)
-
-        return {
-            "total_records": len(data),
-            "city_filter": city_name,
-            "data": [
-                {
-                    "id": str(record.id),
-                    "city_name": record.city_name,
-                    "temperature": record.temperature,
-                    "humidity": record.humidity,
-                    "precipitation": record.precipitation,
-                    "wind_speed": record.wind_speed,
-                    "sky_condition": record.sky_condition,
-                    "weather_description": record.weather_description,
-                    "forecast_time": record.forecast_time.isoformat() if record.forecast_time else None,
-                    "created_at": record.created_at.isoformat() if record.created_at else None
-                }
-                for record in data
-            ]
-        }
-    except Exception as e:
-        logger.error(f"Get stored data error: {e}")
-        raise HTTPException(status_code=500, detail="데이터 조회 중 오류가 발생했습니다.")
-
-
-@router.get("/database/latest/{city_name}")
-async def get_latest_city_weather(
-    city_name: str,
-    db: Session = Depends(get_db)
-):
-    """
-    특정 도시의 최신 날씨 데이터 조회
-    """
-    try:
-        db_service = WeatherDatabaseService(db)
-        data = db_service.get_weather_by_city(city_name)
-
-        if not data:
-            raise HTTPException(status_code=404, detail=f"{city_name}의 저장된 데이터를 찾을 수 없습니다.")
-
-        return {
-            "id": str(data.id),
-            "city_name": data.city_name,
-            "temperature": data.temperature,
-            "humidity": data.humidity,
-            "precipitation": data.precipitation,
-            "wind_speed": data.wind_speed,
-            "wind_direction": data.wind_direction,
-            "sky_condition": data.sky_condition,
-            "precipitation_type": data.precipitation_type,
-            "weather_description": data.weather_description,
-            "forecast_time": data.forecast_time.isoformat() if data.forecast_time else None,
-            "coordinates": {
-                "nx": data.nx,
-                "ny": data.ny,
-                "latitude": float(data.latitude) if data.latitude else None,
-                "longitude": float(data.longitude) if data.longitude else None
-            },
-            "created_at": data.created_at.isoformat() if data.created_at else None,
-            "updated_at": data.updated_at.isoformat() if data.updated_at else None
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Get latest city weather error: {e}")
-        raise HTTPException(status_code=500, detail="데이터 조회 중 오류가 발생했습니다.")
-
-
-@router.post("/database/cleanup")
-async def cleanup_database(db: Session = Depends(get_db)):
-    """
-    데이터베이스 정리 (1000개 제한 적용)
-    """
-    try:
-        db_service = WeatherDatabaseService(db)
-        remaining_count = db_service.cleanup_old_data_manual()
-
-        return {
-            "message": "데이터베이스 정리 완료",
-            "remaining_records": remaining_count,
-            "max_records": WeatherDatabaseService.MAX_RECORDS
-        }
-    except Exception as e:
-        logger.error(f"Database cleanup error: {e}")
-        raise HTTPException(status_code=500, detail="데이터베이스 정리 중 오류가 발생했습니다.")
+# CityWeatherData 테이블이 제거되어 관련 엔드포인트들이 제거되었습니다.
+# 날씨 데이터는 이제 weather_forecasts 테이블에서 관리됩니다.
 
 
 # ==================== 데이터 수집 엔드포인트 ====================
@@ -388,25 +276,6 @@ async def get_collection_stats():
         raise HTTPException(status_code=500, detail="수집 통계 조회 중 오류가 발생했습니다.")
 
 
-@router.delete("/database/city/{city_name}")
-async def delete_city_data(
-    city_name: str,
-    db: Session = Depends(get_db)
-):
-    """
-    특정 도시의 모든 데이터 삭제
-    """
-    try:
-        db_service = WeatherDatabaseService(db)
-        deleted_count = db_service.delete_city_data(city_name)
-
-        return {
-            "message": f"{city_name} 데이터 삭제 완료",
-            "deleted_records": deleted_count
-        }
-    except Exception as e:
-        logger.error(f"Delete city data error: {e}")
-        raise HTTPException(status_code=500, detail="데이터 삭제 중 오류가 발생했습니다.")
 
 
 @router.get("/summary")
@@ -453,87 +322,6 @@ def get_weather_summary(weather_service: KTOWeatherService = Depends(get_weather
     }
 
 
-@router.get("/summary-db")
-def get_weather_summary_db(db: Session = Depends(get_db)):
-    """
-    데이터베이스에 저장된 주요 도시들의 최신 날씨 요약 및 통계 반환
-    """
-    try:
-        from ..services.weather_service import MAJOR_CITIES
-        from ..services.weather_database_service import WeatherDatabaseService
-
-        db_service = WeatherDatabaseService(db)
-        cities = list(MAJOR_CITIES.keys())
-
-        # 단일 쿼리로 모든 도시의 최신 데이터 조회 (성능 개선)
-        latest_weather_data = db_service.get_latest_weather_data(limit=len(cities) * 2)
-
-        # 도시별 최신 데이터 매핑
-        city_data_map = {}
-        for data in latest_weather_data:
-            if data.city_name in cities and data.city_name not in city_data_map:
-                city_data_map[data.city_name] = data
-
-        regions = []
-        temps = []
-        now = None
-
-        # 데이터가 없는 경우 기본 응답 제공
-        if not latest_weather_data:
-            logger.warning("데이터베이스에 저장된 날씨 데이터가 없습니다.")
-            return {
-                "regions": [],
-                "summary": {
-                    "region_count": 0,
-                    "avg_temp": None,
-                    "max_temp": None,
-                    "min_temp": None,
-                    "max_region": None,
-                    "min_region": None,
-                    "last_updated": None,
-                    "message": "저장된 날씨 데이터가 없습니다. 데이터 수집을 먼저 실행해주세요."
-                }
-            }
-
-        for city_name in cities:
-            data = city_data_map.get(city_name)
-            if data and data.temperature is not None:
-                temp = float(data.temperature)
-                temps.append(temp)
-                regions.append({
-                    "city_name": city_name,
-                    "region_code": getattr(data, 'region_code', None),
-                    "temperature": temp,
-                    "humidity": data.humidity,
-                    "wind_speed": data.wind_speed,
-                    "sky_condition": data.sky_condition,
-                    "last_updated": data.forecast_time.isoformat() if data.forecast_time else None
-                })
-                if not now or (data.forecast_time and data.forecast_time > now):
-                    now = data.forecast_time
-
-        avg_temp = round(sum(temps) / len(temps), 1) if temps else None
-        max_temp = max(temps) if temps else None
-        min_temp = min(temps) if temps else None
-        max_region = next((r["city_name"] for r in regions if r["temperature"] == max_temp), None)
-        min_region = next((r["city_name"] for r in regions if r["temperature"] == min_temp), None)
-        last_updated = now.isoformat() if now else None
-
-        return {
-            "regions": regions,
-            "summary": {
-                "region_count": len(regions),
-                "avg_temp": avg_temp,
-                "max_temp": max_temp,
-                "min_temp": min_temp,
-                "max_region": max_region,
-                "min_region": min_region,
-                "last_updated": last_updated
-            }
-        }
-    except Exception as e:
-        logger.error(f"Weather summary-db 조회 실패: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"날씨 요약 데이터 조회 중 오류가 발생했습니다: {str(e)}")
 
 
 @router.get("/summary-forecast")
@@ -718,66 +506,6 @@ def get_forecast_weather_data(
         raise HTTPException(status_code=500, detail=f"예보 데이터 조회 중 오류가 발생했습니다: {str(e)}")
 
 
-@router.post("/collect-sample-data")
-async def collect_sample_weather_data(
-    db: Session = Depends(get_db),
-    weather_service: KTOWeatherService = Depends(get_weather_service)
-):
-    """
-    샘플 날씨 데이터 수집 (테스트용)
-    주요 도시 3개의 현재 날씨를 수집하여 DB에 저장
-    """
-    try:
-        from ..services.weather_database_service import WeatherDatabaseService
-        from ..services.weather_service import MAJOR_CITIES
-
-        db_service = WeatherDatabaseService(db)
-
-        # 테스트용으로 3개 도시만 수집
-        test_cities = ['서울', '부산', '대구']
-        collected_data = []
-
-        for city_name in test_cities:
-            try:
-                if city_name in MAJOR_CITIES:
-                    coordinate = MAJOR_CITIES[city_name]
-                    weather = weather_service.get_current_weather(coordinate.nx, coordinate.ny, coordinate.name)
-
-                    if weather:
-                        saved_data = db_service.save_weather_data(weather)
-                        if saved_data:
-                            collected_data.append({
-                                "city": city_name,
-                                "temperature": weather.temperature,
-                                "status": "success"
-                            })
-                        else:
-                            collected_data.append({
-                                "city": city_name,
-                                "status": "failed_to_save"
-                            })
-                    else:
-                        collected_data.append({
-                            "city": city_name,
-                            "status": "no_weather_data"
-                        })
-            except Exception as e:
-                logger.error(f"{city_name} 데이터 수집 실패: {e}")
-                collected_data.append({
-                    "city": city_name,
-                    "status": f"error: {str(e)}"
-                })
-
-        return {
-            "message": "샘플 데이터 수집 완료",
-            "collected_count": len([d for d in collected_data if d.get("status") == "success"]),
-            "total_attempted": len(test_cities),
-            "details": collected_data
-        }
-
-    except Exception as e:
-        logger.error(f"샘플 데이터 수집 실패: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"데이터 수집 중 오류가 발생했습니다: {str(e)}")
 
 
 @router.get("/debug/api-test")
