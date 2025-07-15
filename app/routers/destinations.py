@@ -1,10 +1,12 @@
 from uuid import uuid4
+from typing import Optional, List
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import TouristAttraction
+from ..models import TouristAttractionResponse
 
 router = APIRouter(prefix="/tourist-attractions", tags=["Tourist Attractions"])
 
@@ -12,10 +14,14 @@ router = APIRouter(prefix="/tourist-attractions", tags=["Tourist Attractions"])
 def get_all_tourist_attractions(
     db: Session = Depends(get_db),
     limit: int = Query(10, ge=1, le=100),
-    offset: int = Query(0, ge=0)
+    offset: int = Query(0, ge=0),
+    region_code: Optional[str] = Query(None, description="지역 코드")  # region_code 파라미터 추가
 ):
-    total = db.query(TouristAttraction).count()
-    attractions = db.query(TouristAttraction).order_by(TouristAttraction.created_at.desc()).offset(offset).limit(limit).all()
+    query = db.query(TouristAttraction)
+    if region_code:
+        query = query.filter(TouristAttraction.region_code == str(region_code))
+    total = query.count()
+    attractions = query.order_by(TouristAttraction.created_at.desc()).offset(offset).limit(limit).all()
     return {
         "count": total,
         "next": None,
@@ -175,3 +181,37 @@ def delete_tourist_attraction(content_id: str, db: Session = Depends(get_db)):
     db.delete(attraction)
     db.commit()
     return None
+
+@router.get("/tourist-attractions/", response_model=List[TouristAttractionResponse])
+async def get_tourist_attractions(
+    region_code: Optional[str] = Query(None),
+    limit: int = Query(10, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db)
+):
+    print("DEBUG: region_code =", region_code, type(region_code))
+    query = db.query(TouristAttraction)
+    if region_code:
+        query = query.filter(TouristAttraction.region_code == str(region_code))
+    total = query.count()
+    results = query.order_by(TouristAttraction.created_at.desc()).offset(offset).limit(limit).all()
+    return {
+        "total": total,
+        "items": [
+            {
+                "content_id": a.content_id,
+                "attraction_name": a.attraction_name,
+                "description": a.description,
+                "address": a.address,
+                "image_url": a.image_url,
+                "latitude": float(a.latitude) if a.latitude else None,
+                "longitude": float(a.longitude) if a.longitude else None,
+                "category_code": a.category_code,
+                "category_name": a.category_name,
+                "region_code": a.region_code,
+                "created_at": a.created_at,
+                "updated_at": a.updated_at,
+            }
+            for a in results
+        ]
+    }
