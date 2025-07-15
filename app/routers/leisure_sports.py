@@ -1,6 +1,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
+import uuid
 from sqlalchemy.orm import Session
 
 from app.database import get_db

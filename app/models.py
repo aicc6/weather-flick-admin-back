@@ -1895,6 +1895,12 @@ class LeisureSportsResponse(BaseModel):
     detail_additional_info: dict | None = None
     sigungu_code: str | None = None
 
+    @validator("raw_data_id", pre=True, always=True)
+    def raw_data_id_to_str(cls, v):
+        if isinstance(v, uuid.UUID):
+            return str(v)
+        return v
+
     class Config:
         from_attributes = True
 
