@@ -170,6 +170,7 @@ class TravelPlan(Base):
     weather_info = Column(JSONB, nullable=True)  # 날씨 정보
     plan_type = Column(String(50), default="manual")  # 'manual' 또는 'custom'
     created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
     # 관계 설정
     user = relationship("User", back_populates="travel_plans")
@@ -1637,6 +1638,7 @@ class TravelPlanResponse(BaseModel):
     weather_info: dict[str, Any] | None = None
     plan_type: str | None = None
     created_at: datetime
+    updated_at: datetime | None = None
 
     @validator('budget', pre=True)
     def decimal_to_float(cls, v):
