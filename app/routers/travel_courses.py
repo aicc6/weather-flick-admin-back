@@ -128,7 +128,46 @@ def get_travel_course(content_id: str, db: Session = Depends(get_db)):
     c = db.query(TravelCourse).filter(TravelCourse.content_id == content_id).first()
     if not c:
         raise HTTPException(status_code=404, detail="코스를 찾을 수 없습니다.")
-    return c
+
+    # created_at, updated_at 등은 datetime이어야 하고, None이면 현재시간 등으로 대체(예시)
+    # raw_data_id 등 UUID는 str로 변환
+    return {
+        "content_id": c.content_id,
+        "region_code": c.region_code,
+        "sigungu_code": c.sigungu_code,
+        "course_name": c.course_name,
+        "category_code": c.category_code,
+        "sub_category_code": c.sub_category_code,
+        "address": c.address,
+        "detail_address": c.detail_address,
+        "latitude": c.latitude,
+        "longitude": c.longitude,
+        "zipcode": c.zipcode,
+        "tel": c.tel,
+        "homepage": c.homepage,
+        "overview": c.overview,
+        "first_image": c.first_image,
+        "first_image_small": c.first_image_small,
+        "course_theme": c.course_theme,
+        "course_distance": c.course_distance,
+        "required_time": c.required_time,
+        "difficulty_level": c.difficulty_level,
+        "schedule": c.schedule,
+        "created_at": c.created_at or datetime.utcnow(),  # None 방지
+        "updated_at": c.updated_at,
+        "raw_data_id": str(c.raw_data_id) if c.raw_data_id is not None else None,
+        "last_sync_at": c.last_sync_at,
+        "data_quality_score": c.data_quality_score,
+        "processing_status": c.processing_status,
+        "booktour": c.booktour,
+        "createdtime": c.createdtime,
+        "modifiedtime": c.modifiedtime,
+        "telname": c.telname,
+        "faxno": c.faxno,
+        "mlevel": c.mlevel,
+        "detail_intro_info": c.detail_intro_info,
+        "detail_additional_info": c.detail_additional_info,
+    }
 
 @router.post("/", status_code=201)
 def create_travel_course(
