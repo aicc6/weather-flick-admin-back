@@ -3,9 +3,10 @@
 """
 
 from datetime import datetime
-from typing import List, Optional, Dict, Any
-from pydantic import BaseModel, Field
 from enum import Enum
+from typing import Any
+
+from pydantic import BaseModel, Field
 
 
 class BatchJobType(str, Enum):
@@ -40,17 +41,17 @@ class BatchJobLogLevel(str, Enum):
 # Request 스키마
 class BatchJobExecuteRequest(BaseModel):
     """배치 작업 실행 요청"""
-    parameters: Optional[Dict[str, Any]] = Field(
+    parameters: dict[str, Any] | None = Field(
         default={},
         description="작업 실행 매개변수"
     )
-    priority: Optional[int] = Field(
+    priority: int | None = Field(
         default=5,
         ge=1,
         le=10,
         description="작업 우선순위 (1-10, 10이 가장 높음)"
     )
-    notification_email: Optional[str] = Field(
+    notification_email: str | None = Field(
         default=None,
         description="작업 완료 알림을 받을 이메일"
     )
@@ -62,25 +63,25 @@ class BatchJobResponse(BaseModel):
     id: str
     job_type: BatchJobType
     status: BatchJobStatus
-    parameters: Dict[str, Any]
+    parameters: dict[str, Any]
     progress: float = Field(ge=0, le=100)
-    current_step: Optional[str]
-    total_steps: Optional[int]
+    current_step: str | None
+    total_steps: int | None
     created_at: datetime
     created_by: str
-    started_at: Optional[datetime]
-    completed_at: Optional[datetime]
-    duration_seconds: Optional[float]
-    error_message: Optional[str]
-    result_summary: Optional[Dict[str, Any]]
-    
+    started_at: datetime | None
+    completed_at: datetime | None
+    duration_seconds: float | None
+    error_message: str | None
+    result_summary: dict[str, Any] | None
+
     class Config:
         orm_mode = True
 
 
 class BatchJobListResponse(BaseModel):
     """배치 작업 목록 응답"""
-    jobs: List[BatchJobResponse]
+    jobs: list[BatchJobResponse]
     total_count: int
     page: int
     limit: int
@@ -100,12 +101,12 @@ class BatchJobStatusResponse(BaseModel):
     job_type: BatchJobType
     status: BatchJobStatus
     progress: float
-    current_step: Optional[str]
-    total_steps: Optional[int]
-    started_at: Optional[datetime]
-    completed_at: Optional[datetime]
-    error_message: Optional[str]
-    result_summary: Optional[Dict[str, Any]]
+    current_step: str | None
+    total_steps: int | None
+    started_at: datetime | None
+    completed_at: datetime | None
+    error_message: str | None
+    result_summary: dict[str, Any] | None
 
 
 class BatchJobLog(BaseModel):
@@ -114,13 +115,13 @@ class BatchJobLog(BaseModel):
     timestamp: datetime
     level: BatchJobLogLevel
     message: str
-    details: Optional[Dict[str, Any]]
+    details: dict[str, Any] | None
 
 
 class BatchJobLogResponse(BaseModel):
     """배치 작업 로그 응답"""
     job_id: str
-    logs: List[BatchJobLog]
+    logs: list[BatchJobLog]
     total_count: int
     page: int
     limit: int
@@ -141,15 +142,15 @@ class BatchJobStatistic(BaseModel):
     failed_count: int
     stopped_count: int
     running_count: int
-    average_duration_seconds: Optional[float]
+    average_duration_seconds: float | None
     success_rate: float
 
 
 class BatchJobStatisticsResponse(BaseModel):
     """배치 작업 통계 응답"""
-    start_date: Optional[datetime]
-    end_date: Optional[datetime]
+    start_date: datetime | None
+    end_date: datetime | None
     total_jobs: int
-    statistics_by_type: List[BatchJobStatistic]
-    recent_failures: List[BatchJobResponse]
-    currently_running: List[BatchJobResponse]
+    statistics_by_type: list[BatchJobStatistic]
+    recent_failures: list[BatchJobResponse]
+    currently_running: list[BatchJobResponse]

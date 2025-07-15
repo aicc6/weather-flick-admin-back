@@ -1,10 +1,10 @@
 from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
+
+from app.auth.utils import verify_token
 from app.database import get_db
 from app.models import Admin
-from app.auth.utils import verify_token
-from app.schemas.auth_schemas import TokenData
 
 # HTTP Bearer 토큰 스키마
 security = HTTPBearer()
@@ -66,8 +66,8 @@ async def require_super_admin(
     current_admin: Admin = Depends(get_current_active_admin)
 ) -> Admin:
     """슈퍼관리자 권한 필요"""
-    # 슈퍼관리자 판별: 이메일이 admin@weatherflick.com인 경우
-    if current_admin.email != "admin@weatherflick.com":
+    # 슈퍼관리자 판별: is_superuser 필드 확인
+    if not current_admin.is_superuser:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="슈퍼관리자 권한이 필요합니다"

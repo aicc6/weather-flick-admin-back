@@ -1,19 +1,19 @@
-from datetime import datetime, timezone
-from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+import math
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
+
+from ..auth.dependencies import require_super_admin
+from ..auth.utils import generate_temporary_password, get_password_hash
 from ..database import get_db
 from ..models import Admin, AdminStatus
 from ..schemas.admin_schemas import (
     AdminCreate,
-    AdminResponse,
     AdminListResponse,
+    AdminResponse,
     AdminStatusUpdate,
     AdminUpdate,
 )
-from ..auth.utils import get_password_hash, generate_temporary_password
-from ..auth.dependencies import get_current_active_admin
-import math
 
 router = APIRouter(prefix="/admins", tags=["Admin Management"])
 
@@ -22,9 +22,9 @@ router = APIRouter(prefix="/admins", tags=["Admin Management"])
 async def create_admin(
     admin_create: AdminCreate,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(get_current_active_admin),
+    _current_admin: Admin = Depends(require_super_admin),
 ):
-    """새 관리자 계정 생성 (기존 관리자만 가능)"""
+    """새 관리자 계정 생성 (슈퍼관리자만 가능)"""
     # 이메일 중복 확인
     existing_admin = db.query(Admin).filter(Admin.email == admin_create.email).first()
     if existing_admin:
@@ -55,14 +55,14 @@ async def create_admin(
 async def get_admin_list(
     page: int = Query(1, ge=1, description="페이지 번호"),
     size: int = Query(10, ge=1, le=100, description="페이지 크기"),
-    status: Optional[str] = Query(
+    status: str | None = Query(
         None, description="상태 필터 (ACTIVE, INACTIVE, LOCKED)"
     ),
-    search: Optional[str] = Query(None, description="이메일 또는 이름으로 검색"),
-    current_admin: Admin = Depends(get_current_active_admin),
+    search: str | None = Query(None, description="이메일 또는 이름으로 검색"),
+    _current_admin: Admin = Depends(require_super_admin),
     db: Session = Depends(get_db),
 ):
-    """관리자 목록 조회 (페이지네이션)"""
+    """관리자 목록 조회 (슈퍼관리자만 가능)"""
 
     # 기본 쿼리
     query = db.query(Admin)
@@ -99,21 +99,21 @@ async def get_admin_list(
 
 @router.get("/stats")
 async def get_admin_statistics(
-    current_admin: Admin = Depends(get_current_active_admin),
+    _current_admin: Admin = Depends(require_super_admin),
     db: Session = Depends(get_db),
 ):
-    """관리자 통계 조회"""
+    """관리자 통계 조회 (슈퍼관리자만 가능)"""
     try:
         total = db.query(Admin).count()
         active = db.query(Admin).filter(Admin.status == AdminStatus.ACTIVE).count()
         inactive = db.query(Admin).filter(Admin.status == AdminStatus.INACTIVE).count()
-        
+
         return {
             "total": total,
             "active": active,
             "inactive": inactive
         }
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="관리자 통계 조회 중 오류가 발생했습니다"
@@ -123,10 +123,10 @@ async def get_admin_statistics(
 @router.get("/{admin_id}", response_model=AdminResponse)
 async def get_admin_detail(
     admin_id: int,
-    current_admin: Admin = Depends(get_current_active_admin),
+    _current_admin: Admin = Depends(require_super_admin),
     db: Session = Depends(get_db),
 ):
-    """특정 관리자 상세 조회"""
+    """특정 관리자 상세 조회 (슈퍼관리자만 가능)"""
     admin = db.query(Admin).filter(Admin.admin_id == admin_id).first()
 
     if not admin:
@@ -141,10 +141,10 @@ async def get_admin_detail(
 async def update_admin(
     admin_id: int,
     admin_update: AdminUpdate,
-    current_admin: Admin = Depends(get_current_active_admin),
+    _current_admin: Admin = Depends(require_super_admin),
     db: Session = Depends(get_db),
 ):
-    """관리자 정보 수정"""
+    """관리자 정보 수정 (슈퍼관리자만 가능)"""
     admin = db.query(Admin).filter(Admin.admin_id == admin_id).first()
 
     if not admin:
@@ -185,10 +185,10 @@ async def update_admin(
 async def update_admin_status(
     admin_id: int,
     status_update: AdminStatusUpdate,
-    current_admin: Admin = Depends(get_current_active_admin),
+    _current_admin: Admin = Depends(require_super_admin),
     db: Session = Depends(get_db),
 ):
-    """관리자 상태 변경"""
+    """관리자 상태 변경 (슈퍼관리자만 가능)"""
     admin = db.query(Admin).filter(Admin.admin_id == admin_id).first()
 
     if not admin:
@@ -228,10 +228,10 @@ async def update_admin_status(
 @router.delete("/{admin_id}")
 async def deactivate_admin(
     admin_id: int,
-    current_admin: Admin = Depends(get_current_active_admin),
+    _current_admin: Admin = Depends(require_super_admin),
     db: Session = Depends(get_db),
 ):
-    """관리자 계정 비활성화 (삭제 대신)"""
+    """관리자 계정 비활성화 (슈퍼관리자만 가능)"""
     admin = db.query(Admin).filter(Admin.admin_id == admin_id).first()
 
     if not admin:
@@ -268,17 +268,11 @@ async def deactivate_admin(
 @router.delete("/{admin_id}/permanent")
 async def delete_admin_permanently(
     admin_id: int,
-    current_admin: Admin = Depends(get_current_active_admin),
+    _current_admin: Admin = Depends(require_super_admin),
     db: Session = Depends(get_db),
 ):
-    """관리자 계정 완전 삭제 (superadmin만 가능)"""
-    # superadmin 권한 확인 (is_superuser 필드 사용)
-    if not current_admin.is_superuser:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="관리자 삭제는 슈퍼 관리자만 가능합니다"
-        )
-    
+    """관리자 계정 완전 삭제 (슈퍼관리자만 가능)"""
+
     admin = db.query(Admin).filter(Admin.admin_id == admin_id).first()
 
     if not admin:
@@ -310,10 +304,10 @@ async def delete_admin_permanently(
 @router.post("/{admin_id}/reset-password")
 async def reset_admin_password(
     admin_id: int,
-    current_admin: Admin = Depends(get_current_active_admin),
+    _current_admin: Admin = Depends(require_super_admin),
     db: Session = Depends(get_db),
 ):
-    """관리자 비밀번호 초기화"""
+    """관리자 비밀번호 초기화 (슈퍼관리자만 가능)"""
     admin = db.query(Admin).filter(Admin.admin_id == admin_id).first()
 
     if not admin:
@@ -324,7 +318,7 @@ async def reset_admin_password(
     # 보안 강화된 임시 비밀번호 생성
     temp_password = generate_temporary_password()
     admin.password_hash = get_password_hash(temp_password)
-    
+
     db.commit()
 
     return {

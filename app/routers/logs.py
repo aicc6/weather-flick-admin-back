@@ -2,15 +2,15 @@
 관리자 로그 관리 라우터
 Cursor 규칙에 따른 로그 조회 및 관리 API
 """
+import logging
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from typing import Optional, List
-from datetime import datetime
-import logging
 
-from ..database import get_db
 from ..auth.dependencies import require_admin, require_super_admin
 from ..auth.logging import AdminLogService
+from ..database import get_db
 from ..models import Admin, AdminActivityLog
 
 logger = logging.getLogger(__name__)
@@ -21,8 +21,8 @@ router = APIRouter(prefix="/logs", tags=["Admin Logs"])
 @router.get("/activities")
 async def get_recent_activities(
     limit: int = Query(50, ge=1, le=200, description="조회할 로그 수"),
-    admin_id: Optional[int] = Query(None, description="특정 관리자 필터"),
-    severity: Optional[str] = Query(None, description="심각도 필터 (NORMAL, HIGH, CRITICAL)"),
+    admin_id: int | None = Query(None, description="특정 관리자 필터"),
+    severity: str | None = Query(None, description="심각도 필터 (NORMAL, HIGH, CRITICAL)"),
     db: Session = Depends(get_db),
     admin_user: Admin = Depends(require_admin)
 ):
@@ -46,7 +46,7 @@ async def get_recent_activities(
             admin_id=admin_id,
             severity=severity
         )
-        
+
         # 로그를 딕셔너리로 변환
         activity_list = []
         for activity in activities:
@@ -61,7 +61,7 @@ async def get_recent_activities(
                 "ip_address": activity.ip_address,
                 "created_at": activity.created_at.isoformat()
             })
-        
+
         return {
             "success": True,
             "data": {
@@ -78,7 +78,7 @@ async def get_recent_activities(
             "meta": None,
             "timestamp": datetime.now().isoformat()
         }
-        
+
     except Exception as e:
         logger.error(f"관리자 활동 로그 조회 실패: {e}")
         raise HTTPException(status_code=500, detail="관리자 활동 로그 조회 중 오류가 발생했습니다.")
@@ -98,7 +98,7 @@ async def get_log_statistics(
     try:
         log_service = AdminLogService(db)
         stats = log_service.get_activity_statistics()
-        
+
         return {
             "success": True,
             "data": stats,
@@ -107,7 +107,7 @@ async def get_log_statistics(
             "meta": None,
             "timestamp": datetime.now().isoformat()
         }
-        
+
     except Exception as e:
         logger.error(f"관리자 활동 통계 조회 실패: {e}")
         raise HTTPException(status_code=500, detail="관리자 활동 통계 조회 중 오류가 발생했습니다.")
@@ -132,15 +132,16 @@ async def cleanup_old_logs(
     """
     try:
         from datetime import timedelta
+
         from sqlalchemy import func
-        
+
         cutoff_date = datetime.now() - timedelta(days=days)
-        
+
         # 삭제할 로그 수 조회
         delete_count = db.query(func.count(AdminActivityLog.log_id)).filter(
             AdminActivityLog.created_at < cutoff_date
         ).scalar() or 0
-        
+
         if delete_count == 0:
             return {
                 "success": True,
@@ -150,15 +151,15 @@ async def cleanup_old_logs(
                 "meta": None,
                 "timestamp": datetime.now().isoformat()
             }
-        
+
         # 오래된 로그 삭제
         db.query(AdminActivityLog).filter(
             AdminActivityLog.created_at < cutoff_date
         ).delete()
         db.commit()
-        
+
         logger.info(f"관리자 로그 정리 완료: {delete_count}개 삭제 (관리자: {admin_user.admin_id})")
-        
+
         return {
             "success": True,
             "data": {"deleted_count": delete_count},
@@ -167,7 +168,7 @@ async def cleanup_old_logs(
             "meta": None,
             "timestamp": datetime.now().isoformat()
         }
-        
+
     except Exception as e:
         db.rollback()
         logger.error(f"관리자 로그 정리 실패: {e}")

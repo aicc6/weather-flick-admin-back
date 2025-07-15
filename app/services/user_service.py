@@ -1,19 +1,24 @@
-from sqlalchemy.orm import Session
-from sqlalchemy import func, or_, desc
-from typing import List, Optional
-from datetime import datetime, timedelta
 import logging
 import math
 import uuid
-from passlib.context import CryptContext
-from fastapi import Depends
+from datetime import datetime, timedelta
 
-from ..models import User, UserRole as DBUserRole
-from ..schemas.user_schemas import (
-    UserCreate, UserUpdate, UserListResponse,
-    UserStats, UserSearchParams, UserRole
-)
+from fastapi import Depends
+from passlib.context import CryptContext
+from sqlalchemy import desc, or_
+from sqlalchemy.orm import Session
+
 from ..database import get_db
+from ..models import User
+from ..models import UserRole as DBUserRole
+from ..schemas.user_schemas import (
+    UserCreate,
+    UserListResponse,
+    UserRole,
+    UserSearchParams,
+    UserStats,
+    UserUpdate,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +74,7 @@ class UserService:
             self.db.rollback()
             raise
 
-    def get_user_by_id(self, user_id: str) -> Optional[User]:
+    def get_user_by_id(self, user_id: str) -> User | None:
         """사용자 ID로 사용자 조회"""
         try:
             return self.db.query(User).filter(User.user_id == user_id).first()
@@ -77,7 +82,7 @@ class UserService:
             logger.error(f"사용자 조회 실패 (ID: {user_id}): {e}")
             return None
 
-    def get_user_by_email(self, email: str) -> Optional[User]:
+    def get_user_by_email(self, email: str) -> User | None:
         """이메일로 사용자 조회"""
         try:
             return self.db.query(User).filter(User.email == email).first()
@@ -89,7 +94,7 @@ class UserService:
         self,
         page: int = 1,
         size: int = 20,
-        search_params: Optional[UserSearchParams] = None,
+        search_params: UserSearchParams | None = None,
         include_deleted: bool = False,
         only_deleted: bool = False
     ) -> UserListResponse:
@@ -203,7 +208,7 @@ class UserService:
             self.db.rollback()
             raise
 
-    def update_user(self, user_id: str, user_update: UserUpdate) -> Optional[User]:
+    def update_user(self, user_id: str, user_update: UserUpdate) -> User | None:
         """사용자 정보 수정"""
         try:
             user = self.get_user_by_id(user_id)
@@ -331,7 +336,7 @@ class UserService:
             self.db.rollback()
             return False
 
-    def search_users_by_keyword(self, keyword: str, limit: int = 20) -> List[User]:
+    def search_users_by_keyword(self, keyword: str, limit: int = 20) -> list[User]:
         """키워드로 사용자 검색 (이메일, 닉네임)"""
         try:
             return self.db.query(User).filter(
@@ -345,7 +350,7 @@ class UserService:
             logger.error(f"사용자 검색 실패 (키워드: {keyword}): {e}")
             raise
 
-    def get_users_by_region(self, region: str) -> List[User]:
+    def get_users_by_region(self, region: str) -> list[User]:
         """지역별 사용자 조회"""
         try:
             return self.db.query(User).filter(

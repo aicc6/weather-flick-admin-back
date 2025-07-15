@@ -1,21 +1,24 @@
-from fastapi import APIRouter, HTTPException, Query, Depends, Path
-from typing import Optional, List
-from sqlalchemy.orm import Session
-from datetime import datetime
 import logging
+from datetime import datetime
 
-from ..services.user_service import get_user_service, UserService
-from ..schemas.user_schemas import (
-    UserCreate, UserResponse, UserListResponse, UserStats, UserUpdate,
-    UserSearchParams, UserRole
-)
-from ..database import get_db
-from ..services.email_service import send_temp_password_email
-from ..auth.utils import generate_temporary_password
+from fastapi import APIRouter, Depends, HTTPException, Path, Query
+from sqlalchemy.orm import Session
+
 from ..auth.dependencies import require_admin, require_super_admin
 from ..auth.logging import log_admin_activity
-from ..schemas.common import SuccessResponse
+from ..auth.utils import generate_temporary_password
+from ..database import get_db
 from ..models import Admin
+from ..schemas.user_schemas import (
+    UserCreate,
+    UserListResponse,
+    UserResponse,
+    UserRole,
+    UserSearchParams,
+    UserUpdate,
+)
+from ..services.email_service import send_temp_password_email
+from ..services.user_service import UserService, get_user_service
 
 logger = logging.getLogger(__name__)
 
@@ -26,12 +29,12 @@ router = APIRouter(prefix="/users", tags=["Users"])
 async def get_users(
     page: int = Query(1, ge=1, description="페이지 번호"),
     size: int = Query(20, ge=1, le=100, description="페이지 크기"),
-    email: Optional[str] = Query(None, description="이메일 필터"),
-    nickname: Optional[str] = Query(None, description="닉네임 필터"),
-    role: Optional[UserRole] = Query(None, description="역할 필터"),
-    is_active: Optional[bool] = Query(None, description="활성 상태 필터"),
-    is_email_verified: Optional[bool] = Query(None, description="이메일 인증 상태 필터"),
-    preferred_region: Optional[str] = Query(None, description="선호 지역 필터"),
+    email: str | None = Query(None, description="이메일 필터"),
+    nickname: str | None = Query(None, description="닉네임 필터"),
+    role: UserRole | None = Query(None, description="역할 필터"),
+    is_active: bool | None = Query(None, description="활성 상태 필터"),
+    is_email_verified: bool | None = Query(None, description="이메일 인증 상태 필터"),
+    preferred_region: str | None = Query(None, description="선호 지역 필터"),
     include_deleted: bool = Query(False, description="삭제된 사용자 포함 여부"),
     only_deleted: bool = Query(False, description="삭제된 사용자만 조회"),
     user_service: UserService = Depends(get_user_service),
@@ -55,9 +58,9 @@ async def get_users(
         )
 
         return user_service.get_users(
-            page=page, 
-            size=size, 
-            search_params=search_params, 
+            page=page,
+            size=size,
+            search_params=search_params,
             include_deleted=include_deleted,
             only_deleted=only_deleted
         )

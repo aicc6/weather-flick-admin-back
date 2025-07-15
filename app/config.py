@@ -1,13 +1,12 @@
 """Admin application configuration settings."""
 
 import os
-from typing import Optional
-
-from pydantic import field_validator
-from pydantic_settings import BaseSettings
 
 # .env 파일 로드
 from dotenv import load_dotenv
+from pydantic import field_validator
+from pydantic_settings import BaseSettings
+
 load_dotenv()
 
 
@@ -74,7 +73,7 @@ class Settings(BaseSettings):
 
     # 프론트엔드 설정
     admin_frontend_url: str = os.getenv("ADMIN_FRONTEND_URL", "http://localhost:5174")
-    
+
     # 배치 시스템 API 설정
     batch_api_url: str = os.getenv("BATCH_API_URL", "http://localhost:9000")
     batch_api_key: str = os.getenv("BATCH_API_KEY", "batch-api-secret-key")

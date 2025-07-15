@@ -1,11 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, Body
+from datetime import datetime
+from typing import Any
+from uuid import uuid4
+
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
+
 from ..database import get_db
 from ..models import TravelCourse
-from uuid import uuid4
-from typing import Any
-from pydantic import BaseModel
-from datetime import datetime
+
 
 def safe_float(val: Any) -> float | None:
     try:

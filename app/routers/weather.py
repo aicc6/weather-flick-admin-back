@@ -1,18 +1,25 @@
-from fastapi import APIRouter, HTTPException, Query, Depends
-from typing import List, Optional, Dict, Any
-from datetime import datetime
 import logging
-from sqlalchemy.orm import Session
-from sqlalchemy import text
+from datetime import datetime
 
-from ..services.weather_service import get_weather_service, KTOWeatherService, MAJOR_CITIES
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+
+from ..database import get_db
+from ..services.weather_service import (
+    MAJOR_CITIES,
+    KTOWeatherService,
+    get_weather_service,
+)
 from ..weather.models import (
-    WeatherInfo, LocationCoordinate,
-    UltraSrtNcstRequest, UltraSrtFcstRequest, VilageFcstRequest,
-    WeatherResponse
+    LocationCoordinate,
+    UltraSrtFcstRequest,
+    UltraSrtNcstRequest,
+    VilageFcstRequest,
+    WeatherInfo,
+    WeatherResponse,
 )
 from ..weather.scheduler import weather_collector
-from ..database import get_db
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +61,7 @@ async def get_current_weather(
         raise HTTPException(status_code=500, detail=f"날씨 정보 조회 중 오류가 발생했습니다: {str(e)}")
 
 
-@router.get("/forecast", response_model=List[WeatherInfo])
+@router.get("/forecast", response_model=list[WeatherInfo])
 async def get_weather_forecast(
     nx: int = Query(60, description="예보지점 X 좌표 (기본값: 서울)"),
     ny: int = Query(127, description="예보지점 Y 좌표 (기본값: 서울)"),
@@ -110,7 +117,7 @@ async def get_current_weather_by_city(
         raise HTTPException(status_code=500, detail="날씨 정보 조회 중 오류가 발생했습니다.")
 
 
-@router.get("/forecast/{city_name}", response_model=List[WeatherInfo])
+@router.get("/forecast/{city_name}", response_model=list[WeatherInfo])
 async def get_weather_forecast_by_city(
     city_name: str,
     weather_service: KTOWeatherService = Depends(get_weather_service)
@@ -140,7 +147,7 @@ async def get_weather_forecast_by_city(
         raise HTTPException(status_code=500, detail="날씨 예보 조회 중 오류가 발생했습니다.")
 
 
-@router.get("/cities", response_model=List[LocationCoordinate])
+@router.get("/cities", response_model=list[LocationCoordinate])
 async def get_available_cities():
     """
     사용 가능한 도시 목록 조회
@@ -232,7 +239,7 @@ async def weather_health_check(weather_service: KTOWeatherService = Depends(get_
 
 # ==================== 데이터베이스 관련 엔드포인트 ====================
 # CityWeatherData 테이블이 제거되어 관련 엔드포인트들이 제거되었습니다.
-# 날씨 데이터는 이제 weather_forecasts 테이블에서 관리됩니다.
+# 날씨 데이터는 이제 weather_forecast 테이블에서 관리됩니다.
 
 
 # ==================== 데이터 수집 엔드포인트 ====================
@@ -327,7 +334,7 @@ def get_weather_summary(weather_service: KTOWeatherService = Depends(get_weather
 @router.get("/summary-forecast")
 def get_weather_summary_from_forecasts(db: Session = Depends(get_db)):
     """
-    weather_forecasts 테이블에서 날씨 통계 데이터를 제공합니다.
+    weather_forecast 테이블에서 날씨 통계 데이터를 제공합니다.
     최신 예보 데이터를 기반으로 주요 지역별 온도 통계를 계산합니다.
     """
     try:
@@ -339,14 +346,14 @@ def get_weather_summary_from_forecasts(db: Session = Depends(get_db)):
                    FIRST_VALUE(weather_condition) OVER (PARTITION BY region_code ORDER BY forecast_date DESC, created_at DESC) as weather_condition,
                    FIRST_VALUE(precipitation_prob) OVER (PARTITION BY region_code ORDER BY forecast_date DESC, created_at DESC) as precipitation_prob,
                    FIRST_VALUE(forecast_date) OVER (PARTITION BY region_code ORDER BY forecast_date DESC, created_at DESC) as latest_forecast_date
-            FROM weather_forecasts 
+            FROM weather_forecast 
             WHERE min_temp IS NOT NULL 
             AND max_temp IS NOT NULL 
             AND forecast_date >= CURRENT_DATE - INTERVAL '3 days'
         """)
-        
+
         result = db.execute(subquery).fetchall()
-        
+
         if not result:
             return {
                 "regions": [],
@@ -358,10 +365,10 @@ def get_weather_summary_from_forecasts(db: Session = Depends(get_db)):
                     "max_region": None,
                     "min_region": None,
                     "last_updated": None,
-                    "message": "weather_forecasts 테이블에 최근 데이터가 없습니다."
+                    "message": "weather_forecast 테이블에 최근 데이터가 없습니다."
                 }
             }
-        
+
         # 지역 정보 매핑을 위한 쿼리
         region_query = text("""
             SELECT region_code, region_name, region_name_full
@@ -370,17 +377,17 @@ def get_weather_summary_from_forecasts(db: Session = Depends(get_db)):
         """)
         regions_data = db.execute(region_query).fetchall()
         region_map = {r.region_code: r.region_name_full or r.region_name for r in regions_data}
-        
+
         regions = []
         temps = []
-        
+
         for row in result:
             # 평균 온도 계산 (최저온도와 최고온도의 평균)
             avg_temp = (float(row.min_temp) + float(row.max_temp)) / 2
             temps.append(avg_temp)
-            
+
             region_name = region_map.get(row.region_code, f"지역코드_{row.region_code}")
-            
+
             regions.append({
                 "city_name": region_name,
                 "region_code": row.region_code,
@@ -392,21 +399,21 @@ def get_weather_summary_from_forecasts(db: Session = Depends(get_db)):
                 "precipitation_prob": row.precipitation_prob,
                 "last_updated": row.latest_forecast_date.isoformat() if row.latest_forecast_date else None
             })
-        
+
         # 통계 계산
         avg_temp = round(sum(temps) / len(temps), 1) if temps else None
         max_temp = max(temps) if temps else None
         min_temp = min(temps) if temps else None
-        
+
         max_region_data = next((r for r in regions if r["temperature"] == max_temp), None)
         min_region_data = next((r for r in regions if r["temperature"] == min_temp), None)
-        
+
         max_region = max_region_data["region_name"] if max_region_data else None
         min_region = min_region_data["region_name"] if min_region_data else None
-        
+
         # 가장 최근 업데이트 시간
         latest_update = max((r["last_updated"] for r in regions if r["last_updated"]), default=None)
-        
+
         return {
             "regions": regions,
             "summary": {
@@ -417,10 +424,10 @@ def get_weather_summary_from_forecasts(db: Session = Depends(get_db)):
                 "max_region": max_region,
                 "min_region": min_region,
                 "last_updated": latest_update,
-                "data_source": "weather_forecasts"
+                "data_source": "weather_forecast"
             }
         }
-        
+
     except Exception as e:
         logger.error(f"Weather forecast summary 조회 실패: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"예보 데이터 기반 날씨 요약 조회 중 오류가 발생했습니다: {str(e)}")
@@ -432,7 +439,7 @@ def get_forecast_weather_data(
     db: Session = Depends(get_db)
 ):
     """
-    weather_forecasts 테이블에서 지역별 최신 날씨 예보 데이터를 반환합니다.
+    weather_forecast 테이블에서 지역별 최신 날씨 예보 데이터를 반환합니다.
     날씨 정보 관리 페이지에서 사용됩니다.
     """
     try:
@@ -447,7 +454,7 @@ def get_forecast_weather_data(
                        FIRST_VALUE(forecast_date) OVER (PARTITION BY region_code ORDER BY forecast_date DESC, created_at DESC) as forecast_date,
                        FIRST_VALUE(created_at) OVER (PARTITION BY region_code ORDER BY forecast_date DESC, created_at DESC) as created_at,
                        ROW_NUMBER() OVER (PARTITION BY region_code ORDER BY forecast_date DESC, created_at DESC) as rn
-                FROM weather_forecasts 
+                FROM weather_forecast 
                 WHERE min_temp IS NOT NULL 
                 AND max_temp IS NOT NULL 
                 AND forecast_date >= CURRENT_DATE - INTERVAL '3 days'
@@ -459,23 +466,23 @@ def get_forecast_weather_data(
             ORDER BY lf.created_at DESC
             LIMIT :limit
         """)
-        
+
         result = db.execute(query, {"limit": limit}).fetchall()
-        
+
         if not result:
             return {
                 "success": True,
                 "data": [],
                 "message": "weather_forecasts 테이블에 최근 데이터가 없습니다."
             }
-        
+
         # 응답 데이터 구성
         weather_data = []
         for row in result:
             # 평균 온도 계산
             avg_temp = (float(row.min_temp) + float(row.max_temp)) / 2
             city_name = row.region_name_full or row.region_name or f"지역코드_{row.region_code}"
-            
+
             weather_data.append({
                 "id": f"forecast_{row.region_code}",
                 "city_name": city_name,
@@ -491,16 +498,16 @@ def get_forecast_weather_data(
                 "sky_condition": row.weather_condition,
                 "forecast_date": row.forecast_date.isoformat() if row.forecast_date else None,
                 "last_updated": row.created_at.isoformat() if row.created_at else None,
-                "data_source": "weather_forecasts"
+                "data_source": "weather_forecast"
             })
-        
+
         return {
             "success": True,
             "data": weather_data,
             "count": len(weather_data),
-            "message": f"weather_forecasts 테이블에서 {len(weather_data)}개 지역의 날씨 데이터를 조회했습니다."
+            "message": f"weather_forecast 테이블에서 {len(weather_data)}개 지역의 날씨 데이터를 조회했습니다."
         }
-        
+
     except Exception as e:
         logger.error(f"Forecast weather data 조회 실패: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"예보 데이터 조회 중 오류가 발생했습니다: {str(e)}")
@@ -514,8 +521,9 @@ async def debug_kma_api_test(weather_service: KTOWeatherService = Depends(get_we
     기상청 API 테스트 및 디버깅
     """
     try:
-        from ..weather.models import UltraSrtNcstRequest
         from datetime import datetime, timedelta
+
+        from ..weather.models import UltraSrtNcstRequest
 
         # 현재 시간 기준으로 발표시각 계산
         now = datetime.now()

@@ -1,47 +1,48 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.orm import Session
-from typing import Optional
-from app.models import LeisureSports, LeisureSportsResponse
-from app.database import get_db
-from pydantic import BaseModel
 
-router = APIRouter(prefix="/api/leisure-sports", tags=["leisure_sports"])
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+from app.database import get_db
+from app.models import LeisureSports, LeisureSportsResponse
+
+router = APIRouter(prefix="/leisure-sports", tags=["leisure_sports"])
 
 class LeisureSportsCreate(BaseModel):
     region_code: str
     facility_name: str
-    category_code: Optional[str] = None
-    sub_category_code: Optional[str] = None
-    raw_data_id: Optional[str] = None
-    sports_type: Optional[str] = None
-    reservation_info: Optional[str] = None
-    admission_fee: Optional[str] = None
-    parking_info: Optional[str] = None
-    rental_info: Optional[str] = None
-    capacity: Optional[str] = None
-    operating_hours: Optional[str] = None
-    address: Optional[str] = None
-    detail_address: Optional[str] = None
-    zipcode: Optional[str] = None
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
-    tel: Optional[str] = None
-    homepage: Optional[str] = None
-    overview: Optional[str] = None
-    first_image: Optional[str] = None
-    first_image_small: Optional[str] = None
-    data_quality_score: Optional[float] = None
-    processing_status: Optional[str] = None
-    booktour: Optional[str] = None
-    createdtime: Optional[str] = None
-    modifiedtime: Optional[str] = None
-    telname: Optional[str] = None
-    faxno: Optional[str] = None
-    mlevel: Optional[int] = None
-    detail_intro_info: Optional[dict] = None
-    detail_additional_info: Optional[dict] = None
-    sigungu_code: Optional[str] = None
-    last_sync_at: Optional[str] = None
+    category_code: str | None = None
+    sub_category_code: str | None = None
+    raw_data_id: str | None = None
+    sports_type: str | None = None
+    reservation_info: str | None = None
+    admission_fee: str | None = None
+    parking_info: str | None = None
+    rental_info: str | None = None
+    capacity: str | None = None
+    operating_hours: str | None = None
+    address: str | None = None
+    detail_address: str | None = None
+    zipcode: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    tel: str | None = None
+    homepage: str | None = None
+    overview: str | None = None
+    first_image: str | None = None
+    first_image_small: str | None = None
+    data_quality_score: float | None = None
+    processing_status: str | None = None
+    booktour: str | None = None
+    createdtime: str | None = None
+    modifiedtime: str | None = None
+    telname: str | None = None
+    faxno: str | None = None
+    mlevel: int | None = None
+    detail_intro_info: dict | None = None
+    detail_additional_info: dict | None = None
+    sigungu_code: str | None = None
+    last_sync_at: str | None = None
 
 class LeisureSportsUpdate(LeisureSportsCreate):
     pass

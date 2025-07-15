@@ -1,17 +1,19 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+
+from ..auth.dependencies import get_current_active_admin
+from ..auth.utils import create_admin_token, verify_password
 from ..database import get_db
 from ..models import Admin, AdminStatus
 from ..schemas.auth_schemas import (
     AdminLogin,
     AdminResponse,
-    Token,
     LoginResponse,
+    Token,
 )
-from ..auth.utils import verify_password, create_admin_token
-from ..auth.dependencies import get_current_active_admin
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -35,7 +37,7 @@ async def login(admin_login: AdminLogin, db: Session = Depends(get_db)):
         )
 
     # 마지막 로그인 시간 업데이트
-    admin.last_login_at = datetime.now(timezone.utc)
+    admin.last_login_at = datetime.now(UTC)
     db.commit()
 
     # JWT 토큰 생성
@@ -83,7 +85,7 @@ async def login_for_access_token(
         )
 
     # 마지막 로그인 시간 업데이트
-    admin.last_login_at = datetime.now(timezone.utc)
+    admin.last_login_at = datetime.now(UTC)
     db.commit()
 
     access_token = create_admin_token(admin.admin_id, admin.email)

@@ -1,15 +1,16 @@
+import json
+from uuid import UUID
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+
 from app.database import get_db
-from app.models import TravelPlanCreate, TravelPlanUpdate, TravelPlanResponse
+from app.models import TravelPlanCreate, TravelPlanResponse, TravelPlanUpdate
 from app.services import travel_plans as service
-from typing import List
-from uuid import UUID
-import json
 
 router = APIRouter(prefix="/travel-plans", tags=["travel_plans"])
 
-@router.get("/", response_model=List[TravelPlanResponse])
+@router.get("/", response_model=list[TravelPlanResponse])
 def list_travel_plans(skip: int = 0, limit: int = 20, db: Session = Depends(get_db)):
     plans = service.get_travel_plans(db, skip=skip, limit=limit)
     result = []

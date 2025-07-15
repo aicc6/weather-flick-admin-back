@@ -2,15 +2,16 @@
 관리자 대시보드 라우터
 Cursor 규칙에 따른 종합 대시보드 API
 """
+import logging
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from datetime import datetime
-import logging
 
-from ..database import get_db
 from ..auth.dependencies import require_admin
-from ..services.dashboard_service import DashboardService
+from ..database import get_db
 from ..models import Admin
+from ..services.dashboard_service import DashboardService
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +32,7 @@ async def get_dashboard_statistics(
     try:
         dashboard_service = DashboardService(db)
         stats = await dashboard_service.get_dashboard_stats()
-        
+
         return {
             "success": True,
             "data": stats,
@@ -40,7 +41,7 @@ async def get_dashboard_statistics(
             "meta": None,
             "timestamp": datetime.now().isoformat()
         }
-        
+
     except Exception as e:
         logger.error(f"대시보드 통계 조회 실패: {e}")
         raise HTTPException(status_code=500, detail="대시보드 통계 조회 중 오류가 발생했습니다.")
@@ -66,7 +67,7 @@ async def get_recent_dashboard_activities(
     try:
         dashboard_service = DashboardService(db)
         activities = await dashboard_service.get_recent_activities(limit=limit)
-        
+
         return {
             "success": True,
             "data": {
@@ -78,7 +79,7 @@ async def get_recent_dashboard_activities(
             "meta": None,
             "timestamp": datetime.now().isoformat()
         }
-        
+
     except Exception as e:
         logger.error(f"대시보드 활동 내역 조회 실패: {e}")
         raise HTTPException(status_code=500, detail="대시보드 활동 내역 조회 중 오류가 발생했습니다.")
@@ -100,7 +101,7 @@ async def get_dashboard_summary(
     try:
         dashboard_service = DashboardService(db)
         full_stats = await dashboard_service.get_dashboard_stats()
-        
+
         # 핵심 지표만 추출
         summary = {
             "users": {
@@ -121,7 +122,7 @@ async def get_dashboard_summary(
                 "critical_count": full_stats.get("activities", {}).get("recent_critical_count", 0)
             }
         }
-        
+
         return {
             "success": True,
             "data": summary,
@@ -130,7 +131,7 @@ async def get_dashboard_summary(
             "meta": None,
             "timestamp": datetime.now().isoformat()
         }
-        
+
     except Exception as e:
         logger.error(f"대시보드 요약 조회 실패: {e}")
         raise HTTPException(status_code=500, detail="대시보드 요약 조회 중 오류가 발생했습니다.")

@@ -1,7 +1,8 @@
 from sqlalchemy.orm import Session
+
+from app.auth.utils import get_password_hash
 from app.database import SessionLocal
 from app.models import Admin
-from app.auth.utils import get_password_hash
 
 
 def create_tables():

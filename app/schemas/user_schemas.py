@@ -1,8 +1,9 @@
-from pydantic import BaseModel, EmailStr, Field, ConfigDict, field_validator, validator
-from typing import Optional, Dict, Any
 from datetime import datetime
-from uuid import UUID
 from enum import Enum
+from typing import Any
+from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class UserRole(str, Enum):
@@ -14,11 +15,11 @@ class UserBase(BaseModel):
     """사용자 기본 정보"""
     email: str
     nickname: str
-    profile_image: Optional[str] = None
-    preferences: Optional[Dict[str, Any]] = None
-    preferred_region: Optional[str] = None
-    preferred_theme: Optional[str] = None
-    bio: Optional[str] = None
+    profile_image: str | None = None
+    preferences: dict[str, Any] | None = None
+    preferred_region: str | None = None
+    preferred_theme: str | None = None
+    bio: str | None = None
 
     @field_validator('preferences', mode='before')
     @classmethod
@@ -46,12 +47,12 @@ class UserCreate(UserBase):
 
 class UserUpdate(BaseModel):
     """사용자 정보 수정 요청"""
-    nickname: Optional[str] = None
-    profile_image: Optional[str] = None
-    preferences: Optional[Dict[str, Any]] = None
-    preferred_region: Optional[str] = None
-    preferred_theme: Optional[str] = None
-    bio: Optional[str] = None
+    nickname: str | None = None
+    profile_image: str | None = None
+    preferences: dict[str, Any] | None = None
+    preferred_region: str | None = None
+    preferred_theme: str | None = None
+    bio: str | None = None
 
 
 class UserResponse(UserBase):
@@ -62,7 +63,7 @@ class UserResponse(UserBase):
     is_active: bool
     is_email_verified: bool
     role: UserRole
-    last_login: Optional[datetime] = None
+    last_login: datetime | None = None
     login_count: int
     created_at: datetime
     updated_at: datetime
@@ -96,11 +97,11 @@ class UserStats(BaseModel):
 
 class UserSearchParams(BaseModel):
     """사용자 검색 파라미터"""
-    email: Optional[str] = None
-    nickname: Optional[str] = None
-    role: Optional[UserRole] = None
-    is_active: Optional[bool] = None
-    is_email_verified: Optional[bool] = None
-    preferred_region: Optional[str] = None
-    created_after: Optional[datetime] = None
-    created_before: Optional[datetime] = None
+    email: str | None = None
+    nickname: str | None = None
+    role: UserRole | None = None
+    is_active: bool | None = None
+    is_email_verified: bool | None = None
+    preferred_region: str | None = None
+    created_after: datetime | None = None
+    created_before: datetime | None = None

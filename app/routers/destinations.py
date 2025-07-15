@@ -1,8 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, Body
+from uuid import uuid4
+
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
+
 from ..database import get_db
 from ..models import TouristAttraction
-from uuid import uuid4
 
 router = APIRouter(prefix="/tourist-attractions", tags=["Tourist Attractions"])
 

@@ -1,22 +1,23 @@
-from typing import List, Optional
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
-from sqlalchemy import func, or_
+
+from app.auth.dependencies import get_current_admin
+from app.data.region_coordinates import get_all_coordinates
 from app.database import get_db
 from app.models import Region
-from app.auth.dependencies import get_current_admin
 from app.schemas.regions import (
     RegionCreate,
-    RegionUpdate,
+    RegionListResponse,
     RegionResponse,
-    RegionListResponse
+    RegionUpdate,
 )
-from app.data.region_coordinates import get_all_coordinates
-import logging
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/regions", tags=["regions"])
+router = APIRouter(prefix="/regions", tags=["regions"])
 
 
 @router.get("/missing-coordinates")
@@ -33,7 +34,7 @@ async def get_missing_coordinates(
                 Region.longitude == None
             )
         ).order_by(Region.region_code).all()
-        
+
         return {
             "total": len(regions),
             "regions": [{
@@ -57,23 +58,23 @@ async def update_region_coordinates(
     try:
         # 관리자 권한 확인 (super_admin만 가능) - 일단 모든 관리자에게 허용
         # TODO: super_admin 역할 확인 로직 추가 필요
-        
+
         # 좌표 데이터 가져오기
         coordinates_data = get_all_coordinates()
-        
+
         updated_count = 0
         skipped_count = 0
         not_found_count = 0
-        
+
         for region_code, coord_info in coordinates_data.items():
             region = db.query(Region).filter(Region.region_code == region_code).first()
-            
+
             if region:
                 # 이미 좌표가 있는 경우 스킵
                 if region.latitude and region.longitude:
                     skipped_count += 1
                     continue
-                
+
                 # 좌표 업데이트
                 region.latitude = coord_info["latitude"]
                 region.longitude = coord_info["longitude"]
@@ -81,12 +82,12 @@ async def update_region_coordinates(
             else:
                 not_found_count += 1
                 logger.warning(f"Region not found: {region_code} - {coord_info['name']}")
-        
+
         db.commit()
-        
+
         logger.info(f"Region coordinates updated by {current_admin.email}: "
                    f"updated={updated_count}, skipped={skipped_count}, not_found={not_found_count}")
-        
+
         return {
             "message": "지역 좌표 업데이트 완료",
             "updated": updated_count,
@@ -111,7 +112,7 @@ async def get_region_tree(
     try:
         # 모든 지역 조회
         regions = db.query(Region).order_by(Region.region_level, Region.region_code).all()
-        
+
         # 계층 구조로 변환
         region_map = {r.region_code: {
             "region_code": r.region_code,
@@ -121,7 +122,7 @@ async def get_region_tree(
             "longitude": r.longitude,
             "children": []
         } for r in regions}
-        
+
         # 트리 구성
         tree = []
         for region in regions:
@@ -131,7 +132,7 @@ async def get_region_tree(
                 )
             elif not region.parent_region_code:
                 tree.append(region_map[region.region_code])
-        
+
         return {"tree": tree}
     except Exception as e:
         logger.error(f"Failed to get region tree: {str(e)}")
@@ -142,16 +143,16 @@ async def get_region_tree(
 async def get_regions(
     page: int = Query(1, ge=1),
     size: int = Query(50, ge=1, le=100),
-    search: Optional[str] = None,
-    parent_region_code: Optional[str] = None,
-    region_level: Optional[int] = None,
+    search: str | None = None,
+    parent_region_code: str | None = None,
+    region_level: int | None = None,
     db: Session = Depends(get_db),
     current_admin = Depends(get_current_admin)
 ):
     """지역 목록 조회"""
     try:
         query = db.query(Region)
-        
+
         # 검색 조건
         if search:
             query = query.filter(
@@ -160,22 +161,22 @@ async def get_regions(
                     Region.region_code.ilike(f"%{search}%")
                 )
             )
-        
+
         if parent_region_code:
             query = query.filter(Region.parent_region_code == parent_region_code)
-        
+
         if region_level is not None:
             query = query.filter(Region.region_level == region_level)
-        
+
         # 전체 개수
         total = query.count()
-        
+
         # 페이징
         query = query.order_by(Region.region_code)
         query = query.offset((page - 1) * size).limit(size)
-        
+
         regions = query.all()
-        
+
         return {
             "regions": regions,
             "total": total,
@@ -215,12 +216,12 @@ async def create_region(
         ).first()
         if existing_region:
             raise HTTPException(status_code=400, detail="이미 존재하는 지역 코드입니다")
-        
+
         region = Region(**region_data.dict())
         db.add(region)
         db.commit()
         db.refresh(region)
-        
+
         logger.info(f"Region created: {region.region_code} by {current_admin.email}")
         return region
     except HTTPException:
@@ -243,14 +244,14 @@ async def update_region(
         region = db.query(Region).filter(Region.region_code == region_code).first()
         if not region:
             raise HTTPException(status_code=404, detail="지역을 찾을 수 없습니다")
-        
+
         update_data = region_data.dict(exclude_unset=True)
         for key, value in update_data.items():
             setattr(region, key, value)
-        
+
         db.commit()
         db.refresh(region)
-        
+
         logger.info(f"Region updated: {region_code} by {current_admin.email}")
         return region
     except HTTPException:
@@ -272,20 +273,20 @@ async def delete_region(
         region = db.query(Region).filter(Region.region_code == region_code).first()
         if not region:
             raise HTTPException(status_code=404, detail="지역을 찾을 수 없습니다")
-        
+
         # 하위 지역이 있는지 확인
         child_regions = db.query(Region).filter(
             Region.parent_region_code == region_code
         ).count()
         if child_regions > 0:
             raise HTTPException(
-                status_code=400, 
+                status_code=400,
                 detail="하위 지역이 있는 지역은 삭제할 수 없습니다"
             )
-        
+
         db.delete(region)
         db.commit()
-        
+
         logger.info(f"Region deleted: {region_code} by {current_admin.email}")
         return {"message": "지역이 삭제되었습니다"}
     except HTTPException:

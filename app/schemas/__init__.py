@@ -5,10 +5,10 @@
 
 from .common import (
     BaseResponse,
+    EmptySuccessResponse,
     ErrorDetail,
     ErrorResponse,
     ErrorResponseModel,
-    EmptySuccessResponse,
     MessageResponse,
     MetaInfo,
     PaginatedResponse,
@@ -17,7 +17,7 @@ from .common import (
 
 __all__ = [
     "BaseResponse",
-    "ErrorDetail", 
+    "ErrorDetail",
     "ErrorResponse",
     "ErrorResponseModel",
     "EmptySuccessResponse",

@@ -2,12 +2,11 @@
 이메일 전송 서비스
 """
 
-import os
-from typing import List, Optional
-from fastapi import HTTPException
-from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
-from jinja2 import Template
 import logging
+
+from fastapi_mail import ConnectionConfig, FastMail, MessageSchema, MessageType
+from jinja2 import Template
+
 from ..config import settings
 
 logger = logging.getLogger(__name__)
@@ -48,7 +47,7 @@ class EmailService:
             self.fastmail = None
 
     async def send_temporary_password_email(
-        self, email: str, temp_password: str, user_name: Optional[str] = None
+        self, email: str, temp_password: str, user_name: str | None = None
     ) -> bool:
         """임시 비밀번호 이메일 전송"""
         try:
@@ -226,7 +225,7 @@ class EmailService:
             return False
 
     async def send_password_reset_notification(
-        self, email: str, user_name: Optional[str] = None
+        self, email: str, user_name: str | None = None
     ) -> bool:
         """비밀번호 재설정 알림 이메일 전송"""
         try:

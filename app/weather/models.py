@@ -1,6 +1,6 @@
-from pydantic import BaseModel
-from typing import List, Optional, Union
 from datetime import datetime
+
+from pydantic import BaseModel
 
 
 class WeatherResponseHeader(BaseModel):
@@ -16,15 +16,15 @@ class WeatherItem(BaseModel):
     category: str  # 자료구분코드
     nx: int        # 예보지점 X 좌표
     ny: int        # 예보지점 Y 좌표
-    obsrValue: Optional[str] = None  # 실황값 (초단기실황)
-    fcstDate: Optional[str] = None   # 예보일자 (YYYYMMDD) (예보)
-    fcstTime: Optional[str] = None   # 예보시각 (HHMM) (예보)
-    fcstValue: Optional[str] = None  # 예보값 (예보)
+    obsrValue: str | None = None  # 실황값 (초단기실황)
+    fcstDate: str | None = None   # 예보일자 (YYYYMMDD) (예보)
+    fcstTime: str | None = None   # 예보시각 (HHMM) (예보)
+    fcstValue: str | None = None  # 예보값 (예보)
 
 
 class WeatherResponseItems(BaseModel):
     """기상청 API 응답 아이템 래퍼"""
-    item: List[WeatherItem]
+    item: list[WeatherItem]
 
 
 class WeatherResponseBody(BaseModel):
@@ -86,13 +86,13 @@ class WeatherInfo(BaseModel):
     nx: int        # X 좌표
     ny: int        # Y 좌표
     forecast_time: datetime  # 예보 시각
-    temperature: Optional[float] = None      # 기온 (°C)
-    humidity: Optional[int] = None           # 습도 (%)
-    precipitation: Optional[float] = None    # 강수량 (mm)
-    wind_speed: Optional[float] = None       # 풍속 (m/s)
-    wind_direction: Optional[int] = None     # 풍향 (deg)
-    sky_condition: Optional[str] = None      # 하늘상태
-    precipitation_type: Optional[str] = None # 강수형태
+    temperature: float | None = None      # 기온 (°C)
+    humidity: int | None = None           # 습도 (%)
+    precipitation: float | None = None    # 강수량 (mm)
+    wind_speed: float | None = None       # 풍속 (m/s)
+    wind_direction: int | None = None     # 풍향 (deg)
+    sky_condition: str | None = None      # 하늘상태
+    precipitation_type: str | None = None # 강수형태
     weather_description: str = ""            # 날씨 설명
 
 

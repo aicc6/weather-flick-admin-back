@@ -1,12 +1,17 @@
-import requests
 import logging
-from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
-from urllib.parse import unquote
+from typing import Any
+
+import requests
+
 from ..config import settings
 from ..weather.models import (
-    WeatherResponse, WeatherInfo, LocationCoordinate,
-    UltraSrtNcstRequest, UltraSrtFcstRequest, VilageFcstRequest
+    LocationCoordinate,
+    UltraSrtFcstRequest,
+    UltraSrtNcstRequest,
+    VilageFcstRequest,
+    WeatherInfo,
+    WeatherResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -46,17 +51,12 @@ class KTOWeatherService:
             # 단기예보
             "POP": "강수확률",      # 강수확률 (%)
             "PCP": "1시간 강수량",   # 1시간 강수량 (mm)
-            "REH": "습도",          # 습도 (%)
             "SNO": "1시간 신적설",   # 1시간 신적설 (cm)
             "SKY": "하늘상태",      # 하늘상태 (코드값)
             "TMP": "1시간 기온",     # 1시간 기온 (°C)
             "TMN": "일 최저기온",    # 일 최저기온 (°C)
             "TMX": "일 최고기온",    # 일 최고기온 (°C)
-            "UUU": "풍속(동서성분)", # 풍속 동서성분 (m/s)
-            "VVV": "풍속(남북성분)", # 풍속 남북성분 (m/s)
             "WAV": "파고",          # 파고 (M)
-            "VEC": "풍향",          # 풍향 (deg)
-            "WSD": "풍속",          # 풍속 (m/s)
         }
 
         # 강수형태 코드 매핑
@@ -77,7 +77,7 @@ class KTOWeatherService:
             "4": "흐림"
         }
 
-    def _make_request(self, endpoint: str, params: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def _make_request(self, endpoint: str, params: dict[str, Any]) -> dict[str, Any] | None:
         """API 요청 실행"""
         try:
             params["ServiceKey"] = self.api_key
@@ -98,7 +98,7 @@ class KTOWeatherService:
             logger.error(f"KTO API 응답 파싱 실패: {e}")
             return None
 
-    def get_ultra_srt_ncst(self, request: UltraSrtNcstRequest) -> Optional[WeatherResponse]:
+    def get_ultra_srt_ncst(self, request: UltraSrtNcstRequest) -> WeatherResponse | None:
         """초단기실황 조회"""
         params = {
             "pageNo": request.page_no,
@@ -119,7 +119,7 @@ class KTOWeatherService:
                 return None
         return None
 
-    def get_ultra_srt_fcst(self, request: UltraSrtFcstRequest) -> Optional[WeatherResponse]:
+    def get_ultra_srt_fcst(self, request: UltraSrtFcstRequest) -> WeatherResponse | None:
         """초단기예보 조회"""
         params = {
             "pageNo": request.page_no,
@@ -140,7 +140,7 @@ class KTOWeatherService:
                 return None
         return None
 
-    def get_vilage_fcst(self, request: VilageFcstRequest) -> Optional[WeatherResponse]:
+    def get_vilage_fcst(self, request: VilageFcstRequest) -> WeatherResponse | None:
         """단기예보 조회"""
         params = {
             "pageNo": request.page_no,
@@ -181,7 +181,7 @@ class KTOWeatherService:
 
         return base_date, base_time_str
 
-    def get_current_weather(self, nx: int, ny: int, location_name: str = "") -> Optional[WeatherInfo]:
+    def get_current_weather(self, nx: int, ny: int, location_name: str = "") -> WeatherInfo | None:
         """현재 날씨 정보 조회 (초단기실황)"""
         base_date, base_time = self._get_current_base_time()
 
@@ -230,7 +230,7 @@ class KTOWeatherService:
 
         return weather_list[0]
 
-    def get_weather_forecast(self, nx: int, ny: int, location_name: str = "") -> List[WeatherInfo]:
+    def get_weather_forecast(self, nx: int, ny: int, location_name: str = "") -> list[WeatherInfo]:
         """날씨 예보 정보 조회 (초단기예보 + 단기예보)"""
         weather_list = []
 
@@ -277,16 +277,16 @@ class KTOWeatherService:
 
         return weather_list
 
-    def _parse_weather_info(self, response: WeatherResponse, location_name: str, forecast_type: str) -> List[Any]:
+    def _parse_weather_info(self, response: WeatherResponse, location_name: str, forecast_type: str) -> list[Any]:
         """API 응답을 WeatherInfo 객체로 변환"""
-        weather_list: List[Any] = []
+        weather_list: list[Any] = []
         items = response.response.body.items.item
 
         if not items:
             return weather_list
 
         # 시간별로 그룹화
-        grouped: Dict[Any, Any] = {}
+        grouped: dict[Any, Any] = {}
 
         for item in items:
             if forecast_type == "current":
@@ -352,12 +352,12 @@ class KTOWeatherService:
                 if "RN1" in data and data["RN1"] != "강수없음":
                     try:
                         weather_info.precipitation = float(data["RN1"])
-                    except:
+                    except (ValueError, TypeError):
                         weather_info.precipitation = 0.0
                 elif "PCP" in data and data["PCP"] != "강수없음":
                     try:
                         weather_info.precipitation = float(data["PCP"])
-                    except:
+                    except (ValueError, TypeError):
                         weather_info.precipitation = 0.0
 
                 # 풍속
@@ -413,7 +413,7 @@ class KTOWeatherService:
 
         return ", ".join(description_parts) if description_parts else "날씨 정보 없음"
 
-    def get_major_cities(self) -> List[Dict[str, Any]]:
+    def get_major_cities(self) -> list[dict[str, Any]]:
         """주요 도시 목록 반환"""
         return [
             {
@@ -426,7 +426,7 @@ class KTOWeatherService:
             for city in MAJOR_CITIES.values()
         ]
 
-    def get_current_weather_by_city(self, city_name: str) -> Optional[WeatherInfo]:
+    def get_current_weather_by_city(self, city_name: str) -> WeatherInfo | None:
         """도시명으로 현재 날씨 조회"""
         if city_name not in MAJOR_CITIES:
             logger.error(f"지원하지 않는 도시: {city_name}")

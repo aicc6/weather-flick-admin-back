@@ -1,26 +1,27 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-# 통합된 라우터들 사용
-from app.routers.auth import router as auth_router
-from app.routers.admins import router as admins_router
-from app.routers.weather import router as weather_router
-from app.routers.users import router as users_router
-from app.routers.destinations import router as destinations_router
-from app.routers.system import router as system_router
-from app.routers.dashboard import router as dashboard_router
-from app.routers.logs import router as logs_router
-from app.routers.travel_courses import router as travel_courses_router
-from app.routers import festivals_events
-from app.routers import leisure_sports
-from app.routers import travel_plans
-from app.routers.batch import router as batch_router
-from app.routers.regions import router as regions_router
-from app.config import settings
-from app.logging_config import setup_logging
 import logging
+
+from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.requests import Request
 from fastapi.responses import JSONResponse
-from fastapi.exceptions import RequestValidationError
+
+from app.config import settings
+from app.logging_config import setup_logging
+from app.routers import festivals_events, leisure_sports, travel_plans
+from app.routers.admins import router as admins_router
+
+# 통합된 라우터들 사용
+from app.routers.auth import router as auth_router
+from app.routers.batch import router as batch_router
+from app.routers.dashboard import router as dashboard_router
+from app.routers.destinations import router as destinations_router
+from app.routers.logs import router as logs_router
+from app.routers.regions import router as regions_router
+from app.routers.system import router as system_router
+from app.routers.travel_courses import router as travel_courses_router
+from app.routers.users import router as users_router
+from app.routers.weather import router as weather_router
 
 # 로깅 설정 초기화
 setup_logging(log_dir="logs", log_level="DEBUG" if settings.debug else "INFO")
@@ -45,20 +46,20 @@ app.add_middleware(
 async def log_requests(request: Request, call_next):
     import time
     start_time = time.time()
-    
+
     # 요청 로깅
     logging.info(f"[REQUEST] {request.method} {request.url.path}")
-    
+
     try:
         response = await call_next(request)
         process_time = time.time() - start_time
-        
+
         # 응답 로깅
         logging.info(
             f"[RESPONSE] {request.method} {request.url.path} - "
             f"Status: {response.status_code} - Time: {process_time:.3f}s"
         )
-        
+
         return response
     except Exception as e:
         process_time = time.time() - start_time
@@ -78,11 +79,11 @@ app.include_router(system_router, prefix="/api")
 app.include_router(dashboard_router, prefix="/api")  # 새로 추가된 대시보드 API
 app.include_router(logs_router, prefix="/api")  # 새로 추가된 로그 관리 API
 app.include_router(travel_courses_router, prefix="/api")
-app.include_router(festivals_events.router)
-app.include_router(leisure_sports.router)
+app.include_router(festivals_events.router, prefix="/api")
+app.include_router(leisure_sports.router, prefix="/api")
 app.include_router(travel_plans.router, prefix="/api")
-app.include_router(batch_router)  # 배치 작업 API 추가
-app.include_router(regions_router)  # 지역 관리 API 추가
+app.include_router(batch_router, prefix="/api")  # 배치 작업 API 추가
+app.include_router(regions_router, prefix="/api")  # 지역 관리 API 추가
 
 @app.get("/")
 async def root():

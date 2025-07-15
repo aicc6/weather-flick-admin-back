@@ -1,24 +1,23 @@
-from fastapi import APIRouter, Depends, Query
-from sqlalchemy.orm import Session
-from app.models import SystemLog
-from app.database import get_db, engine
-from typing import List
 from datetime import datetime
-from app.services.system_log import log_system_event
-from sqlalchemy import text
-import requests
+from typing import Any
 
-from app.schemas.common import SuccessResponse, PaginatedResponse
+import requests
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+
+from app.database import engine, get_db
+from app.models import SystemLog
+from app.schemas.common import PaginatedResponse, SuccessResponse
 from app.schemas.system import (
-    SystemStatusData,
     DatabaseStatus,
-    ExternalApiStatus,
     ExternalApisStatus,
-    SystemLogOut,
+    ExternalApiStatus,
     SystemLogTestRequest,
     SystemLogTestResponse,
+    SystemStatusData,
 )
-from typing import Any
+from app.services.system_log import log_system_event
 
 router = APIRouter(prefix="/system", tags=["system"])
 
@@ -39,14 +38,14 @@ def check_external_api_status(url, timeout=3):
         start_time = time.time()
         resp = requests.head(url, timeout=timeout)
         response_time = round((time.time() - start_time) * 1000, 2)  # ms
-        
+
         if resp.status_code < 400:
             return {"status": "정상", "response_time": f"{response_time}ms"}
         else:
             return {"status": f"오류({resp.status_code})", "response_time": f"{response_time}ms"}
     except requests.exceptions.Timeout:
         return {"status": "타임아웃", "response_time": "-"}
-    except Exception as e:
+    except Exception:
         return {"status": "연결실패", "response_time": "-"}
 
 
@@ -67,11 +66,11 @@ def get_system_logs(
         query = query.filter(SystemLog.source == source)
     if message:
         query = query.filter(SystemLog.message.ilike(f"%{message}%"))
-    
+
     total = query.count()
     query = query.order_by(SystemLog.created_at.desc())
     logs = query.offset((page - 1) * size).limit(size).all()
-    
+
     # SystemLog 객체를 딕셔너리로 변환
     log_items = []
     for log in logs:
@@ -83,7 +82,7 @@ def get_system_logs(
             "context": log.context,
             "created_at": log.created_at
         })
-    
+
     return PaginatedResponse(
         items=log_items,
         total=total,
@@ -105,7 +104,7 @@ def test_log(
         context=request.context,
         db=db
     )
-    
+
     response_data = SystemLogTestResponse(
         log_id=log.log_id,
         level=log.level,
@@ -113,7 +112,7 @@ def test_log(
         message=log.message,
         created_at=log.created_at
     )
-    
+
     return SuccessResponse(
         data=response_data,
         message="테스트 로그가 성공적으로 생성되었습니다."
@@ -129,9 +128,10 @@ async def get_service_status():
     - 외부 API 의존성 상태
     """
     try:
-        from app.config import settings
         import time
-        
+
+        from app.config import settings
+
         # 데이터베이스 연결 상태 확인
         db_status_dict = {"status": "연결됨", "response_time": "-"}
         try:
@@ -140,7 +140,7 @@ async def get_service_status():
                 conn.execute(text("SELECT 1"))
             response_time = round((time.time() - start_time) * 1000, 2)
             db_status_dict = {"status": "연결됨", "response_time": f"{response_time}ms"}
-        except Exception as e:
+        except Exception:
             db_status_dict = {"status": "연결실패", "response_time": "-"}
 
         # 외부 API 의존성 상태 확인
@@ -149,13 +149,13 @@ async def get_service_status():
             "tourism_api": check_external_api_status(settings.korea_tourism_api_url),
             "google_places": check_external_api_status(settings.google_places_url)
         }
-        
+
         # 전체 서비스 상태 판단
         service_healthy = (
             db_status_dict["status"] == "연결됨" and
             all(api["status"] in ["정상", "타임아웃"] for api in external_apis_dict.values())
         )
-        
+
         # Pydantic 모델로 변환
         database_status = DatabaseStatus(**db_status_dict)
         external_apis_status = ExternalApisStatus(
@@ -163,18 +163,18 @@ async def get_service_status():
             tourism_api=ExternalApiStatus(**external_apis_dict["tourism_api"]),
             google_places=ExternalApiStatus(**external_apis_dict["google_places"])
         )
-        
+
         system_status_data = SystemStatusData(
             service_status="정상" if service_healthy else "문제발생",
             database=database_status,
             external_apis=external_apis_status
         )
-        
+
         return SuccessResponse(
             data=system_status_data,
             message="시스템 상태를 성공적으로 조회했습니다."
         )
-    
+
     except Exception as e:
         import logging
         logging.error(f"System status error: {e}")

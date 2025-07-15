@@ -17,7 +17,7 @@ REGION_COORDINATES = {
     "37": {"latitude": 36.4191, "longitude": 128.3178, "name": "경상북도"},
     "38": {"latitude": 35.2383, "longitude": 128.2613, "name": "경상남도"},
     "39": {"latitude": 33.4891, "longitude": 126.4983, "name": "제주특별자치도"},
-    
+
     # 서울특별시 구
     "1_1": {"latitude": 37.5172, "longitude": 127.0473, "name": "강남구"},
     "1_2": {"latitude": 37.5304, "longitude": 127.1237, "name": "강동구"},
@@ -44,7 +44,7 @@ REGION_COORDINATES = {
     "1_23": {"latitude": 37.5735, "longitude": 126.9789, "name": "종로구"},
     "1_24": {"latitude": 37.5641, "longitude": 126.9979, "name": "중구"},
     "1_25": {"latitude": 37.6066, "longitude": 127.0930, "name": "중랑구"},
-    
+
     # 인천광역시 구
     "2_1": {"latitude": 37.7032, "longitude": 126.4536, "name": "강화군"},
     "2_2": {"latitude": 37.5374, "longitude": 126.7378, "name": "계양구"},
@@ -56,7 +56,7 @@ REGION_COORDINATES = {
     "2_8": {"latitude": 37.4561, "longitude": 126.7052, "name": "연수구"},
     "2_9": {"latitude": 37.3865, "longitude": 126.4183, "name": "옹진군"},
     "2_10": {"latitude": 37.4738, "longitude": 126.6218, "name": "중구"},
-    
+
     # 경기도 시군
     "10": {"latitude": 37.9039, "longitude": 127.0609, "name": "동두천시"},
     "11": {"latitude": 37.5033, "longitude": 126.7660, "name": "부천시"},
@@ -79,8 +79,8 @@ REGION_COORDINATES = {
     "28": {"latitude": 37.0115, "longitude": 127.0594, "name": "평택시"},
     "29": {"latitude": 38.0083, "longitude": 127.7098, "name": "포천시"},
     "30": {"latitude": 37.6575, "longitude": 127.3169, "name": "하남시"},
-    "31": {"latitude": 37.2099, "longitude": 126.9759, "name": "화성시"},
-    
+    "311": {"latitude": 37.2099, "longitude": 126.9759, "name": "화성시"},
+
     # 기타 주요 지역 좌표 추가...
 }
 

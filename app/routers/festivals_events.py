@@ -1,50 +1,52 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.orm import Session
-from typing import List, Optional, Any
-from app.models import FestivalEvent, FestivalEventResponse
-from app.database import get_db
 from datetime import date
-from pydantic import BaseModel
+from typing import Any
 
-router = APIRouter(prefix="/api/festivals-events", tags=["festivals_events"])
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+from app.database import get_db
+from app.models import FestivalEvent, FestivalEventResponse
+
+router = APIRouter(prefix="/festivals-events", tags=["festivals_events"])
 
 class FestivalEventCreate(BaseModel):
     region_code: str
-    raw_data_id: Optional[str] = None
+    raw_data_id: str | None = None
     event_name: str
-    category_code: Optional[str] = None
-    event_start_date: Optional[date] = None
-    event_end_date: Optional[date] = None
-    event_place: Optional[str] = None
-    address: Optional[str] = None
-    detail_address: Optional[str] = None
-    zipcode: Optional[str] = None
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
-    tel: Optional[str] = None
-    homepage: Optional[str] = None
-    event_program: Optional[str] = None
-    sponsor: Optional[str] = None
-    organizer: Optional[str] = None
-    play_time: Optional[str] = None
-    age_limit: Optional[str] = None
-    cost_info: Optional[str] = None
-    discount_info: Optional[str] = None
-    description: Optional[str] = None
-    overview: Optional[str] = None
-    first_image: Optional[str] = None
-    first_image_small: Optional[str] = None
-    booktour: Optional[str] = None
-    createdtime: Optional[str] = None
-    modifiedtime: Optional[str] = None
-    telname: Optional[str] = None
-    faxno: Optional[str] = None
-    mlevel: Optional[int] = None
-    detail_intro_info: Optional[dict[str, Any]] = None
-    detail_additional_info: Optional[dict[str, Any]] = None
-    data_quality_score: Optional[float] = None
-    processing_status: Optional[str] = None
-    last_sync_at: Optional[str] = None
+    category_code: str | None = None
+    event_start_date: date | None = None
+    event_end_date: date | None = None
+    event_place: str | None = None
+    address: str | None = None
+    detail_address: str | None = None
+    zipcode: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    tel: str | None = None
+    homepage: str | None = None
+    event_program: str | None = None
+    sponsor: str | None = None
+    organizer: str | None = None
+    play_time: str | None = None
+    age_limit: str | None = None
+    cost_info: str | None = None
+    discount_info: str | None = None
+    description: str | None = None
+    overview: str | None = None
+    first_image: str | None = None
+    first_image_small: str | None = None
+    booktour: str | None = None
+    createdtime: str | None = None
+    modifiedtime: str | None = None
+    telname: str | None = None
+    faxno: str | None = None
+    mlevel: int | None = None
+    detail_intro_info: dict[str, Any] | None = None
+    detail_additional_info: dict[str, Any] | None = None
+    data_quality_score: float | None = None
+    processing_status: str | None = None
+    last_sync_at: str | None = None
 
 class FestivalEventUpdate(FestivalEventCreate):
     pass
