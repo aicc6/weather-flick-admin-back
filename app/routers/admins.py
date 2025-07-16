@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from ..auth.rbac_dependencies import require_permission, require_super_admin
 from ..auth.utils import generate_temporary_password, get_password_hash
 from ..database import get_db
-from ..models_admin import Admin as CurrentAdmin
+from ..models_admin import Admin, Admin as CurrentAdmin
 from ..models_admin import AdminStatus
 from ..schemas.admin_schemas import (
     AdminCreate,
@@ -43,13 +43,48 @@ async def create_admin(
         password_hash=hashed_password,
         name=admin_create.name,
         phone=admin_create.phone,
+        is_superuser=admin_create.is_superuser,
     )
 
     db.add(new_admin)
     db.commit()
     db.refresh(new_admin)
+    
+    # 역할 할당 (슈퍼유저가 아닌 경우)
+    if not admin_create.is_superuser and admin_create.role_ids:
+        from ..models_rbac import Role
+        for role_id in admin_create.role_ids:
+            role = db.query(Role).filter(Role.id == role_id).first()
+            if role:
+                new_admin.roles.append(role)
+        db.commit()
+        db.refresh(new_admin)
 
     return AdminResponse.model_validate(new_admin)
+
+
+@router.get("/roles")
+async def get_available_roles(
+    current_admin: CurrentAdmin = Depends(require_super_admin),
+    db: Session = Depends(get_db),
+):
+    """사용 가능한 역할 목록 조회 (슈퍼관리자만 가능)"""
+    from ..models_rbac import Role
+    
+    roles = db.query(Role).all()
+    
+    return {
+        "roles": [
+            {
+                "id": role.id,
+                "name": role.name,
+                "display_name": role.display_name,
+                "description": role.description,
+                "is_system": role.is_system
+            }
+            for role in roles
+        ]
+    }
 
 
 @router.get("/", response_model=AdminListResponse)

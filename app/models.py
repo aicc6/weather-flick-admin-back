@@ -1504,6 +1504,579 @@ class SystemConfiguration(Base):
     )
 
 
+class Accommodation(Base):
+    """
+    숙박시설 정보 테이블
+    사용처: weather-flick-admin-back, weather-flick-batch
+    설명: 한국관광공사 API 기반 숙박시설 정보
+    """
+
+    __tablename__ = "accommodations"
+    __table_args__ = {"extend_existing": True, "autoload_replace": False}
+
+    # Primary Key
+    content_id = Column(String(20), primary_key=True, index=True)
+
+    # Foreign Keys
+    region_code = Column(
+        String, ForeignKey("regions.region_code"), nullable=False, index=True
+    )
+    raw_data_id = Column(UUID(as_uuid=True), index=True)
+
+    # 기본 정보
+    accommodation_name = Column(String, nullable=False)
+    accommodation_type = Column(String, nullable=False)
+    address = Column(String, nullable=False)
+    tel = Column(String)
+
+    # 위치 정보
+    latitude = Column(Float)
+    longitude = Column(Float)
+
+    # 카테고리 정보
+    category_code = Column(String(10))
+    sub_category_code = Column(String(10))
+
+    # 시설 정보
+    parking = Column(String)
+
+    # 메타데이터
+    created_at = Column(DateTime, server_default=func.now())
+
+
+class Restaurant(Base):
+    """
+    음식점 정보 테이블
+    사용처: weather-flick-admin-back, weather-flick-batch
+    설명: 한국관광공사 API 기반 음식점 정보
+    """
+
+    __tablename__ = "restaurants"
+
+    # Primary Key
+    content_id = Column(String(20), primary_key=True, index=True)
+
+    # Foreign Keys
+    region_code = Column(
+        String, ForeignKey("regions.region_code"), nullable=False, index=True
+    )
+
+    # 기본 정보
+    restaurant_name = Column(String, nullable=False)
+    food_type = Column(String)
+    address = Column(String, nullable=False)
+    tel = Column(String)
+
+    # 위치 정보
+    latitude = Column(Float)
+    longitude = Column(Float)
+
+    # 카테고리 정보
+    category_code = Column(String(10))
+    sub_category_code = Column(String(10))
+
+    # 음식점 특성
+    main_menu = Column(String)
+    price_range = Column(String)
+    operating_hours = Column(String)
+    parking = Column(String)
+
+    # 메타데이터
+    created_at = Column(DateTime, server_default=func.now())
+
+
+class Shopping(Base):
+    """
+    쇼핑 시설 정보 테이블
+    사용처: weather-flick-admin-back, weather-flick-batch
+    설명: 한국관광공사 API 기반 쇼핑 시설 정보
+    """
+
+    __tablename__ = "shopping"
+
+    # Primary Key
+    content_id = Column(String(20), primary_key=True, index=True)
+
+    # Foreign Keys
+    region_code = Column(
+        String, ForeignKey("regions.region_code"), nullable=False, index=True
+    )
+
+    # 기본 정보
+    shopping_name = Column(String, nullable=False)
+    shopping_type = Column(String)
+    address = Column(String, nullable=False)
+    tel = Column(String)
+
+    # 위치 정보
+    latitude = Column(Float)
+    longitude = Column(Float)
+
+    # 카테고리 정보
+    category_code = Column(String(10))
+    sub_category_code = Column(String(10))
+
+    # 쇼핑 시설 특성
+    main_items = Column(String)
+    operating_hours = Column(String)
+    parking = Column(String)
+
+    # 메타데이터
+    created_at = Column(DateTime, server_default=func.now())
+
+
+class Transportation(Base):
+    """
+    교통수단 정보 테이블
+    사용처: weather-flick-admin-back, weather-flick-batch
+    설명: 대중교통 및 교통수단 정보
+    """
+
+    __tablename__ = "transportation"
+
+    transport_id = Column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
+    )
+    region_code = Column(
+        String, ForeignKey("regions.region_code"), nullable=False, index=True
+    )
+
+    # 교통수단 정보
+    transport_type = Column(String, nullable=False)  # bus, subway, train 등
+    transport_name = Column(String, nullable=False)
+    route_number = Column(String)
+
+    # 운행 정보
+    operating_hours = Column(String)
+    frequency = Column(String)  # 운행 간격
+    fare = Column(String)
+
+    # 노선 정보
+    start_point = Column(String)
+    end_point = Column(String)
+    route_description = Column(Text)
+
+    created_at = Column(DateTime, server_default=func.now())
+
+
+class PetTourInfo(Base):
+    """
+    펫 투어 정보 테이블
+    사용처: weather-flick-admin-back, weather-flick-batch
+    설명: 반려동물 동반 여행 정보
+    """
+
+    __tablename__ = "pet_tour_info"
+
+    pet_tour_id = Column(Integer, primary_key=True, index=True)
+    attraction_content_id = Column(
+        String(20), ForeignKey("tourist_attractions.content_id"), nullable=False
+    )
+
+    # 펫 정보
+    pet_allowed = Column(Boolean, default=False)
+    pet_restrictions = Column(String)
+    pet_facilities = Column(String)
+    pet_fee = Column(String)
+
+    # 추가 정보
+    notes = Column(Text)
+
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class CategoryCode(Base):
+    """
+    카테고리 코드 테이블
+    사용처: weather-flick-admin-back, weather-flick-batch
+    설명: 한국관광공사 카테고리 코드 관리
+    """
+
+    __tablename__ = "category_codes"
+
+    category_id = Column(Integer, primary_key=True, index=True)
+    category_code = Column(String(10), unique=True, nullable=False)
+    category_name = Column(String, nullable=False)
+    parent_category_code = Column(String(10))
+    level = Column(Integer, default=1)  # 카테고리 레벨
+    description = Column(Text)
+    is_active = Column(Boolean, default=True)
+
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class FavoritePlace(Base):
+    """
+    즐겨찾기 장소 테이블
+    사용처: weather-flick-admin-back
+    설명: 사용자가 즐겨찾기한 장소 관리
+    """
+
+    __tablename__ = "favorite_places"
+
+    favorite_id = Column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
+    )
+    user_id = Column(
+        UUID(as_uuid=True), ForeignKey("users.user_id"), nullable=False, index=True
+    )
+    place_type = Column(String, nullable=False)  # attraction, restaurant, accommodation
+    place_id = Column(String, nullable=False)  # content_id
+
+    # 즐겨찾기 정보
+    place_name = Column(String, nullable=False)
+    notes = Column(Text)
+    tags = Column(JSONB)
+
+    created_at = Column(DateTime, server_default=func.now())
+
+    # 유니크 제약조건
+    __table_args__ = (
+        UniqueConstraint("user_id", "place_type", "place_id", name="uq_user_place"),
+    )
+
+
+class ReviewLike(Base):
+    """
+    리뷰 좋아요 테이블
+    사용처: weather-flick-admin-back
+    설명: 사용자의 리뷰 좋아요 관리
+    """
+
+    __tablename__ = "review_likes"
+
+    like_id = Column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
+    )
+    review_id = Column(
+        UUID(as_uuid=True), ForeignKey("reviews.review_id"), nullable=False, index=True
+    )
+    user_id = Column(
+        UUID(as_uuid=True), ForeignKey("users.user_id"), nullable=False, index=True
+    )
+
+    created_at = Column(DateTime, server_default=func.now())
+
+    # 유니크 제약조건
+    __table_args__ = (
+        UniqueConstraint("review_id", "user_id", name="uq_review_user_like"),
+    )
+
+
+class TravelCourseLike(Base):
+    """
+    여행 코스 좋아요 테이블
+    사용처: weather-flick-admin-back
+    설명: 사용자가 좋아요한 여행 코스
+    """
+
+    __tablename__ = "travel_course_likes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(
+        UUID(as_uuid=True), ForeignKey("users.user_id"), nullable=False, index=True
+    )
+    title = Column(String(255), nullable=False)
+    subtitle = Column(String(255))
+    summary = Column(Text)
+    description = Column(Text)
+    region = Column(String(50))
+    itinerary = Column(JSONB)
+
+
+class WeatherCurrent(Base):
+    """
+    현재 날씨 테이블
+    사용처: weather-flick-admin-back, weather-flick-batch
+    설명: 실시간 날씨 정보
+    """
+
+    __tablename__ = "weather_current"
+
+    weather_id = Column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
+    )
+    region_code = Column(
+        String, ForeignKey("regions.region_code"), nullable=False, index=True
+    )
+
+    # 날씨 정보
+    temperature = Column(Float)
+    feels_like = Column(Float)
+    humidity = Column(Integer)
+    pressure = Column(Float)
+    wind_speed = Column(Float)
+    wind_direction = Column(Integer)
+    visibility = Column(Float)
+    cloud_coverage = Column(Integer)
+
+    # 날씨 상태
+    weather_condition = Column(String)
+    weather_description = Column(String)
+    weather_icon = Column(String)
+
+    # 관측 시간
+    observed_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+
+    # 인덱스
+    __table_args__ = (
+        Index("idx_weather_current_region", "region_code", "observed_at"),
+    )
+
+
+class WeatherForecast(Base):
+    """
+    날씨 예보 테이블
+    사용처: weather-flick-admin-back, weather-flick-batch
+    설명: 중장기 날씨 예보 정보
+    """
+
+    __tablename__ = "weather_forecast"
+
+    forecast_id = Column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
+    )
+    region_code = Column(
+        String, ForeignKey("regions.region_code"), nullable=False, index=True
+    )
+
+    # 예보 기본 정보
+    forecast_date = Column(Date, nullable=False, index=True)
+    forecast_type = Column(String(20))  # short_term, mid_term
+
+    # 기온 정보
+    temperature_high = Column(Float)
+    temperature_low = Column(Float)
+    temperature_avg = Column(Float)
+
+    # 날씨 상태
+    weather_condition = Column(String)
+    weather_description = Column(String)
+
+    # 강수 정보
+    precipitation_probability = Column(Integer)
+    precipitation_amount = Column(Float)
+    precipitation_type = Column(String)
+
+    # 기타 정보
+    humidity = Column(Integer)
+    wind_speed = Column(Float)
+    wind_direction = Column(String)
+
+    # 여행 적합도
+    travel_suitability = Column(Integer)  # 1-10 점수
+
+    created_at = Column(DateTime, server_default=func.now())
+
+    # 인덱스
+    __table_args__ = (
+        UniqueConstraint(
+            "region_code", "forecast_date", "forecast_type", name="uq_forecast_unique"
+        ),
+    )
+
+
+class HistoricalWeatherDaily(Base):
+    """
+    일별 과거 날씨 데이터 테이블
+    사용처: weather-flick-admin-back, weather-flick-batch
+    설명: 분석용 과거 날씨 데이터
+    """
+
+    __tablename__ = "historical_weather_daily"
+
+    weather_id = Column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
+    )
+    region_code = Column(
+        String, ForeignKey("regions.region_code"), nullable=False, index=True
+    )
+    weather_date = Column(Date, nullable=False, index=True)
+
+    # 기온 정보
+    temperature_max = Column(Float)
+    temperature_min = Column(Float)
+    temperature_avg = Column(Float)
+
+    # 강수 정보
+    precipitation_total = Column(Float)
+    precipitation_duration = Column(Integer)  # 강수 지속 시간 (분)
+
+    # 날씨 상태
+    weather_condition = Column(String)
+    sunny_hours = Column(Float)  # 일조 시간
+
+    # 바람 정보
+    wind_speed_max = Column(Float)
+    wind_speed_avg = Column(Float)
+
+    # 기타
+    humidity_avg = Column(Integer)
+    pressure_avg = Column(Float)
+
+    created_at = Column(DateTime, server_default=func.now())
+
+    # 인덱스
+    __table_args__ = (
+        UniqueConstraint(
+            "region_code", "weather_date", name="uq_historical_weather_daily"
+        ),
+        Index("idx_historical_weather_date", "weather_date"),
+    )
+
+
+class DataTransformationLog(Base):
+    """
+    데이터 변환 로그 테이블
+    사용처: weather-flick-admin-back, weather-flick-batch
+    설명: 데이터 변환 작업 로그
+    """
+
+    __tablename__ = "data_transformation_logs"
+
+    log_id = Column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
+    )
+    transformation_type = Column(String, nullable=False)  # api_to_db, data_cleaning 등
+    source_type = Column(String, nullable=False)
+    target_type = Column(String, nullable=False)
+
+    # 변환 정보
+    records_input = Column(Integer, default=0)
+    records_output = Column(Integer, default=0)
+    records_failed = Column(Integer, default=0)
+
+    # 실행 정보
+    started_at = Column(DateTime, nullable=False)
+    completed_at = Column(DateTime)
+    status = Column(String, default="running")  # running, completed, failed
+
+    # 에러 정보
+    error_message = Column(Text)
+    error_details = Column(JSONB)
+
+    created_at = Column(DateTime, server_default=func.now())
+
+
+class BatchJobLog(Base):
+    """
+    배치 작업 실행 로그 테이블
+    사용처: weather-flick-admin-back, weather-flick-batch
+    설명: 배치 작업 상세 실행 로그
+    """
+
+    __tablename__ = "batch_job_logs"
+
+    log_id = Column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
+    )
+    job_id = Column(Integer, ForeignKey("batch_jobs.job_id"), nullable=False)
+    schedule_id = Column(
+        Integer, ForeignKey("batch_job_schedules.schedule_id"), nullable=True
+    )
+
+    # 실행 정보
+    started_at = Column(DateTime, nullable=False)
+    completed_at = Column(DateTime)
+    execution_time = Column(Float)  # 실행 시간 (초)
+
+    # 상태 및 결과
+    status = Column(String, nullable=False)  # success, failed, timeout
+    exit_code = Column(Integer)
+    
+    # 처리 결과
+    records_processed = Column(Integer, default=0)
+    records_failed = Column(Integer, default=0)
+    output_summary = Column(JSONB)
+
+    # 로그 및 에러
+    log_output = Column(Text)  # 표준 출력
+    error_output = Column(Text)  # 에러 출력
+
+    created_at = Column(DateTime, server_default=func.now())
+
+    # 인덱스
+    __table_args__ = (
+        Index("idx_batch_log_job", "job_id", "started_at"),
+        Index("idx_batch_log_status", "status"),
+    )
+
+
+class AdminRole(Base):
+    """
+    관리자 역할 연결 테이블
+    사용처: weather-flick-admin-back
+    설명: 관리자와 역할의 다대다 관계
+    """
+
+    __tablename__ = "admin_roles"
+
+    admin_id = Column(Integer, ForeignKey("admins.admin_id"), primary_key=True)
+    role_id = Column(Integer, ForeignKey("roles.role_id"), primary_key=True)
+    assigned_at = Column(DateTime, server_default=func.now())
+    assigned_by = Column(Integer)  # 할당한 관리자 ID
+
+
+class RolePermission(Base):
+    """
+    역할 권한 연결 테이블
+    사용처: weather-flick-admin-back
+    설명: 역할과 권한의 다대다 관계
+    """
+
+    __tablename__ = "role_permissions"
+
+    role_id = Column(Integer, ForeignKey("roles.role_id"), primary_key=True)
+    permission_id = Column(
+        Integer, ForeignKey("permissions.permission_id"), primary_key=True
+    )
+    granted_at = Column(DateTime, server_default=func.now())
+    granted_by = Column(Integer)  # 권한을 부여한 관리자 ID
+
+
+class ApiRawData(Base):
+    """
+    API 원본 데이터 테이블
+    사용처: weather-flick-admin-back, weather-flick-batch
+    설명: 외부 API 원본 응답 데이터 저장
+    """
+
+    __tablename__ = "api_raw_data"
+
+    data_id = Column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
+    )
+    api_source = Column(String, nullable=False)  # tour_api, weather_api 등
+    endpoint = Column(String, nullable=False)
+    request_params = Column(JSONB)
+
+    # 응답 데이터
+    response_status = Column(Integer)
+    response_headers = Column(JSONB)
+    response_body = Column(JSONB, nullable=False)
+
+    # 메타데이터
+    response_time = Column(Float)  # 응답 시간 (초)
+    content_type = Column(String)
+    content_length = Column(Integer)
+
+    # 처리 상태
+    is_processed = Column(Boolean, default=False)
+    processed_at = Column(DateTime)
+    processing_error = Column(Text)
+
+    created_at = Column(DateTime, server_default=func.now())
+
+    # 인덱스
+    __table_args__ = (
+        Index("idx_api_raw_source", "api_source", "created_at"),
+        Index("idx_api_raw_processed", "is_processed"),
+    )
+
+
 # ===========================================
 # Pydantic 스키마 정의 (API 요청/응답용)
 # ===========================================

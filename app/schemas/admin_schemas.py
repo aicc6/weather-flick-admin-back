@@ -8,6 +8,8 @@ class AdminCreate(BaseModel):
     password: str
     name: str | None = None
     phone: str | None = None
+    is_superuser: bool = False
+    role_ids: list[int] | None = None
 
 class AdminResponse(BaseModel):
     admin_id: int

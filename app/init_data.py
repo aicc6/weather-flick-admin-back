@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 
 from app.auth.utils import get_password_hash
 from app.database import SessionLocal
-from app.models import Admin
+from app.models_admin import Admin
 
 
 def create_tables():
