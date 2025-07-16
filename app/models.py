@@ -472,55 +472,49 @@ class TravelCourseSpot(Base):
 
 class LeisureSport(Base):
     """
-    레저/스포츠 시설 정보 테이블
-    사용처: weather-flick-back, weather-flick-admin-back, weather-flick-batch
+    레저스포츠 시설 정보 테이블
+    사용처: weather-flick-admin-back, weather-flick-batch
     설명: 레저 및 스포츠 시설 정보
     """
     __tablename__ = "leisure_sports"
 
-    # Primary Key
     content_id = Column(String(20), primary_key=True, index=True)
-
-    # Foreign Keys
-    region_code = Column(String, ForeignKey("regions.region_code"), nullable=False, index=True)
-    raw_data_id = Column(UUID(as_uuid=True), index=True)
-
-    # 기본 정보
+    region_code = Column(String, nullable=False, index=True)
     facility_name = Column(String, nullable=False, index=True)
-    sport_type = Column(String)  # 스포츠 종류
     category_code = Column(String(10))
-
-    # 주소 및 위치 정보
+    sub_category_code = Column(String(10))
+    raw_data_id = Column(UUID(as_uuid=True), index=True)
+    sports_type = Column(String)
+    reservation_info = Column(String)
+    admission_fee = Column(String)
+    parking_info = Column(String)
+    rental_info = Column(String)
+    capacity = Column(String)
+    operating_hours = Column(String)
     address = Column(String)
-    zipcode = Column(String(10))
+    detail_address = Column(String)
+    zipcode = Column(String)
     latitude = Column(DECIMAL(10, 8))
     longitude = Column(DECIMAL(11, 8))
-
-    # 연락처 정보
-    phone = Column(String(50))
-    homepage = Column(Text)
-
-    # 시설 정보
-    description = Column(Text)
-    image_url = Column(String)
-    facilities = Column(JSONB)  # 시설 상세 정보
-    equipment = Column(JSONB)  # 장비 정보
-    programs = Column(JSONB)  # 프로그램 정보
-
-    # 운영 정보
-    operation_hours = Column(JSONB)
-    closed_days = Column(JSONB)
-    usage_fee = Column(JSONB)  # 이용료
-    reservation_info = Column(JSONB)  # 예약 정보
-
-    # 날씨 관련
-    weather_suitable = Column(JSONB)  # 적합한 날씨 조건
-    season_suitable = Column(JSONB)  # 적합한 계절
-
-    # 메타데이터
+    tel = Column(String)
+    homepage = Column(String)
+    overview = Column(Text)
+    first_image = Column(String)
+    first_image_small = Column(String)
+    data_quality_score = Column(DECIMAL(5, 2))
+    processing_status = Column(String(20), default="processed")
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
     last_sync_at = Column(DateTime, server_default=func.now())
+    booktour = Column(CHAR(1))
+    createdtime = Column(String(14))
+    modifiedtime = Column(String(14))
+    telname = Column(String(100))
+    faxno = Column(String(50))
+    mlevel = Column(Integer)
+    detail_intro_info = Column(JSONB)
+    detail_additional_info = Column(JSONB)
+    sigungu_code = Column(String)
 
 
 class FestivalEvent(Base):
@@ -577,13 +571,13 @@ class FestivalEvent(Base):
 
     # 기타 정보
     age_limit = Column(String)  # 관람 연령
-    
+
     # API 원본 필드
     booktour = Column(String)
     createdtime = Column(String)
     modifiedtime = Column(String)
     mlevel = Column(Integer)
-    
+
     # JSON 데이터
     detail_intro_info = Column(JSONB)
     detail_additional_info = Column(JSONB)

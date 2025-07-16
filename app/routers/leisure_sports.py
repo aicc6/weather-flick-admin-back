@@ -1,61 +1,17 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.dependencies import CurrentAdmin, require_permission
 from app.models import LeisureSport
 from app.schemas.leisure_sport_schemas import (
-    LeisureSportResponse as LeisureSportResponse,
+    LeisureSportCreate,
+    LeisureSportListResponse,
+    LeisureSportResponse,
+    LeisureSportUpdate,
 )
 
 router = APIRouter(prefix="/leisure-sports", tags=["leisure_sports"])
-
-
-class LeisureSportCreate(BaseModel):
-    region_code: str
-    facility_name: str
-    category_code: str | None = None
-    sub_category_code: str | None = None
-    raw_data_id: str | None = None
-    # sports_type: str | None = None
-    reservation_info: str | None = None
-    admission_fee: str | None = None
-    parking_info: str | None = None
-    rental_info: str | None = None
-    capacity: str | None = None
-    operating_hours: str | None = None
-    address: str | None = None
-    detail_address: str | None = None
-    zipcode: str | None = None
-    latitude: float | None = None
-    longitude: float | None = None
-    tel: str | None = None
-    homepage: str | None = None
-    overview: str | None = None
-    first_image: str | None = None
-    first_image_small: str | None = None
-    data_quality_score: float | None = None
-    processing_status: str | None = None
-    booktour: str | None = None
-    createdtime: str | None = None
-    modifiedtime: str | None = None
-    telname: str | None = None
-    faxno: str | None = None
-    mlevel: int | None = None
-    detail_intro_info: dict | None = None
-    detail_additional_info: dict | None = None
-    sigungu_code: str | None = None
-    last_sync_at: str | None = None
-
-
-class LeisureSportUpdate(LeisureSportCreate):
-    pass
-
-
-class LeisureSportListResponse(BaseModel):
-    items: list[LeisureSportResponse]
-    total: int
 
 
 @router.get("/", response_model=LeisureSportListResponse)
