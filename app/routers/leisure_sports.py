@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.dependencies import CurrentAdmin, require_permission
-from app.models import LeisureSport
+from app.models import LeisureSport, Region
 from app.schemas.leisure_sport_schemas import (
     LeisureSportCreate,
     LeisureSportListResponse,
@@ -26,7 +26,12 @@ async def list_leisure_sports(
 ):
     query = db.query(LeisureSport)
     if region_code:
-        query = query.filter(LeisureSport.region_code == region_code)
+        # region_code 파라미터를 받으면 해당 지역의 tour_api_area_code를 찾아서 필터링
+        region = db.query(Region).filter(Region.region_code == region_code).first()
+        if region and region.tour_api_area_code:
+            query = query.filter(LeisureSport.region_code == region.tour_api_area_code)
+        else:
+            query = query.filter(LeisureSport.region_code == region_code)
     if facility_name:
         query = query.filter(LeisureSport.facility_name.ilike(f"%{facility_name}%"))
     total = query.count()

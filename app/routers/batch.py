@@ -4,12 +4,14 @@
 이 모듈은 배치 작업을 수동으로 실행하고 모니터링할 수 있는 엔드포인트를 제공합니다.
 """
 
+import logging
 from datetime import datetime
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from app.auth.dependencies import require_admin, require_super_admin
+from app.auth.dependencies import require_super_admin
+from app.dependencies import require_permission
 from app.database import get_db
 from app.models_admin import Admin
 from app.schemas.batch import (
@@ -25,6 +27,8 @@ from app.schemas.batch import (
     BatchJobType,
 )
 from app.services.batch import BatchJobService
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/batch",
@@ -42,7 +46,7 @@ async def get_batch_jobs(
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
-    _current_admin: Admin = Depends(require_admin),
+    _current_admin: Admin = Depends(require_permission("batch_jobs.read")),
 ):
     """
     배치 작업 목록을 조회합니다.
@@ -71,7 +75,7 @@ async def execute_batch_job(
     _background_tasks: BackgroundTasks,
     request: BatchJobExecuteRequest | None = None,
     db: Session = Depends(get_db),
-    _current_admin: Admin = Depends(require_admin),
+    _current_admin: Admin = Depends(require_permission("batch_jobs.execute")),
 ):
     """
     특정 배치 작업을 수동으로 실행합니다.
@@ -111,7 +115,7 @@ async def execute_batch_job(
 async def get_batch_job_status(
     job_id: str,
     db: Session = Depends(get_db),
-    _current_admin: Admin = Depends(require_admin),
+    _current_admin: Admin = Depends(require_permission("batch_jobs.read")),
 ):
     """
     특정 배치 작업의 상태를 조회합니다.
@@ -145,7 +149,7 @@ async def get_batch_job_logs(
     page: int = Query(1, ge=1),
     limit: int = Query(100, ge=1, le=1000),
     db: Session = Depends(get_db),
-    _current_admin: Admin = Depends(require_admin),
+    _current_admin: Admin = Depends(require_permission("batch_jobs.read")),
 ):
     """
     특정 배치 작업의 로그를 조회합니다.
@@ -211,7 +215,7 @@ async def get_batch_statistics(
     start_date: datetime | None = None,
     end_date: datetime | None = None,
     db: Session = Depends(get_db),
-    _current_admin: Admin = Depends(require_admin),
+    _current_admin: Admin = Depends(require_permission("batch_jobs.read")),
 ):
     """
     배치 작업 통계를 조회합니다.
@@ -227,7 +231,7 @@ async def get_batch_statistics(
 async def get_batch_job_detail(
     job_id: str,
     db: Session = Depends(get_db),
-    _current_admin: Admin = Depends(require_admin),
+    _current_admin: Admin = Depends(require_permission("batch_jobs.read")),
 ):
     """
     특정 배치 작업의 상세 정보를 조회합니다.

@@ -1,6 +1,6 @@
 import logging
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.requests import Request
@@ -8,7 +8,9 @@ from fastapi.responses import JSONResponse
 
 from app.config import settings
 from app.logging_config import setup_logging
-from app.routers import festivals_events, leisure_sports, travel_plans
+from app.database import get_db
+from sqlalchemy.orm import Session
+from app.routers import festivals_events, travel_plans
 from app.routers.admins import router as admins_router
 
 # 통합된 라우터들 사용
@@ -25,6 +27,8 @@ from app.routers.weather import router as weather_router
 from app.routers.rbac import router as rbac_router
 from app.routers.contact import router as contact_router
 from app.routers.admin_categories import router as admin_categories_router
+from app.routers.leisure_sports_compatibility import router as leisure_sports_compatibility_router
+from app.routers.travel_courses_compatibility import router as travel_courses_compatibility_router
 from app.middleware.rbac_middleware import RBACMiddleware
 
 # 로깅 설정 초기화
@@ -87,13 +91,15 @@ app.include_router(dashboard_router, prefix="/api")  # 새로 추가된 대시�
 app.include_router(logs_router, prefix="/api")  # 새로 추가된 로그 관리 API
 app.include_router(travel_courses_router, prefix="/api")
 app.include_router(festivals_events.router, prefix="/api")
-app.include_router(leisure_sports.router, prefix="/api")
 app.include_router(travel_plans.router, prefix="/api")
 app.include_router(batch_router, prefix="/api")  # 배치 작업 API 추가
 app.include_router(regions_router, prefix="/api")  # 지역 관리 API 추가
 app.include_router(rbac_router, prefix="/api")  # RBAC 관리 API 추가
 app.include_router(contact_router, prefix="/api")  # 문의사항 API 추가
 app.include_router(admin_categories_router, prefix="/api")  # 카테고리 관리 API 추가
+app.include_router(leisure_sports_compatibility_router, prefix="/api")  # 레저 스포츠 호환성 API 추가
+app.include_router(travel_courses_compatibility_router, prefix="/api")  # 여행 코스 호환성 API 추가
+
 
 @app.get("/")
 async def root():

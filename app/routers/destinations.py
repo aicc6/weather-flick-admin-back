@@ -5,7 +5,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import TouristAttraction
+from ..models import TouristAttraction, Region
 from ..dependencies import CurrentAdmin, require_permission
 
 router = APIRouter(prefix="/tourist-attractions", tags=["Tourist Attractions"])
@@ -21,7 +21,12 @@ async def get_all_tourist_attractions(
 ):
     query = db.query(TouristAttraction)
     if region_code:
-        query = query.filter(TouristAttraction.region_code == str(region_code))
+        # region_code 파라미터를 받으면 해당 지역의 tour_api_area_code를 찾아서 필터링
+        region = db.query(Region).filter(Region.region_code == region_code).first()
+        if region and region.tour_api_area_code:
+            query = query.filter(TouristAttraction.region_code == region.tour_api_area_code)
+        else:
+            query = query.filter(TouristAttraction.region_code == str(region_code))
     total = query.count()
     attractions = query.order_by(TouristAttraction.created_at.desc()).offset(offset).limit(limit).all()
     return {
