@@ -5,9 +5,8 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.database import get_db
 from app.models_admin import Admin
-from app.models_rbac import Role, Resource, Permission
+from app.models_rbac import Role, Permission
 from app.auth.utils import create_admin_token, hash_password
 from main import app
 

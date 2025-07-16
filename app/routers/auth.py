@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from ..auth.dependencies import get_current_active_admin
 from ..auth.utils import create_admin_token, verify_password
 from ..database import get_db
-from ..models import Admin, AdminStatus
+from ..models_admin import Admin, AdminStatus
 from ..schemas.auth_schemas import (
     AdminLogin,
     AdminResponse,

@@ -1,6 +1,6 @@
 """축제/행사 스키마"""
 from datetime import date, datetime
-from typing import Optional, Dict, List, Any
+from typing import Optional, Dict, Any
 from pydantic import BaseModel, ConfigDict, field_validator
 from uuid import UUID
 

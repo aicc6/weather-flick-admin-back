@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.auth.dependencies import require_admin, require_super_admin
 from app.database import get_db
-from app.models import Admin
+from app.models_admin import Admin
 from app.schemas.batch import (
     BatchJobExecuteRequest,
     BatchJobExecuteResponse,
@@ -42,7 +42,7 @@ async def get_batch_jobs(
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
-    _current_admin: Admin = Depends(require_admin)
+    _current_admin: Admin = Depends(require_admin),
 ):
     """
     배치 작업 목록을 조회합니다.
@@ -61,7 +61,7 @@ async def get_batch_jobs(
         start_date=start_date,
         end_date=end_date,
         page=page,
-        limit=limit
+        limit=limit,
     )
 
 
@@ -71,7 +71,7 @@ async def execute_batch_job(
     _background_tasks: BackgroundTasks,
     request: BatchJobExecuteRequest | None = None,
     db: Session = Depends(get_db),
-    _current_admin: Admin = Depends(require_admin)
+    _current_admin: Admin = Depends(require_admin),
 ):
     """
     특정 배치 작업을 수동으로 실행합니다.
@@ -95,7 +95,7 @@ async def execute_batch_job(
             job_type=job_type,
             parameters=request.parameters if request else {},
             admin_id=_current_admin.admin_id,
-            priority=request.priority if request else 5
+            priority=request.priority if request else 5,
         )
 
         return response
@@ -103,8 +103,7 @@ async def execute_batch_job(
     except Exception as e:
         logger.error(f"Failed to execute batch job: {e}")
         raise HTTPException(
-            status_code=500,
-            detail=f"배치 작업 실행 중 오류가 발생했습니다: {str(e)}"
+            status_code=500, detail=f"배치 작업 실행 중 오류가 발생했습니다: {str(e)}"
         )
 
 
@@ -112,7 +111,7 @@ async def execute_batch_job(
 async def get_batch_job_status(
     job_id: str,
     db: Session = Depends(get_db),
-    _current_admin: Admin = Depends(require_admin)
+    _current_admin: Admin = Depends(require_admin),
 ):
     """
     특정 배치 작업의 상태를 조회합니다.
@@ -135,7 +134,7 @@ async def get_batch_job_status(
         started_at=job.started_at,
         completed_at=job.completed_at,
         error_message=job.error_message,
-        result_summary=job.result_summary
+        result_summary=job.result_summary,
     )
 
 
@@ -146,7 +145,7 @@ async def get_batch_job_logs(
     page: int = Query(1, ge=1),
     limit: int = Query(100, ge=1, le=1000),
     db: Session = Depends(get_db),
-    _current_admin: Admin = Depends(require_admin)
+    _current_admin: Admin = Depends(require_admin),
 ):
     """
     특정 배치 작업의 로그를 조회합니다.
@@ -159,10 +158,7 @@ async def get_batch_job_logs(
     service = BatchJobService(db)
 
     logs = await service.get_job_logs(
-        job_id=job_id,
-        level=level,
-        page=page,
-        limit=limit
+        job_id=job_id, level=level, page=page, limit=limit
     )
 
     return logs
@@ -172,7 +168,7 @@ async def get_batch_job_logs(
 async def stop_batch_job(
     job_id: str,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(require_super_admin)  # 슈퍼관리자만 중단 가능
+    current_admin: Admin = Depends(require_super_admin),  # 슈퍼관리자만 중단 가능
 ):
     """
     실행 중인 배치 작업을 중단합니다.
@@ -191,25 +187,22 @@ async def stop_batch_job(
     if job.status != BatchJobStatus.RUNNING:
         raise HTTPException(
             status_code=400,
-            detail=f"실행 중이 아닌 작업은 중단할 수 없습니다. 현재 상태: {job.status.value}"
+            detail=f"실행 중이 아닌 작업은 중단할 수 없습니다. 현재 상태: {job.status.value}",
         )
 
     success = await service.stop_job_async(
         job_id=job_id,
         stopped_by=current_admin.admin_id,
-        reason="관리자가 수동으로 중단 요청"
+        reason="관리자가 수동으로 중단 요청",
     )
 
     if not success:
-        raise HTTPException(
-            status_code=500,
-            detail="작업 중단에 실패했습니다."
-        )
+        raise HTTPException(status_code=500, detail="작업 중단에 실패했습니다.")
 
     return BatchJobStopResponse(
         job_id=job_id,
         message="작업 중단 요청이 전송되었습니다.",
-        status=BatchJobStatus.STOPPING
+        status=BatchJobStatus.STOPPING,
     )
 
 
@@ -218,7 +211,7 @@ async def get_batch_statistics(
     start_date: datetime | None = None,
     end_date: datetime | None = None,
     db: Session = Depends(get_db),
-    _current_admin: Admin = Depends(require_admin)
+    _current_admin: Admin = Depends(require_admin),
 ):
     """
     배치 작업 통계를 조회합니다.
@@ -227,17 +220,14 @@ async def get_batch_statistics(
     - **end_date**: 통계 종료일 (옵션)
     """
     service = BatchJobService(db)
-    return await service.get_statistics(
-        start_date=start_date,
-        end_date=end_date
-    )
+    return await service.get_statistics(start_date=start_date, end_date=end_date)
 
 
 @router.get("/jobs/{job_id}", response_model=BatchJobResponse)
 async def get_batch_job_detail(
     job_id: str,
     db: Session = Depends(get_db),
-    _current_admin: Admin = Depends(require_admin)
+    _current_admin: Admin = Depends(require_admin),
 ):
     """
     특정 배치 작업의 상세 정보를 조회합니다.

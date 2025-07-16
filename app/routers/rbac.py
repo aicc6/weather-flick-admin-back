@@ -3,14 +3,14 @@ RBAC (Role-Based Access Control) 관리 API
 """
 
 from typing import List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.auth.dependencies import get_current_active_admin
-from app.auth.rbac_dependencies import require_permission, require_super_admin
+from app.auth.rbac_dependencies import require_permission
 from app.models_admin import Admin
 from app.models_rbac import Role, Resource, Permission, PermissionAuditLog
 from app.models_rbac import admin_roles, role_permissions

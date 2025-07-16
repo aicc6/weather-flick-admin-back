@@ -3,12 +3,11 @@ import math
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
+from ..auth.rbac_dependencies import require_permission, require_super_admin
 from ..auth.utils import generate_temporary_password, get_password_hash
 from ..database import get_db
-from ..models import Admin, AdminStatus
-from ..auth.dependencies import get_current_active_admin
-from ..auth.rbac_dependencies import require_permission, require_super_admin
 from ..models_admin import Admin as CurrentAdmin
+from ..models_admin import AdminStatus
 from ..schemas.admin_schemas import (
     AdminCreate,
     AdminListResponse,
@@ -110,15 +109,11 @@ async def get_admin_statistics(
         active = db.query(Admin).filter(Admin.status == AdminStatus.ACTIVE).count()
         inactive = db.query(Admin).filter(Admin.status == AdminStatus.INACTIVE).count()
 
-        return {
-            "total": total,
-            "active": active,
-            "inactive": inactive
-        }
+        return {"total": total, "active": active, "inactive": inactive}
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="관리자 통계 조회 중 오류가 발생했습니다"
+            detail="관리자 통계 조회 중 오류가 발생했습니다",
         )
 
 
@@ -326,5 +321,5 @@ async def reset_admin_password(
     return {
         "message": f"관리자 '{admin.name or admin.email}' 비밀번호가 초기화되었습니다",
         "admin_id": admin_id,
-        "temporary_password": temp_password
+        "temporary_password": temp_password,
     }

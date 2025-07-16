@@ -1,6 +1,5 @@
 """관리자 모델"""
 import enum
-from datetime import datetime
 
 from sqlalchemy import (
     Boolean, Column, DateTime, Enum, Integer, String

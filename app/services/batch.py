@@ -12,12 +12,10 @@ from sqlalchemy import and_, desc
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.models import BatchJob, BatchJobSchedule
+from app.models import BatchJob
 from app.schemas.batch import (
     BatchJobExecuteResponse,
     BatchJobListResponse,
-    BatchJobLog,
-    BatchJobLogLevel,
     BatchJobLogResponse,
     BatchJobResponse,
     BatchJobStatistic,

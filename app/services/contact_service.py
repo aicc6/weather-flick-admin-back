@@ -4,7 +4,7 @@
 from datetime import datetime, timedelta
 from typing import List, Optional
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func, and_, or_
+from sqlalchemy import or_
 from fastapi import HTTPException
 
 from app.models import Contact, ContactAnswer
