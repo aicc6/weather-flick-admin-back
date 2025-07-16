@@ -975,31 +975,35 @@ class Region(Base):
     """
 
     __tablename__ = "regions"
-
+    __table_args__ = {"extend_existing": True}
+    
     region_code = Column(String, primary_key=True, index=True)  # 지역 코드
-    province = Column(String, nullable=False, index=True)  # 시/도
-    city = Column(String, index=True)  # 시/군/구
-    district = Column(String)  # 읍/면/동
-    full_name = Column(String, nullable=False)  # 전체 지역명
-
+    region_name = Column(String, nullable=False, index=True)  # 지역명
+    parent_region_code = Column(String, nullable=True)  # 상위 지역 코드
+    region_level = Column(Integer, nullable=True)  # 지역 레벨 (1: 시/도, 2: 시/군/구)
+    region_name_full = Column(String, nullable=True)  # 전체 지역명
+    region_name_en = Column(String, nullable=True)  # 영문 지역명
+    region_id = Column(String, nullable=True)  # 지역 ID
+    
     # 위치 정보
-    latitude = Column(DECIMAL(10, 8))
-    longitude = Column(DECIMAL(11, 8))
-
-    # 날씨 API 정보
-    weather_station_id = Column(String)  # 기상청 관측소 ID
-    weather_grid_x = Column(Integer)  # 기상청 격자 X
-    weather_grid_y = Column(Integer)  # 기상청 격자 Y
-
-    # 추가 정보
-    population = Column(Integer)  # 인구수
-    area_size = Column(Float)  # 면적 (km²)
-
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
+    center_latitude = Column(Float, nullable=True)
+    center_longitude = Column(Float, nullable=True)
+    
+    # 격자 정보
+    grid_x = Column(Integer, nullable=True)  # 기상청 격자 X
+    grid_y = Column(Integer, nullable=True)  # 기상청 격자 Y
+    
+    # 기타 정보
+    administrative_code = Column(String, nullable=True)  # 행정 코드
+    api_mappings = Column(JSONB, nullable=True)  # API 매핑 정보
+    coordinate_info = Column(JSONB, nullable=True)  # 좌표 정보
+    
+    # 메타 정보
+    is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
-
-    # 인덱스
-    __table_args__ = (Index("idx_region_location", "province", "city"),)
 
 
 # ===========================================
@@ -1827,11 +1831,11 @@ class WeatherCurrent(Base):
     )
 
 
-class WeatherForecast(Base):
+class WeatherForecastDaily(Base):
     """
-    날씨 예보 테이블
+    일별 날씨 예보 테이블
     사용처: weather-flick-admin-back, weather-flick-batch
-    설명: 중장기 날씨 예보 정보
+    설명: 중장기 일별 날씨 예보 정보
     """
 
     __tablename__ = "weather_forecast"

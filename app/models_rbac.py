@@ -18,7 +18,8 @@ admin_roles = Table(
     Column('assigned_at', DateTime, default=func.now()),
     Column('assigned_by', Integer),
     Index('idx_admin_roles_admin_id', 'admin_id'),
-    Index('idx_admin_roles_role_id', 'role_id')
+    Index('idx_admin_roles_role_id', 'role_id'),
+    extend_existing=True
 )
 
 # 역할-권한 다대다 관계 테이블
@@ -27,9 +28,11 @@ role_permissions = Table(
     Base.metadata,
     Column('role_id', Integer, ForeignKey('roles.id', ondelete='CASCADE'), primary_key=True),
     Column('permission_id', Integer, ForeignKey('permissions.id', ondelete='CASCADE'), primary_key=True),
-    Column('created_at', DateTime, default=func.now()),
+    Column('granted_at', DateTime, default=func.now()),
+    Column('granted_by', Integer),
     Index('idx_role_permissions_role_id', 'role_id'),
-    Index('idx_role_permissions_permission_id', 'permission_id')
+    Index('idx_role_permissions_permission_id', 'permission_id'),
+    extend_existing=True
 )
 
 

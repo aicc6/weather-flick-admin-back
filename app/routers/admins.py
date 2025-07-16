@@ -358,3 +358,212 @@ async def reset_admin_password(
         "admin_id": admin_id,
         "temporary_password": temp_password,
     }
+
+
+@router.put("/{admin_id}/roles")
+async def update_admin_roles(
+    admin_id: int,
+    role_data: dict,
+    current_admin: CurrentAdmin = Depends(require_super_admin),
+    db: Session = Depends(get_db),
+):
+    """관리자 역할 수정 (슈퍼관리자만 가능)"""
+    from ..models_rbac import Role
+    
+    admin = db.query(Admin).filter(Admin.admin_id == admin_id).first()
+    if not admin:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail="관리자를 찾을 수 없습니다"
+        )
+
+    # 자기 자신의 권한은 변경할 수 없음
+    if admin.admin_id == current_admin.admin_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="자신의 권한은 변경할 수 없습니다"
+        )
+
+    # 슈퍼유저 권한 업데이트
+    if 'is_superuser' in role_data:
+        admin.is_superuser = role_data['is_superuser']
+
+    # 기존 역할 제거
+    admin.roles.clear()
+
+    # 슈퍼유저가 아닌 경우 새 역할 할당
+    if not admin.is_superuser and 'role_ids' in role_data:
+        for role_id in role_data['role_ids']:
+            role = db.query(Role).filter(Role.id == role_id).first()
+            if role:
+                admin.roles.append(role)
+
+    db.commit()
+    db.refresh(admin)
+
+    return {"message": f"관리자 '{admin.name or admin.email}' 권한이 업데이트되었습니다"}
+
+
+@router.get("/permissions/matrix")
+async def get_permissions_matrix(
+    current_admin: CurrentAdmin = Depends(require_super_admin),
+    db: Session = Depends(get_db),
+):
+    """권한 매트릭스 조회 (슈퍼관리자만 가능)"""
+    from ..models_rbac import Role, Permission
+    
+    roles = db.query(Role).all()
+    permissions = db.query(Permission).all()
+    
+    matrix = []
+    for role in roles:
+        role_permissions = [perm.name for perm in role.permissions]
+        matrix.append({
+            "role_id": role.id,
+            "role_name": role.name,
+            "display_name": role.display_name,
+            "description": role.description,
+            "is_system": role.is_system,
+            "permissions": role_permissions
+        })
+    
+    return {
+        "roles": matrix,
+        "all_permissions": [{"id": p.id, "name": p.name, "description": p.description} for p in permissions]
+    }
+
+
+@router.post("/roles")
+async def create_role(
+    role_data: dict,
+    current_admin: CurrentAdmin = Depends(require_super_admin),
+    db: Session = Depends(get_db),
+):
+    """새 역할 생성 (슈퍼관리자만 가능)"""
+    from ..models_rbac import Role, Permission
+    
+    # 기본 역할 정보 생성
+    new_role = Role(
+        name=role_data.get("name"),
+        display_name=role_data.get("display_name"),
+        description=role_data.get("description"),
+        is_system=False  # 사용자 생성 역할은 시스템 역할이 아님
+    )
+    
+    db.add(new_role)
+    db.commit()
+    db.refresh(new_role)
+    
+    # 권한 할당
+    if "permission_ids" in role_data:
+        for permission_id in role_data["permission_ids"]:
+            permission = db.query(Permission).filter(Permission.id == permission_id).first()
+            if permission:
+                new_role.permissions.append(permission)
+        db.commit()
+        db.refresh(new_role)
+    
+    return {"message": f"역할 '{new_role.display_name}'이 생성되었습니다", "role_id": new_role.id}
+
+
+@router.put("/roles/{role_id}")
+async def update_role(
+    role_id: int,
+    role_data: dict,
+    current_admin: CurrentAdmin = Depends(require_super_admin),
+    db: Session = Depends(get_db),
+):
+    """역할 정보 및 권한 수정 (슈퍼관리자만 가능)"""
+    from ..models_rbac import Role, Permission
+    
+    role = db.query(Role).filter(Role.id == role_id).first()
+    if not role:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="역할을 찾을 수 없습니다"
+        )
+    
+    # 시스템 역할은 수정 불가
+    if role.is_system:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="시스템 역할은 수정할 수 없습니다"
+        )
+    
+    # 역할 정보 업데이트
+    if "display_name" in role_data:
+        role.display_name = role_data["display_name"]
+    if "description" in role_data:
+        role.description = role_data["description"]
+    
+    # 권한 업데이트
+    if "permission_ids" in role_data:
+        role.permissions.clear()
+        for permission_id in role_data["permission_ids"]:
+            permission = db.query(Permission).filter(Permission.id == permission_id).first()
+            if permission:
+                role.permissions.append(permission)
+    
+    db.commit()
+    db.refresh(role)
+    
+    return {"message": f"역할 '{role.display_name}'이 수정되었습니다"}
+
+
+@router.delete("/roles/{role_id}")
+async def delete_role(
+    role_id: int,
+    current_admin: CurrentAdmin = Depends(require_super_admin),
+    db: Session = Depends(get_db),
+):
+    """역할 삭제 (슈퍼관리자만 가능)"""
+    from ..models_rbac import Role
+    
+    role = db.query(Role).filter(Role.id == role_id).first()
+    if not role:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="역할을 찾을 수 없습니다"
+        )
+    
+    # 시스템 역할은 삭제 불가
+    if role.is_system:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="시스템 역할은 삭제할 수 없습니다"
+        )
+    
+    # 해당 역할을 가진 관리자가 있는지 확인
+    if role.admins:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="해당 역할을 사용 중인 관리자가 있어 삭제할 수 없습니다"
+        )
+    
+    role_name = role.display_name
+    db.delete(role)
+    db.commit()
+    
+    return {"message": f"역할 '{role_name}'이 삭제되었습니다"}
+
+
+@router.get("/permissions")
+async def get_all_permissions(
+    current_admin: CurrentAdmin = Depends(require_super_admin),
+    db: Session = Depends(get_db),
+):
+    """모든 권한 목록 조회 (슈퍼관리자만 가능)"""
+    from ..models_rbac import Permission
+    
+    permissions = db.query(Permission).all()
+    
+    return {
+        "permissions": [
+            {
+                "id": permission.id,
+                "name": permission.name,
+                "description": permission.description
+            }
+            for permission in permissions
+        ]
+    }
