@@ -8,7 +8,8 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from ..auth.dependencies import require_admin
+from ..auth.dependencies import get_current_active_admin
+from ..auth.rbac_dependencies import require_permission
 from ..database import get_db
 from ..models import Admin
 from ..services.dashboard_service import DashboardService
@@ -21,7 +22,7 @@ router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 @router.get("/stats")
 async def get_dashboard_statistics(
     db: Session = Depends(get_db),
-    admin_user: Admin = Depends(require_admin)
+    admin_user: Admin = Depends(require_permission("dashboard.read"))
 ):
     """
     관리자 대시보드 종합 통계 조회 (관리자 전용)
@@ -51,7 +52,7 @@ async def get_dashboard_statistics(
 async def get_recent_dashboard_activities(
     limit: int = Query(20, ge=1, le=50, description="조회할 활동 수"),
     db: Session = Depends(get_db),
-    admin_user: Admin = Depends(require_admin)
+    admin_user: Admin = Depends(require_permission("dashboard.read"))
 ):
     """
     대시보드용 최근 관리자 활동 내역 조회 (관리자 전용)
@@ -88,7 +89,7 @@ async def get_recent_dashboard_activities(
 @router.get("/summary")
 async def get_dashboard_summary(
     db: Session = Depends(get_db),
-    admin_user: Admin = Depends(require_admin)
+    admin_user: Admin = Depends(require_permission("dashboard.read"))
 ):
     """
     대시보드 요약 정보 조회 (관리자 전용)

@@ -1,1 +1,3 @@
-# app package
+"""
+Weather Flick Admin Backend Application
+"""

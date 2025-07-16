@@ -1,7 +1,8 @@
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import Session
 
-from app.models import TravelPlan, TravelPlanCreate, TravelPlanUpdate
+from app.models import TravelPlan
+from app.schemas.travel_plan_schemas import TravelPlanCreate, TravelPlanUpdate
 
 # 목록 조회
 

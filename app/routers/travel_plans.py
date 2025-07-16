@@ -5,7 +5,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import TravelPlanCreate, TravelPlanResponse, TravelPlanUpdate
+from app.models import TravelPlan
+from app.schemas.travel_plan_schemas import TravelPlanCreate, TravelPlanResponse, TravelPlanUpdate
 from app.services import travel_plans as service
 
 router = APIRouter(prefix="/travel-plans", tags=["travel_plans"])

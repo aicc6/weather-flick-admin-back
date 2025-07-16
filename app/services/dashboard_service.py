@@ -10,7 +10,8 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..auth.logging import AdminLogService
-from ..models import Admin, AdminActivityLog, User
+from ..models import Admin, EventLog
+from ..models import User
 
 logger = logging.getLogger(__name__)
 
@@ -112,8 +113,9 @@ class DashboardService:
             ).scalar() or 0
 
             # 주간 활동한 관리자 수 (로그 기준)
-            active_week_admins = self.db.query(func.count(func.distinct(AdminActivityLog.admin_id))).filter(
-                AdminActivityLog.created_at >= week_ago
+            active_week_admins = self.db.query(func.count(func.distinct(EventLog.admin_id))).filter(
+                EventLog.created_at >= week_ago,
+                EventLog.event_type == "admin_action"
             ).scalar() or 0
 
             return {
@@ -184,11 +186,12 @@ class DashboardService:
 
             activity_list = []
             for activity in activities:
+                event_data = activity.event_data or {}
                 activity_list.append({
                     "admin_email": activity.admin.email if activity.admin else "Unknown",
-                    "action": activity.action,
-                    "description": activity.description,
-                    "severity": activity.severity,
+                    "action": activity.event_name,
+                    "description": event_data.get("description", ""),
+                    "severity": event_data.get("severity", "NORMAL"),
                     "created_at": activity.created_at.isoformat()
                 })
 

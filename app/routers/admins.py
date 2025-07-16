@@ -3,10 +3,12 @@ import math
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from ..auth.dependencies import require_super_admin
 from ..auth.utils import generate_temporary_password, get_password_hash
 from ..database import get_db
 from ..models import Admin, AdminStatus
+from ..auth.dependencies import get_current_active_admin
+from ..auth.rbac_dependencies import require_permission, require_super_admin
+from ..models_admin import Admin as CurrentAdmin
 from ..schemas.admin_schemas import (
     AdminCreate,
     AdminListResponse,
@@ -21,8 +23,8 @@ router = APIRouter(prefix="/admins", tags=["Admin Management"])
 @router.post("/", response_model=AdminResponse)
 async def create_admin(
     admin_create: AdminCreate,
+    current_admin: CurrentAdmin = Depends(require_super_admin),
     db: Session = Depends(get_db),
-    _current_admin: Admin = Depends(require_super_admin),
 ):
     """새 관리자 계정 생성 (슈퍼관리자만 가능)"""
     # 이메일 중복 확인
@@ -53,14 +55,14 @@ async def create_admin(
 
 @router.get("/", response_model=AdminListResponse)
 async def get_admin_list(
+    current_admin: CurrentAdmin = Depends(require_permission("roles.read")),
+    db: Session = Depends(get_db),
     page: int = Query(1, ge=1, description="페이지 번호"),
     size: int = Query(10, ge=1, le=100, description="페이지 크기"),
     status: str | None = Query(
         None, description="상태 필터 (ACTIVE, INACTIVE, LOCKED)"
     ),
     search: str | None = Query(None, description="이메일 또는 이름으로 검색"),
-    _current_admin: Admin = Depends(require_super_admin),
-    db: Session = Depends(get_db),
 ):
     """관리자 목록 조회 (슈퍼관리자만 가능)"""
 
@@ -99,7 +101,7 @@ async def get_admin_list(
 
 @router.get("/stats")
 async def get_admin_statistics(
-    _current_admin: Admin = Depends(require_super_admin),
+    current_admin: CurrentAdmin = Depends(require_permission("roles.read")),
     db: Session = Depends(get_db),
 ):
     """관리자 통계 조회 (슈퍼관리자만 가능)"""
@@ -123,7 +125,7 @@ async def get_admin_statistics(
 @router.get("/{admin_id}", response_model=AdminResponse)
 async def get_admin_detail(
     admin_id: int,
-    _current_admin: Admin = Depends(require_super_admin),
+    current_admin: CurrentAdmin = Depends(require_permission("roles.read")),
     db: Session = Depends(get_db),
 ):
     """특정 관리자 상세 조회 (슈퍼관리자만 가능)"""
@@ -141,7 +143,7 @@ async def get_admin_detail(
 async def update_admin(
     admin_id: int,
     admin_update: AdminUpdate,
-    _current_admin: Admin = Depends(require_super_admin),
+    current_admin: CurrentAdmin = Depends(require_permission("roles.write")),
     db: Session = Depends(get_db),
 ):
     """관리자 정보 수정 (슈퍼관리자만 가능)"""
@@ -185,7 +187,7 @@ async def update_admin(
 async def update_admin_status(
     admin_id: int,
     status_update: AdminStatusUpdate,
-    _current_admin: Admin = Depends(require_super_admin),
+    current_admin: CurrentAdmin = Depends(require_permission("roles.write")),
     db: Session = Depends(get_db),
 ):
     """관리자 상태 변경 (슈퍼관리자만 가능)"""
@@ -197,7 +199,7 @@ async def update_admin_status(
         )
 
     # 자기 자신의 상태는 변경할 수 없음
-    if admin.admin_id == current_admin.admin_id:
+    if admin.admin_id == current_admin.admin.admin_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="자신의 계정 상태는 변경할 수 없습니다",
@@ -228,7 +230,7 @@ async def update_admin_status(
 @router.delete("/{admin_id}")
 async def deactivate_admin(
     admin_id: int,
-    _current_admin: Admin = Depends(require_super_admin),
+    current_admin: CurrentAdmin = Depends(require_permission("roles.delete")),
     db: Session = Depends(get_db),
 ):
     """관리자 계정 비활성화 (슈퍼관리자만 가능)"""
@@ -268,7 +270,7 @@ async def deactivate_admin(
 @router.delete("/{admin_id}/permanent")
 async def delete_admin_permanently(
     admin_id: int,
-    _current_admin: Admin = Depends(require_super_admin),
+    current_admin: CurrentAdmin = Depends(require_permission("roles.delete")),
     db: Session = Depends(get_db),
 ):
     """관리자 계정 완전 삭제 (슈퍼관리자만 가능)"""
@@ -304,7 +306,7 @@ async def delete_admin_permanently(
 @router.post("/{admin_id}/reset-password")
 async def reset_admin_password(
     admin_id: int,
-    _current_admin: Admin = Depends(require_super_admin),
+    current_admin: CurrentAdmin = Depends(require_permission("roles.write")),
     db: Session = Depends(get_db),
 ):
     """관리자 비밀번호 초기화 (슈퍼관리자만 가능)"""

@@ -7,7 +7,7 @@ from datetime import datetime
 
 from sqlalchemy.orm import Session
 
-from ..models import AdminActivityLog
+from ..models import EventLog
 
 logger = logging.getLogger(__name__)
 
@@ -45,14 +45,18 @@ async def log_admin_activity(
         # 데이터베이스에 로그 저장
         if db:
             try:
-                admin_log = AdminActivityLog(
+                admin_log = EventLog(
                     admin_id=admin_id,
-                    action=action,
-                    description=description,
-                    target_resource=target_resource,
-                    severity=severity,
-                    ip_address=ip_address or "127.0.0.1",
-                    user_agent=user_agent
+                    service_name="weather-flick-admin-back",
+                    event_type="admin_action",
+                    event_name=action,
+                    event_data={
+                        "description": description,
+                        "target_resource": target_resource,
+                        "severity": severity,
+                        "ip_address": ip_address or "127.0.0.1",
+                        "user_agent": user_agent
+                    }
                 )
                 db.add(admin_log)
                 db.commit()
@@ -77,18 +81,18 @@ class AdminLogService:
         limit: int = 50,
         admin_id: int | None = None,
         severity: str | None = None
-    ) -> list[AdminActivityLog]:
+    ) -> list[EventLog]:
         """최근 관리자 활동 내역 조회"""
         try:
-            query = self.db.query(AdminActivityLog)
+            query = self.db.query(EventLog)
 
             if admin_id:
-                query = query.filter(AdminActivityLog.admin_id == admin_id)
+                query = query.filter(EventLog.admin_id == admin_id)
 
             if severity:
-                query = query.filter(AdminActivityLog.severity == severity)
+                query = query.filter(EventLog.event_data["severity"].astext == severity)
 
-            return query.order_by(AdminActivityLog.created_at.desc()).limit(limit).all()
+            return query.order_by(EventLog.created_at.desc()).limit(limit).all()
 
         except Exception as e:
             logger.error(f"관리자 활동 내역 조회 실패: {e}")
@@ -101,20 +105,22 @@ class AdminLogService:
 
             # 오늘의 활동 수
             today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-            today_activities = self.db.query(func.count(AdminActivityLog.log_id)).filter(
-                AdminActivityLog.created_at >= today
+            today_activities = self.db.query(func.count(EventLog.log_id)).filter(
+                EventLog.created_at >= today
             ).scalar() or 0
 
-            # 심각도별 통계
+            # 심각도별 통계  
             severity_stats = self.db.query(
-                AdminActivityLog.severity,
-                func.count(AdminActivityLog.log_id)
-            ).group_by(AdminActivityLog.severity).all()
+                EventLog.event_data["severity"].astext,
+                func.count(EventLog.log_id)
+            ).filter(
+                EventLog.event_type == "admin_action"
+            ).group_by(EventLog.event_data["severity"].astext).all()
 
             return {
                 "today_activities": today_activities,
                 "severity_distribution": dict(severity_stats),
-                "total_logs": self.db.query(func.count(AdminActivityLog.log_id)).scalar() or 0
+                "total_logs": self.db.query(func.count(EventLog.log_id)).scalar() or 0
             }
 
         except Exception as e:

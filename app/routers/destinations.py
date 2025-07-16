@@ -1,17 +1,19 @@
 from uuid import uuid4
-from typing import Optional, List
+from typing import Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import TouristAttraction
-from ..models import TouristAttractionResponse
+from ..dependencies import CurrentAdmin, require_permission
 
 router = APIRouter(prefix="/tourist-attractions", tags=["Tourist Attractions"])
 
 @router.get("/")
-def get_all_tourist_attractions(
+@require_permission("destinations.read")
+async def get_all_tourist_attractions(
+    current_admin: CurrentAdmin,
     db: Session = Depends(get_db),
     limit: int = Query(10, ge=1, le=100),
     offset: int = Query(0, ge=0),
@@ -46,7 +48,12 @@ def get_all_tourist_attractions(
     }
 
 @router.get("/{content_id}")
-def get_tourist_attraction(content_id: str, db: Session = Depends(get_db)):
+@require_permission("destinations.read")
+async def get_tourist_attraction(
+    content_id: str,
+    current_admin: CurrentAdmin,
+    db: Session = Depends(get_db)
+):
     attraction = db.query(TouristAttraction).filter(TouristAttraction.content_id == content_id).first()
     if not attraction:
         raise HTTPException(status_code=404, detail="관광지를 찾을 수 없습니다.")
@@ -66,7 +73,9 @@ def get_tourist_attraction(content_id: str, db: Session = Depends(get_db)):
     }
 
 @router.get("/search/")
-def search_tourist_attractions(
+@require_permission("destinations.read")
+async def search_tourist_attractions(
+    current_admin: CurrentAdmin,
     name: str = Query(None, description="관광지명"),
     category: str = Query(None, description="카테고리명"),
     region: str = Query(None, description="지역코드"),
@@ -105,7 +114,9 @@ def search_tourist_attractions(
     }
 
 @router.post("/", status_code=201)
-def create_tourist_attraction(
+@require_permission("destinations.write")
+async def create_tourist_attraction(
+    current_admin: CurrentAdmin,
     attraction_name: str = Body(...),
     description: str = Body(None),
     address: str = Body(None),
@@ -135,8 +146,10 @@ def create_tourist_attraction(
     return {"content_id": new_attraction.content_id}
 
 @router.put("/{content_id}")
-def update_tourist_attraction(
+@require_permission("destinations.write")
+async def update_tourist_attraction(
     content_id: str,
+    current_admin: CurrentAdmin,
     attraction_name: str = Body(None),
     description: str = Body(None),
     address: str = Body(None),
@@ -174,7 +187,12 @@ def update_tourist_attraction(
     return {"content_id": attraction.content_id}
 
 @router.delete("/{content_id}", status_code=204)
-def delete_tourist_attraction(content_id: str, db: Session = Depends(get_db)):
+@require_permission("destinations.delete")
+async def delete_tourist_attraction(
+    content_id: str,
+    current_admin: CurrentAdmin,
+    db: Session = Depends(get_db)
+):
     attraction = db.query(TouristAttraction).filter(TouristAttraction.content_id == content_id).first()
     if not attraction:
         raise HTTPException(status_code=404, detail="관광지를 찾을 수 없습니다.")
@@ -182,36 +200,3 @@ def delete_tourist_attraction(content_id: str, db: Session = Depends(get_db)):
     db.commit()
     return None
 
-@router.get("/tourist-attractions/", response_model=List[TouristAttractionResponse])
-async def get_tourist_attractions(
-    region_code: Optional[str] = Query(None),
-    limit: int = Query(10, ge=1, le=100),
-    offset: int = Query(0, ge=0),
-    db: Session = Depends(get_db)
-):
-    print("DEBUG: region_code =", region_code, type(region_code))
-    query = db.query(TouristAttraction)
-    if region_code:
-        query = query.filter(TouristAttraction.region_code == str(region_code))
-    total = query.count()
-    results = query.order_by(TouristAttraction.created_at.desc()).offset(offset).limit(limit).all()
-    return {
-        "total": total,
-        "items": [
-            {
-                "content_id": a.content_id,
-                "attraction_name": a.attraction_name,
-                "description": a.description,
-                "address": a.address,
-                "image_url": a.image_url,
-                "latitude": float(a.latitude) if a.latitude else None,
-                "longitude": float(a.longitude) if a.longitude else None,
-                "category_code": a.category_code,
-                "category_name": a.category_name,
-                "region_code": a.region_code,
-                "created_at": a.created_at,
-                "updated_at": a.updated_at,
-            }
-            for a in results
-        ]
-    }

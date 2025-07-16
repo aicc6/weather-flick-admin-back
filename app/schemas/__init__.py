@@ -14,6 +14,17 @@ from .common import (
     PaginatedResponse,
     SuccessResponse,
 )
+from .rbac_schemas import (
+    RoleBase,
+    RoleCreate,
+    RoleUpdate,
+    RoleResponse,
+    ResourceResponse,
+    PermissionResponse,
+    PermissionAssignment,
+    AdminRoleAssignment,
+    AuditLogResponse,
+)
 
 __all__ = [
     "BaseResponse",
@@ -25,4 +36,14 @@ __all__ = [
     "MetaInfo",
     "PaginatedResponse",
     "SuccessResponse",
+    # RBAC schemas
+    "RoleBase",
+    "RoleCreate",
+    "RoleUpdate",
+    "RoleResponse",
+    "ResourceResponse",
+    "PermissionResponse",
+    "PermissionAssignment",
+    "AdminRoleAssignment",
+    "AuditLogResponse",
 ]

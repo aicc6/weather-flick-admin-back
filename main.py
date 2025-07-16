@@ -22,6 +22,9 @@ from app.routers.system import router as system_router
 from app.routers.travel_courses import router as travel_courses_router
 from app.routers.users import router as users_router
 from app.routers.weather import router as weather_router
+from app.routers.rbac import router as rbac_router
+from app.routers.contact import router as contact_router
+from app.middleware.rbac_middleware import RBACMiddleware
 
 # 로깅 설정 초기화
 setup_logging(log_dir="logs", log_level="DEBUG" if settings.debug else "INFO")
@@ -40,6 +43,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# RBAC 미들웨어 추가
+app.add_middleware(RBACMiddleware)
 
 # 요청 로깅 미들웨어
 @app.middleware("http")
@@ -84,6 +90,8 @@ app.include_router(leisure_sports.router, prefix="/api")
 app.include_router(travel_plans.router, prefix="/api")
 app.include_router(batch_router, prefix="/api")  # 배치 작업 API 추가
 app.include_router(regions_router, prefix="/api")  # 지역 관리 API 추가
+app.include_router(rbac_router, prefix="/api")  # RBAC 관리 API 추가
+app.include_router(contact_router, prefix="/api")  # 문의사항 API 추가
 
 @app.get("/")
 async def root():

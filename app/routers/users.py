@@ -4,11 +4,11 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from sqlalchemy.orm import Session
 
-from ..auth.dependencies import require_admin, require_super_admin
 from ..auth.logging import log_admin_activity
 from ..auth.utils import generate_temporary_password
 from ..database import get_db
-from ..models import Admin
+from ..models import Admin, User
+from ..dependencies import CurrentAdmin, require_permission, require_any_permission
 from ..schemas.user_schemas import (
     UserCreate,
     UserListResponse,
@@ -26,7 +26,9 @@ router = APIRouter(prefix="/users", tags=["Users"])
 
 
 @router.get("/", response_model=UserListResponse)
+@require_permission("users.read")
 async def get_users(
+    admin_user: CurrentAdmin,  # 현재 관리자
     page: int = Query(1, ge=1, description="페이지 번호"),
     size: int = Query(20, ge=1, le=100, description="페이지 크기"),
     email: str | None = Query(None, description="이메일 필터"),
@@ -38,7 +40,7 @@ async def get_users(
     include_deleted: bool = Query(False, description="삭제된 사용자 포함 여부"),
     only_deleted: bool = Query(False, description="삭제된 사용자만 조회"),
     user_service: UserService = Depends(get_user_service),
-    admin_user: Admin = Depends(require_admin)  # 관리자 권한 필수
+    db: Session = Depends(get_db)
 ):
     """
     사용자 목록 조회
@@ -71,8 +73,10 @@ async def get_users(
 
 
 @router.post("/", response_model=UserResponse)
+@require_permission("users.write")
 async def create_user(
     user_create: UserCreate,
+    admin_user: CurrentAdmin,
     user_service: UserService = Depends(get_user_service)
 ):
     """
@@ -94,9 +98,10 @@ async def create_user(
 
 
 @router.get("/stats")
+@require_permission("users.read")
 async def get_user_statistics(
+    admin_user: CurrentAdmin,  # 관리자 권한 필수
     user_service: UserService = Depends(get_user_service),
-    admin_user: Admin = Depends(require_admin),  # 관리자 권한 필수
     db: Session = Depends(get_db)
 ):
     """
@@ -135,7 +140,9 @@ async def get_user_statistics(
 
 
 @router.get("/search")
+@require_permission("users.read")
 async def search_users(
+    admin_user: CurrentAdmin,
     keyword: str = Query(..., description="검색 키워드"),
     limit: int = Query(20, ge=1, le=100, description="결과 제한"),
     user_service: UserService = Depends(get_user_service)
@@ -163,8 +170,10 @@ async def search_users(
 
 
 @router.get("/region/{region}")
+@require_permission("users.read")
 async def get_users_by_region(
-    region: str = Path(..., description="지역명"),
+    region: str,
+    admin_user: CurrentAdmin,
     user_service: UserService = Depends(get_user_service)
 ):
     """
@@ -184,8 +193,10 @@ async def get_users_by_region(
 
 
 @router.get("/{user_id}", response_model=UserResponse)
+@require_permission("users.read")
 async def get_user_by_id(
-    user_id: str = Path(..., description="사용자 ID"),
+    user_id: str,
+    admin_user: CurrentAdmin,
     user_service: UserService = Depends(get_user_service)
 ):
     """
@@ -208,9 +219,11 @@ async def get_user_by_id(
 
 
 @router.put("/{user_id}", response_model=UserResponse)
+@require_permission("users.write")
 async def update_user(
+    user_id: str,
     user_update: UserUpdate,
-    user_id: str = Path(..., description="사용자 ID"),
+    admin_user: CurrentAdmin,
     user_service: UserService = Depends(get_user_service)
 ):
     """
@@ -234,8 +247,10 @@ async def update_user(
 
 
 @router.post("/{user_id}/activate")
+@require_permission("users.write")
 async def activate_user(
-    user_id: str = Path(..., description="사용자 ID"),
+    user_id: str,
+    admin_user: CurrentAdmin,
     user_service: UserService = Depends(get_user_service)
 ):
     """
@@ -258,8 +273,10 @@ async def activate_user(
 
 
 @router.post("/{user_id}/deactivate")
+@require_permission("users.write")
 async def deactivate_user(
-    user_id: str = Path(..., description="사용자 ID"),
+    user_id: str,
+    admin_user: CurrentAdmin,
     user_service: UserService = Depends(get_user_service)
 ):
     """
@@ -282,10 +299,11 @@ async def deactivate_user(
 
 
 @router.delete("/{user_id}")
+@require_permission("users.delete")
 async def delete_user(
-    user_id: str = Path(..., description="사용자 ID"),
+    user_id: str,
+    admin_user: CurrentAdmin,  # 슈퍼관리자 권한 필수
     user_service: UserService = Depends(get_user_service),
-    admin_user: Admin = Depends(require_super_admin)  # 슈퍼관리자 권한 필수
 ):
     """
     사용자 삭제
@@ -308,8 +326,10 @@ async def delete_user(
 
 
 @router.post("/{user_id}/reset-password")
+@require_permission("users.write")
 async def reset_user_password(
-    user_id: str = Path(..., description="사용자 ID"),
+    user_id: str,
+    admin_user: CurrentAdmin,
     user_service: UserService = Depends(get_user_service),
     db: Session = Depends(get_db)
 ):
@@ -383,10 +403,11 @@ async def reset_user_password(
         raise HTTPException(status_code=500, detail="사용자 비밀번호 초기화 중 오류가 발생했습니다.")
 
 @router.delete("/{user_id}/hard")
+@require_permission("users.delete")
 async def hard_delete_user(
-    user_id: str = Path(..., description="사용자 ID"),
+    user_id: str,
+    admin_user: CurrentAdmin,  # 슈퍼관리자 권한 필수
     user_service: UserService = Depends(get_user_service),
-    admin_user: Admin = Depends(require_super_admin)  # 슈퍼관리자 권한 필수
 ):
     """
     탈퇴 회원(이메일이 deleted_로 시작) 영구 삭제 (DB에서 완전 삭제)
@@ -401,7 +422,7 @@ async def hard_delete_user(
 
         # 관리자 활동 로그
         await log_admin_activity(
-            admin_user.admin_id,
+            admin_user.admin.admin_id,
             "USER_HARD_DELETE",
             f"탈퇴 회원 영구 삭제 (ID: {user_id})"
         )

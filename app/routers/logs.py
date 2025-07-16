@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from ..auth.dependencies import require_admin, require_super_admin
 from ..auth.logging import AdminLogService
 from ..database import get_db
-from ..models import Admin, AdminActivityLog
+from ..models import Admin, EventLog
 
 logger = logging.getLogger(__name__)
 
@@ -50,15 +50,16 @@ async def get_recent_activities(
         # 로그를 딕셔너리로 변환
         activity_list = []
         for activity in activities:
+            event_data = activity.event_data or {}
             activity_list.append({
                 "log_id": activity.log_id,
                 "admin_id": activity.admin_id,
                 "admin_email": activity.admin.email if activity.admin else "Unknown",
-                "action": activity.action,
-                "description": activity.description,
-                "target_resource": activity.target_resource,
-                "severity": activity.severity,
-                "ip_address": activity.ip_address,
+                "action": activity.event_name,
+                "description": event_data.get("description", ""),
+                "target_resource": event_data.get("target_resource"),
+                "severity": event_data.get("severity", "NORMAL"),
+                "ip_address": event_data.get("ip_address", "127.0.0.1"),
                 "created_at": activity.created_at.isoformat()
             })
 
@@ -138,8 +139,9 @@ async def cleanup_old_logs(
         cutoff_date = datetime.now() - timedelta(days=days)
 
         # 삭제할 로그 수 조회
-        delete_count = db.query(func.count(AdminActivityLog.log_id)).filter(
-            AdminActivityLog.created_at < cutoff_date
+        delete_count = db.query(func.count(EventLog.log_id)).filter(
+            EventLog.created_at < cutoff_date,
+            EventLog.event_type == "admin_action"
         ).scalar() or 0
 
         if delete_count == 0:
@@ -153,8 +155,9 @@ async def cleanup_old_logs(
             }
 
         # 오래된 로그 삭제
-        db.query(AdminActivityLog).filter(
-            AdminActivityLog.created_at < cutoff_date
+        db.query(EventLog).filter(
+            EventLog.created_at < cutoff_date,
+            EventLog.event_type == "admin_action"
         ).delete()
         db.commit()
 

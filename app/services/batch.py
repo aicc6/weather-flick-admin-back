@@ -12,7 +12,7 @@ from sqlalchemy import and_, desc
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.models import AdminBatchJob, AdminBatchJobDetail
+from app.models import BatchJob, BatchJobSchedule
 from app.schemas.batch import (
     BatchJobExecuteResponse,
     BatchJobListResponse,
@@ -46,18 +46,18 @@ class BatchJobService:
     ) -> BatchJobListResponse:
         """배치 작업 목록 조회"""
 
-        query = self.db.query(AdminBatchJob)
+        query = self.db.query(BatchJob)
 
         # 필터 적용
         filters = []
         if job_type:
-            filters.append(AdminBatchJob.job_type == job_type.value)
+            filters.append(BatchJob.job_type == job_type.value)
         if status:
-            filters.append(AdminBatchJob.status == status.value)
+            filters.append(BatchJob.status == status.value)
         if start_date:
-            filters.append(AdminBatchJob.created_at >= start_date)
+            filters.append(BatchJob.created_at >= start_date)
         if end_date:
-            filters.append(AdminBatchJob.created_at <= end_date)
+            filters.append(BatchJob.created_at <= end_date)
 
         if filters:
             query = query.filter(and_(*filters))
@@ -67,7 +67,7 @@ class BatchJobService:
 
         # 페이지네이션 적용
         offset = (page - 1) * limit
-        jobs = query.order_by(desc(AdminBatchJob.created_at)).offset(offset).limit(limit).all()
+        jobs = query.order_by(desc(BatchJob.created_at)).offset(offset).limit(limit).all()
 
         # 응답 변환
         job_responses = []
@@ -116,7 +116,7 @@ class BatchJobService:
         job_id = str(uuid4())
 
         # 데이터베이스에 작업 기록
-        job = AdminBatchJob(
+        job = BatchJob(
             id=job_id,
             job_type=job_type.value,
             status=BatchJobStatus.PENDING.value,
@@ -180,9 +180,9 @@ class BatchJobService:
                 status=BatchJobStatus.FAILED
             )
 
-    async def get_job_async(self, job_id: str) -> AdminBatchJob | None:
+    async def get_job_async(self, job_id: str) -> BatchJob | None:
         """작업 상세 정보 조회 (비동기)"""
-        return self.db.query(AdminBatchJob).filter(AdminBatchJob.id == job_id).first()
+        return self.db.query(BatchJob).filter(BatchJob.id == job_id).first()
 
     async def get_job_logs(
         self,
@@ -193,28 +193,10 @@ class BatchJobService:
     ) -> BatchJobLogResponse:
         """작업 로그 조회"""
 
-        query = self.db.query(AdminBatchJobDetail).filter(AdminBatchJobDetail.job_id == job_id)
-
-        if level:
-            query = query.filter(AdminBatchJobDetail.level == level)
-
-        # 총 개수 계산
-        total_count = query.count()
-
-        # 페이지네이션 적용
-        offset = (page - 1) * limit
-        logs = query.order_by(desc(AdminBatchJobDetail.timestamp)).offset(offset).limit(limit).all()
-
-        # 응답 변환
+        # BatchJobDetail 테이블이 없으므로 빈 결과 반환
+        # 실제 배치 시스템과의 통합 전까지 모의 데이터 반환
         log_responses = []
-        for log in logs:
-            log_responses.append(BatchJobLog(
-                id=log.id,
-                timestamp=log.timestamp,
-                level=BatchJobLogLevel(log.level),
-                message=log.message,
-                details=log.details or {}
-            ))
+        total_count = 0
 
         return BatchJobLogResponse(
             job_id=job_id,
@@ -244,7 +226,7 @@ class BatchJobService:
 
                 if response.status_code == 200:
                     # 데이터베이스 상태 업데이트
-                    job = self.db.query(AdminBatchJob).filter(AdminBatchJob.id == job_id).first()
+                    job = self.db.query(BatchJob).filter(BatchJob.id == job_id).first()
                     if job:
                         job.status = BatchJobStatus.STOPPING.value
                         job.stopped_by = stopped_by
@@ -272,9 +254,9 @@ class BatchJobService:
         if not end_date:
             end_date = datetime.utcnow()
 
-        query = self.db.query(AdminBatchJob).filter(
-            AdminBatchJob.created_at >= start_date,
-            AdminBatchJob.created_at <= end_date
+        query = self.db.query(BatchJob).filter(
+            BatchJob.created_at >= start_date,
+            BatchJob.created_at <= end_date
         )
 
         total_jobs = query.count()
@@ -282,22 +264,22 @@ class BatchJobService:
         # 작업 유형별 통계
         statistics_by_type = []
         for job_type in BatchJobType:
-            type_query = query.filter(AdminBatchJob.job_type == job_type.value)
+            type_query = query.filter(BatchJob.job_type == job_type.value)
 
             total_count = type_query.count()
             if total_count == 0:
                 continue
 
-            completed_count = type_query.filter(AdminBatchJob.status == BatchJobStatus.COMPLETED.value).count()
-            failed_count = type_query.filter(AdminBatchJob.status == BatchJobStatus.FAILED.value).count()
-            stopped_count = type_query.filter(AdminBatchJob.status == BatchJobStatus.STOPPED.value).count()
-            running_count = type_query.filter(AdminBatchJob.status == BatchJobStatus.RUNNING.value).count()
+            completed_count = type_query.filter(BatchJob.status == BatchJobStatus.COMPLETED.value).count()
+            failed_count = type_query.filter(BatchJob.status == BatchJobStatus.FAILED.value).count()
+            stopped_count = type_query.filter(BatchJob.status == BatchJobStatus.STOPPED.value).count()
+            running_count = type_query.filter(BatchJob.status == BatchJobStatus.RUNNING.value).count()
 
             # 평균 실행 시간 계산
             completed_jobs = type_query.filter(
-                AdminBatchJob.status == BatchJobStatus.COMPLETED.value,
-                AdminBatchJob.started_at.isnot(None),
-                AdminBatchJob.completed_at.isnot(None)
+                BatchJob.status == BatchJobStatus.COMPLETED.value,
+                BatchJob.started_at.isnot(None),
+                BatchJob.completed_at.isnot(None)
             ).all()
 
             average_duration_seconds = None
@@ -323,13 +305,13 @@ class BatchJobService:
 
         # 최근 실패한 작업들
         recent_failures = query.filter(
-            AdminBatchJob.status == BatchJobStatus.FAILED.value
-        ).order_by(desc(AdminBatchJob.created_at)).limit(5).all()
+            BatchJob.status == BatchJobStatus.FAILED.value
+        ).order_by(desc(BatchJob.created_at)).limit(5).all()
 
         # 현재 실행 중인 작업들
         currently_running = query.filter(
-            AdminBatchJob.status == BatchJobStatus.RUNNING.value
-        ).order_by(desc(AdminBatchJob.started_at)).all()
+            BatchJob.status == BatchJobStatus.RUNNING.value
+        ).order_by(desc(BatchJob.started_at)).all()
 
         # 응답 변환
         def convert_to_response(job):

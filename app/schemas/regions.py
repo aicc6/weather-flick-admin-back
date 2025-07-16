@@ -17,14 +17,18 @@ class RegionCreate(RegionBase):
 
 class RegionUpdate(RegionBase):
     region_name: str | None = Field(None, description="지역명")
+    region_name_full: str | None = Field(None, description="전체 지역명")
     parent_region_code: str | None = Field(None, description="상위 지역 코드")
     latitude: float | None = Field(None, description="위도")
     longitude: float | None = Field(None, description="경도")
     region_level: int | None = Field(None, description="지역 레벨")
+    is_active: bool | None = Field(None, description="활성화 상태")
 
 
 class RegionResponse(RegionBase):
     region_code: str
+    region_name_full: str | None
+    is_active: bool
     created_at: datetime
     updated_at: datetime
 
