@@ -98,7 +98,7 @@ async def create_answer(
 ):
     """문의 답변 작성"""
     answer = ContactService.create_answer(
-        db, contact_id, answer_create, current_admin.id
+        db, contact_id, answer_create, current_admin.admin_id
     )
     # 관리자 정보 추가
     answer.admin_name = current_admin.name
@@ -115,10 +115,10 @@ async def update_answer(
 ):
     """문의 답변 수정"""
     answer = ContactService.update_answer(
-        db, contact_id, answer_update, current_admin.id
+        db, contact_id, answer_update, current_admin.admin_id
     )
     # 관리자 정보 추가
-    admin = db.query(Admin).filter(Admin.id == answer.admin_id).first()
+    admin = db.query(Admin).filter(Admin.admin_id == answer.admin_id).first()
     if admin:
         answer.admin_name = admin.name
     return answer
@@ -132,5 +132,5 @@ async def delete_answer(
     current_admin: Admin = Depends(get_current_admin)
 ):
     """문의 답변 삭제"""
-    ContactService.delete_answer(db, contact_id, current_admin.id)
+    ContactService.delete_answer(db, contact_id, current_admin.admin_id)
     return None

@@ -42,7 +42,7 @@ from sqlalchemy import (
     UniqueConstraint,
     Enum as SqlEnum,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -1187,33 +1187,21 @@ class ChatMessage(Base):
     """
     채팅 메시지 테이블
     사용처: weather-flick-back
-    설명: 여행 계획 관련 채팅 메시지
+    설명: AI 챗봇 대화 기록
     """
     __tablename__ = "chat_messages"
 
-    message_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.user_id"), nullable=False)
-    plan_id = Column(UUID(as_uuid=True), ForeignKey("travel_plans.plan_id"), nullable=True)
-
-    # 메시지 정보
-    message_type = Column(String, nullable=False)  # text, recommendation, weather_alert 등
-    content = Column(Text, nullable=False)
-    message_metadata = Column(JSONB)  # 추가 메타데이터
-
-    # AI 응답 관련
-    is_ai_response = Column(Boolean, default=False)
-    ai_confidence = Column(Float)  # AI 응답 신뢰도
-
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.user_id"), nullable=True)
+    message = Column(Text, nullable=False)
+    response = Column(Text, nullable=True)  # 봇의 응답
+    sender = Column(String(50), nullable=True, server_default='user')  # 'user' 또는 'bot'
+    context = Column(JSONB, nullable=True)  # 대화 컨텍스트 정보
+    suggestions = Column(ARRAY(Text), nullable=True)  # 추천 질문 목록
     created_at = Column(DateTime, server_default=func.now())
 
     # 관계 설정
     user = relationship("User", back_populates="chat_messages")
-
-    # 인덱스
-    __table_args__ = (
-        Index('idx_chat_user_created', 'user_id', 'created_at'),
-        Index('idx_chat_plan', 'plan_id'),
-    )
 
 
 # ===========================================

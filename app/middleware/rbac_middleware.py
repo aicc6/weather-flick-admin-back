@@ -84,6 +84,10 @@ class RBACMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         """미들웨어 처리 로직"""
         
+        # OPTIONS 요청은 CORS preflight이므로 권한 체크 생략
+        if request.method == "OPTIONS":
+            return await call_next(request)
+        
         # 공개 경로는 권한 체크 생략
         if self._is_public_path(request.url.path):
             return await call_next(request)
