@@ -9,6 +9,7 @@ class RegionBase(BaseModel):
     latitude: float | None = Field(None, description="위도")
     longitude: float | None = Field(None, description="경도")
     region_level: int | None = Field(None, description="지역 레벨 (1: 시/도, 2: 시/군/구)")
+    tour_api_area_code: str | None = Field(None, description="한국관광공사 API 지역 코드")
 
 
 class RegionCreate(RegionBase):
@@ -22,6 +23,7 @@ class RegionUpdate(RegionBase):
     latitude: float | None = Field(None, description="위도")
     longitude: float | None = Field(None, description="경도")
     region_level: int | None = Field(None, description="지역 레벨")
+    tour_api_area_code: str | None = Field(None, description="한국관광공사 API 지역 코드")
     is_active: bool | None = Field(None, description="활성화 상태")
 
 

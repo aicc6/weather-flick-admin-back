@@ -24,6 +24,7 @@ from app.routers.users import router as users_router
 from app.routers.weather import router as weather_router
 from app.routers.rbac import router as rbac_router
 from app.routers.contact import router as contact_router
+from app.routers.admin_categories import router as admin_categories_router
 from app.middleware.rbac_middleware import RBACMiddleware
 
 # 로깅 설정 초기화
@@ -92,6 +93,7 @@ app.include_router(batch_router, prefix="/api")  # 배치 작업 API 추가
 app.include_router(regions_router, prefix="/api")  # 지역 관리 API 추가
 app.include_router(rbac_router, prefix="/api")  # RBAC 관리 API 추가
 app.include_router(contact_router, prefix="/api")  # 문의사항 API 추가
+app.include_router(admin_categories_router, prefix="/api")  # 카테고리 관리 API 추가
 
 @app.get("/")
 async def root():

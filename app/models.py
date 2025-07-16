@@ -1000,6 +1000,9 @@ class Region(Base):
     api_mappings = Column(JSONB, nullable=True)  # API 매핑 정보
     coordinate_info = Column(JSONB, nullable=True)  # 좌표 정보
     
+    # API 매핑 정보 (콘텐츠 테이블과 JOIN 시 사용)
+    tour_api_area_code = Column(String, nullable=True, index=True)  # 한국관광공사 API 지역 코드
+    
     # 메타 정보
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())
