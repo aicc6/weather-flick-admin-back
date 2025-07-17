@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import TravelCourse, CategoryCode
+from ..utils.category_mapping import normalize_category_data
 
 
 def safe_float(val: Any) -> float | None:
@@ -89,6 +90,8 @@ def get_all_travel_courses(
                 "category_code": c[0].category_code,
                 "category_name": c[1],
                 "sub_category_code": c[0].sub_category_code,
+                # 카테고리 정보 정규화
+                "category_info": normalize_category_data(c[0].category_code, c[1]),
                 "address": c[0].address,
                 "detail_address": c[0].detail_address,
                 "latitude": safe_float(getattr(c[0], 'latitude', None)),

@@ -120,8 +120,7 @@ class BatchJobService:
             status=BatchJobStatus.PENDING.value,
             parameters=parameters,
             created_by=admin_id,
-            created_at=datetime.utcnow(),
-            priority=priority
+            created_at=datetime.utcnow()
         )
 
         self.db.add(job)

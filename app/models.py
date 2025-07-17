@@ -360,19 +360,35 @@ class CulturalFacility(Base):
     longitude = Column(DECIMAL(11, 8))
 
     # 연락처 정보
-    phone = Column(String(50))
-    email = Column(String(100))
+    tel = Column(String(50))
+    telname = Column(String)
+    faxno = Column(String)
     homepage = Column(Text)
 
     # 시설 정보
-    description = Column(Text)
-    image_url = Column(String)
-    operation_hours = Column(JSONB)  # 운영 시간 정보
-    closed_days = Column(JSONB)  # 휴관일
-    admission_fee = Column(JSONB)  # 입장료 정보
-    facilities = Column(JSONB)  # 편의시설 정보
+    first_image = Column(String)
+    first_image_small = Column(String)
+    operating_hours = Column(String)  # 운영 시간 정보
+    rest_date = Column(String)  # 휴관일
+    admission_fee = Column(String)  # 입장료 정보
+    parking_info = Column(String)  # 주차 정보
+    use_time = Column(String)  # 이용 시간
+    use_season = Column(String)  # 이용 계절
+    overview = Column(Text)  # 개요
+
+    # 추가 상세 정보
+    detail_intro_info = Column(JSONB)
+    detail_additional_info = Column(JSONB)
+
+    # 예약 정보
+    booktour = Column(String)
 
     # 메타데이터
+    createdtime = Column(String)
+    modifiedtime = Column(String)
+    mlevel = Column(Integer)
+    data_quality_score = Column(DECIMAL)
+    processing_status = Column(String)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
     last_sync_at = Column(DateTime, server_default=func.now())
@@ -1597,28 +1613,64 @@ class Shopping(Base):
     region_code = Column(
         String, ForeignKey("regions.region_code"), nullable=False, index=True
     )
+    raw_data_id = Column(String)
 
     # 기본 정보
-    shopping_name = Column(String, nullable=False)
-    shopping_type = Column(String)
-    address = Column(String, nullable=False)
-    tel = Column(String)
-
-    # 위치 정보
-    latitude = Column(Float)
-    longitude = Column(Float)
+    shop_name = Column(String, nullable=False)
+    shop_type = Column(String)
+    address = Column(String)
+    detail_address = Column(String)
+    zipcode = Column(String)
 
     # 카테고리 정보
-    category_code = Column(String(10))
-    sub_category_code = Column(String(10))
+    category_code = Column(String)
+    sub_category_code = Column(String)
 
-    # 쇼핑 시설 특성
-    main_items = Column(String)
-    operating_hours = Column(String)
-    parking = Column(String)
+    # 위치 정보
+    latitude = Column(DECIMAL)
+    longitude = Column(DECIMAL)
+
+    # 연락처 정보
+    tel = Column(String)
+    telname = Column(String)
+    faxno = Column(String)
+    homepage = Column(Text)
+
+    # 운영 정보
+    opening_hours = Column(String)
+    rest_date = Column(String)
+    parking_info = Column(String)
+    credit_card = Column(String)
+    pet_allowed = Column(String)
+    baby_carriage = Column(String)
+
+    # 상품 및 판매 정보
+    sale_item = Column(String)
+    fair_day = Column(String)
+    overview = Column(Text)
+
+    # 이미지 정보
+    first_image = Column(String)
+    first_image_small = Column(String)
+
+    # 예약 정보
+    booktour = Column(String)
+
+    # 상세 정보
+    detail_intro_info = Column(JSONB)
+    detail_additional_info = Column(JSONB)
 
     # 메타데이터
+    createdtime = Column(String)
+    modifiedtime = Column(String)
+    mlevel = Column(Integer)
+    data_quality_score = Column(DECIMAL)
+    processing_status = Column(String)
+
+    # 타임스탬프
     created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    last_sync_at = Column(DateTime)
 
 
 class Transportation(Base):
@@ -1664,20 +1716,31 @@ class PetTourInfo(Base):
 
     __tablename__ = "pet_tour_info"
 
-    pet_tour_id = Column(Integer, primary_key=True, index=True)
-    attraction_content_id = Column(
+    id = Column(UUID, primary_key=True, index=True)
+    content_id = Column(
         String(20), ForeignKey("tourist_attractions.content_id"), nullable=False
     )
-
-    # 펫 정보
-    pet_allowed = Column(Boolean, default=False)
-    pet_restrictions = Column(String)
-    pet_facilities = Column(String)
-    pet_fee = Column(String)
-
-    # 추가 정보
-    notes = Column(Text)
-
+    raw_data_id = Column(UUID)
+    content_type_id = Column(String(20))
+    title = Column(String)
+    address = Column(String)
+    latitude = Column(DECIMAL(10, 8))
+    longitude = Column(DECIMAL(11, 8))
+    area_code = Column(String)
+    sigungu_code = Column(String)
+    tel = Column(String)
+    homepage = Column(Text)
+    overview = Column(Text)
+    first_image = Column(Text)
+    first_image2 = Column(Text)
+    cat1 = Column(String)
+    cat2 = Column(String)
+    cat3 = Column(String)
+    pet_acpt_abl = Column(String)
+    pet_info = Column(Text)
+    data_quality_score = Column(DECIMAL(5, 2))
+    processing_status = Column(String)
+    last_sync_at = Column(DateTime)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 

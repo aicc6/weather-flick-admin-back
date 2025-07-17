@@ -51,8 +51,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# RBAC 미들웨어 추가
-app.add_middleware(RBACMiddleware)
+# RBAC 미들웨어 추가 (임시 비활성화)
+# app.add_middleware(RBACMiddleware)
 
 # 요청 로깅 미들웨어
 @app.middleware("http")

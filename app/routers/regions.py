@@ -265,6 +265,7 @@ async def update_region(
 @router.delete("/{region_code}")
 async def delete_region(
     region_code: str,
+    force: bool = Query(False, description="하위 지역과 함께 강제 삭제"),
     db: Session = Depends(get_db),
     current_admin = Depends(get_current_admin)
 ):
@@ -275,20 +276,224 @@ async def delete_region(
             raise HTTPException(status_code=404, detail="지역을 찾을 수 없습니다")
 
         # 하위 지역이 있는지 확인
-        child_regions = db.query(Region).filter(
+        child_regions_query = db.query(Region).filter(
             Region.parent_region_code == region_code
-        ).count()
-        if child_regions > 0:
+        )
+        child_count = child_regions_query.count()
+        
+        if child_count > 0 and not force:
+            # 하위 지역 정보도 함께 반환
+            child_regions = child_regions_query.all()
+            child_info = [{"region_code": c.region_code, "region_name": c.region_name} for c in child_regions[:5]]
+            
             raise HTTPException(
                 status_code=400,
-                detail="하위 지역이 있는 지역은 삭제할 수 없습니다"
+                detail={
+                    "message": "하위 지역이 있는 지역은 삭제할 수 없습니다",
+                    "child_count": child_count,
+                    "child_regions": child_info,
+                    "has_more": child_count > 5
+                }
             )
+        
+        # 강제 삭제인 경우 하위 지역도 함께 삭제
+        if force:
+            # 삭제할 모든 지역 코드 수집 (순환 참조 방지)
+            all_region_codes = []
+            visited = set()
+            
+            def collect_children(parent_code):
+                if parent_code in visited:
+                    return  # 순환 참조 방지
+                visited.add(parent_code)
+                all_region_codes.append(parent_code)
+                
+                children = db.query(Region).filter(
+                    Region.parent_region_code == parent_code
+                ).all()
+                for child in children:
+                    if child.region_code not in visited:
+                        collect_children(child.region_code)
+            
+            collect_children(region_code)
+            
+            # 관련 데이터 삭제 (외래 키 제약 조건 해결)
+            # 각 테이블에서 해당 지역들과 관련된 데이터 삭제
+            from app.models import (
+                FestivalEvent, TouristAttraction, CulturalFacility,
+                Accommodation, Restaurant, Shopping,
+                WeatherData, WeatherForecast, WeatherInfo, PetTourInfo
+            )
+            
+            # 관련 데이터 삭제 카운트
+            related_counts = {}
+            
+            # festivals_events
+            festivals_count = db.query(FestivalEvent).filter(
+                FestivalEvent.region_code.in_(all_region_codes)
+            ).count()
+            if festivals_count > 0:
+                db.query(FestivalEvent).filter(
+                    FestivalEvent.region_code.in_(all_region_codes)
+                ).delete(synchronize_session=False)
+                related_counts['festivals_events'] = festivals_count
+            
+            # tourist_attractions
+            attractions_count = db.query(TouristAttraction).filter(
+                TouristAttraction.region_code.in_(all_region_codes)
+            ).count()
+            if attractions_count > 0:
+                db.query(TouristAttraction).filter(
+                    TouristAttraction.region_code.in_(all_region_codes)
+                ).delete(synchronize_session=False)
+                related_counts['tourist_attractions'] = attractions_count
+            
+            # cultural_facilities
+            cultural_count = db.query(CulturalFacility).filter(
+                CulturalFacility.region_code.in_(all_region_codes)
+            ).count()
+            if cultural_count > 0:
+                db.query(CulturalFacility).filter(
+                    CulturalFacility.region_code.in_(all_region_codes)
+                ).delete(synchronize_session=False)
+                related_counts['cultural_facilities'] = cultural_count
+            
+            # accommodations
+            accommodations_count = db.query(Accommodation).filter(
+                Accommodation.region_code.in_(all_region_codes)
+            ).count()
+            if accommodations_count > 0:
+                db.query(Accommodation).filter(
+                    Accommodation.region_code.in_(all_region_codes)
+                ).delete(synchronize_session=False)
+                related_counts['accommodations'] = accommodations_count
+            
+            # restaurants
+            restaurants_count = db.query(Restaurant).filter(
+                Restaurant.region_code.in_(all_region_codes)
+            ).count()
+            if restaurants_count > 0:
+                db.query(Restaurant).filter(
+                    Restaurant.region_code.in_(all_region_codes)
+                ).delete(synchronize_session=False)
+                related_counts['restaurants'] = restaurants_count
+            
+            # shopping
+            shopping_count = db.query(Shopping).filter(
+                Shopping.region_code.in_(all_region_codes)
+            ).count()
+            if shopping_count > 0:
+                db.query(Shopping).filter(
+                    Shopping.region_code.in_(all_region_codes)
+                ).delete(synchronize_session=False)
+                related_counts['shopping'] = shopping_count
+            
+            # weather_data
+            weather_data_count = db.query(WeatherData).filter(
+                WeatherData.region_code.in_(all_region_codes)
+            ).count()
+            if weather_data_count > 0:
+                db.query(WeatherData).filter(
+                    WeatherData.region_code.in_(all_region_codes)
+                ).delete(synchronize_session=False)
+                related_counts['weather_data'] = weather_data_count
+            
+            # weather_forecasts
+            weather_forecasts_count = db.query(WeatherForecast).filter(
+                WeatherForecast.region_code.in_(all_region_codes)
+            ).count()
+            if weather_forecasts_count > 0:
+                db.query(WeatherForecast).filter(
+                    WeatherForecast.region_code.in_(all_region_codes)
+                ).delete(synchronize_session=False)
+                related_counts['weather_forecasts'] = weather_forecasts_count
+            
+            # weather_info
+            weather_info_count = db.query(WeatherInfo).filter(
+                WeatherInfo.region_code.in_(all_region_codes)
+            ).count()
+            if weather_info_count > 0:
+                db.query(WeatherInfo).filter(
+                    WeatherInfo.region_code.in_(all_region_codes)
+                ).delete(synchronize_session=False)
+                related_counts['weather_info'] = weather_info_count
+            
+            # pet_tour_info
+            pet_tour_count = db.query(PetTourInfo).filter(
+                PetTourInfo.region_code.in_(all_region_codes)
+            ).count()
+            if pet_tour_count > 0:
+                db.query(PetTourInfo).filter(
+                    PetTourInfo.region_code.in_(all_region_codes)
+                ).delete(synchronize_session=False)
+                related_counts['pet_tour_info'] = pet_tour_count
+            
+            # 이제 지역들 삭제
+            db.query(Region).filter(
+                Region.region_code.in_(all_region_codes)
+            ).delete(synchronize_session=False)
+            
+            deleted_count = len(all_region_codes)
+            
+            # 로그 기록
+            if related_counts:
+                logger.info(f"Related data deleted for regions {all_region_codes}: {related_counts}")
+        else:
+            # 일반 삭제인 경우 관련 데이터가 있는지 확인
+            from app.models import (
+                FestivalEvent, TouristAttraction, CulturalFacility,
+                Accommodation, Restaurant, Shopping,
+                WeatherData, WeatherForecast, WeatherInfo, PetTourInfo
+            )
+            
+            # 관련 데이터 존재 여부 확인
+            has_related_data = False
+            related_data_info = []
+            
+            if db.query(FestivalEvent).filter(FestivalEvent.region_code == region_code).first():
+                has_related_data = True
+                related_data_info.append("축제/이벤트")
+            if db.query(TouristAttraction).filter(TouristAttraction.region_code == region_code).first():
+                has_related_data = True
+                related_data_info.append("관광지")
+            if db.query(CulturalFacility).filter(CulturalFacility.region_code == region_code).first():
+                has_related_data = True
+                related_data_info.append("문화시설")
+            if db.query(Accommodation).filter(Accommodation.region_code == region_code).first():
+                has_related_data = True
+                related_data_info.append("숙박시설")
+            if db.query(Restaurant).filter(Restaurant.region_code == region_code).first():
+                has_related_data = True
+                related_data_info.append("음식점")
+            if db.query(Shopping).filter(Shopping.region_code == region_code).first():
+                has_related_data = True
+                related_data_info.append("쇼핑")
+            if db.query(WeatherData).filter(WeatherData.region_code == region_code).first():
+                has_related_data = True
+                related_data_info.append("날씨 데이터")
+            if db.query(PetTourInfo).filter(PetTourInfo.region_code == region_code).first():
+                has_related_data = True
+                related_data_info.append("반려동물 여행 정보")
+            
+            if has_related_data:
+                raise HTTPException(
+                    status_code=400,
+                    detail={
+                        "message": "관련 데이터가 있는 지역은 삭제할 수 없습니다",
+                        "related_data": related_data_info
+                    }
+                )
+            
+            db.delete(region)
+            deleted_count = 1
 
-        db.delete(region)
         db.commit()
 
-        logger.info(f"Region deleted: {region_code} by {current_admin.email}")
-        return {"message": "지역이 삭제되었습니다"}
+        logger.info(f"Region deleted{' (forced)' if force else ''}: {region_code} by {current_admin.email}")
+        return {
+            "message": f"지역이 삭제되었습니다{' (하위 지역 포함)' if force and child_count > 0 else ''}",
+            "deleted_count": deleted_count
+        }
     except HTTPException:
         raise
     except Exception as e:

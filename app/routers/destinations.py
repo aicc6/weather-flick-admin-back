@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import TouristAttraction, Region, PetTourInfo
 from ..dependencies import CurrentAdmin, require_permission
+from ..utils.category_mapping import normalize_category_data, get_main_categories
 
 router = APIRouter(prefix="/tourist-attractions", tags=["Tourist Attractions"])
 
@@ -65,6 +66,8 @@ async def get_all_tourist_attractions(
                 "created_at": a.created_at,
                 "updated_at": a.updated_at,
                 "is_pet_friendly": a.content_id in pet_info_dict,
+                # 카테고리 정보 정규화
+                "category_info": normalize_category_data(a.category_code, a.category_name),
             }
             for a in attractions
         ]
@@ -149,6 +152,8 @@ async def search_tourist_attractions(
                 "created_at": a.created_at,
                 "updated_at": a.updated_at,
                 "is_pet_friendly": a.content_id in pet_info_dict,
+                # 카테고리 정보 정규화
+                "category_info": normalize_category_data(a.category_code, a.category_name),
             }
             for a in results
         ]
@@ -240,4 +245,15 @@ async def delete_tourist_attraction(
     db.delete(attraction)
     db.commit()
     return None
+
+@router.get("/categories/main")
+@require_permission("destinations.read")
+async def get_main_categories(
+    current_admin: CurrentAdmin,
+):
+    """주요 카테고리 목록 조회"""
+    return {
+        "categories": get_main_categories(),
+        "total_count": len(get_main_categories())
+    }
 
