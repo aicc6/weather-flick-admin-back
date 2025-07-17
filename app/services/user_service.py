@@ -14,6 +14,7 @@ from ..models import UserRole as DBUserRole
 from ..schemas.user_schemas import (
     UserCreate,
     UserListResponse,
+    UserResponse,
     UserRole,
     UserSearchParams,
     UserStats,
@@ -56,10 +57,12 @@ class UserService:
                 bio=user_create.bio,
                 is_active=True,
                 is_email_verified=False,
-                role=DBUserRole.USER if user_create.role == UserRole.USER else DBUserRole.ADMIN,
+                role=DBUserRole.USER
+                if user_create.role == UserRole.USER
+                else DBUserRole.ADMIN,
                 login_count=0,
                 created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow()
+                updated_at=datetime.utcnow(),
             )
 
             self.db.add(new_user)
@@ -96,7 +99,7 @@ class UserService:
         size: int = 20,
         search_params: UserSearchParams | None = None,
         include_deleted: bool = False,
-        only_deleted: bool = False
+        only_deleted: bool = False,
     ) -> UserListResponse:
         """사용자 목록 조회 (페이징, 필터링 지원)"""
         try:
@@ -106,10 +109,10 @@ class UserService:
             # 삭제된 사용자 필터링
             if only_deleted:
                 # 삭제된 사용자만 조회
-                query = query.filter(User.email.like('deleted_%'))
+                query = query.filter(User.email.like("deleted_%"))
             elif not include_deleted:
                 # 삭제된 사용자 제외 (기본값)
-                query = query.filter(~User.email.like('deleted_%'))
+                query = query.filter(~User.email.like("deleted_%"))
 
             # 검색 조건 적용
             if search_params:
@@ -117,43 +120,61 @@ class UserService:
                     query = query.filter(User.email.ilike(f"%{search_params.email}%"))
 
                 if search_params.nickname:
-                    query = query.filter(User.nickname.ilike(f"%{search_params.nickname}%"))
+                    query = query.filter(
+                        User.nickname.ilike(f"%{search_params.nickname}%")
+                    )
 
                 if search_params.role:
-                    db_role = DBUserRole.USER if search_params.role == UserRole.USER else DBUserRole.ADMIN
+                    db_role = (
+                        DBUserRole.USER
+                        if search_params.role == UserRole.USER
+                        else DBUserRole.ADMIN
+                    )
                     query = query.filter(User.role == db_role)
 
                 if search_params.is_active is not None:
                     query = query.filter(User.is_active == search_params.is_active)
 
                 if search_params.is_email_verified is not None:
-                    query = query.filter(User.is_email_verified == search_params.is_email_verified)
+                    query = query.filter(
+                        User.is_email_verified == search_params.is_email_verified
+                    )
 
                 if search_params.preferred_region:
-                    query = query.filter(User.preferred_region.ilike(f"%{search_params.preferred_region}%"))
+                    query = query.filter(
+                        User.preferred_region.ilike(
+                            f"%{search_params.preferred_region}%"
+                        )
+                    )
 
                 if search_params.created_after:
                     query = query.filter(User.created_at >= search_params.created_after)
 
                 if search_params.created_before:
-                    query = query.filter(User.created_at <= search_params.created_before)
+                    query = query.filter(
+                        User.created_at <= search_params.created_before
+                    )
 
             # 총 개수 계산
             total = query.count()
 
             # 페이징 적용
             offset = (page - 1) * size
-            users = query.order_by(desc(User.created_at)).offset(offset).limit(size).all()
+            users = (
+                query.order_by(desc(User.created_at)).offset(offset).limit(size).all()
+            )
+
+            user_responses = [UserResponse.model_validate(user) for user in users]
 
             # 총 페이지 수 계산
             total_pages = math.ceil(total / size)
 
             return UserListResponse(
-                users=users,
+                users=user_responses,
                 total=total,
                 page=page,
                 size=size,
-                total_pages=total_pages
+                total_pages=total_pages,
             )
 
         except Exception as e:
@@ -165,34 +186,46 @@ class UserService:
         try:
             # 간단한 개별 쿼리로 안정성 확보 (복잡한 CASE 문 대신)
             # 탈퇴한 사용자 제외 (deleted_로 시작하는 이메일)
-            total_users = self.db.query(User).filter(~User.email.like('deleted_%')).count()
-            active_users = self.db.query(User).filter(
-                User.is_active == True,
-                ~User.email.like('deleted_%')
-            ).count()
-            verified_users = self.db.query(User).filter(
-                User.is_email_verified == True,
-                ~User.email.like('deleted_%')
-            ).count()
-            admin_users = self.db.query(User).filter(
-                User.role == DBUserRole.ADMIN,
-                ~User.email.like('deleted_%')
-            ).count()
+            total_users = (
+                self.db.query(User).filter(~User.email.like("deleted_%")).count()
+            )
+            active_users = (
+                self.db.query(User)
+                .filter(User.is_active == True, ~User.email.like("deleted_%"))
+                .count()
+            )
+            verified_users = (
+                self.db.query(User)
+                .filter(User.is_email_verified == True, ~User.email.like("deleted_%"))
+                .count()
+            )
+            admin_users = (
+                self.db.query(User)
+                .filter(User.role == DBUserRole.ADMIN, ~User.email.like("deleted_%"))
+                .count()
+            )
 
             # 최근 30일 가입자
             thirty_days_ago = datetime.utcnow() - timedelta(days=30)
-            recent_registrations = self.db.query(User).filter(
-                User.created_at >= thirty_days_ago,
-                ~User.email.like('deleted_%')
-            ).count()
+            recent_registrations = (
+                self.db.query(User)
+                .filter(
+                    User.created_at >= thirty_days_ago, ~User.email.like("deleted_%")
+                )
+                .count()
+            )
 
             # 최근 7일 로그인 사용자 (NULL 값 제외)
             seven_days_ago = datetime.utcnow() - timedelta(days=7)
-            recent_logins = self.db.query(User).filter(
-                User.last_login.isnot(None),
-                User.last_login >= seven_days_ago,
-                ~User.email.like('deleted_%')
-            ).count()
+            recent_logins = (
+                self.db.query(User)
+                .filter(
+                    User.last_login.isnot(None),
+                    User.last_login >= seven_days_ago,
+                    ~User.email.like("deleted_%"),
+                )
+                .count()
+            )
 
             return UserStats(
                 total_users=total_users,
@@ -200,7 +233,7 @@ class UserService:
                 verified_users=verified_users,
                 admin_users=admin_users,
                 recent_registrations=recent_registrations,
-                recent_logins=recent_logins
+                recent_logins=recent_logins,
             )
 
         except Exception as e:
@@ -292,7 +325,9 @@ class UserService:
             self.db.rollback()
             raise
 
-    def reset_user_password(self, user_id: str, new_password: str = "123456789a") -> bool:
+    def reset_user_password(
+        self, user_id: str, new_password: str = "123456789a"
+    ) -> bool:
         """사용자 비밀번호 초기화 (레거시 메서드)"""
         try:
             user = self.get_user_by_id(user_id)
@@ -339,12 +374,17 @@ class UserService:
     def search_users_by_keyword(self, keyword: str, limit: int = 20) -> list[User]:
         """키워드로 사용자 검색 (이메일, 닉네임)"""
         try:
-            return self.db.query(User).filter(
-                or_(
-                    User.email.ilike(f"%{keyword}%"),
-                    User.nickname.ilike(f"%{keyword}%")
+            return (
+                self.db.query(User)
+                .filter(
+                    or_(
+                        User.email.ilike(f"%{keyword}%"),
+                        User.nickname.ilike(f"%{keyword}%"),
+                    )
                 )
-            ).limit(limit).all()
+                .limit(limit)
+                .all()
+            )
 
         except Exception as e:
             logger.error(f"사용자 검색 실패 (키워드: {keyword}): {e}")
@@ -353,9 +393,11 @@ class UserService:
     def get_users_by_region(self, region: str) -> list[User]:
         """지역별 사용자 조회"""
         try:
-            return self.db.query(User).filter(
-                User.preferred_region.ilike(f"%{region}%")
-            ).all()
+            return (
+                self.db.query(User)
+                .filter(User.preferred_region.ilike(f"%{region}%"))
+                .all()
+            )
 
         except Exception as e:
             logger.error(f"지역별 사용자 조회 실패 (지역: {region}): {e}")
@@ -371,7 +413,7 @@ class UserService:
                 return False
 
             # deleted_로 시작하는 이메일만 하드 삭제 허용
-            if not user.email or not user.email.startswith('deleted_'):
+            if not user.email or not user.email.startswith("deleted_"):
                 raise ValueError("탈퇴 회원만 영구 삭제할 수 있습니다.")
 
             self.db.delete(user)

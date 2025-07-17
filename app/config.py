@@ -74,8 +74,11 @@ class Settings(BaseSettings):
     # 프론트엔드 설정
     admin_frontend_url: str = os.getenv("ADMIN_FRONTEND_URL", "http://localhost:5174")
 
+    # 메인 백엔드 서비스 설정
+    weather_flick_back_url: str = os.getenv("WEATHER_FLICK_BACK_URL", "http://localhost:8000")
+
     # 배치 시스템 API 설정
-    batch_api_url: str = os.getenv("BATCH_API_URL", "http://localhost:9000")
+    batch_api_url: str = os.getenv("BATCH_API_URL", "http://localhost:9090")
     batch_api_key: str = os.getenv("BATCH_API_KEY", "batch-api-secret-key")
 
     @field_validator("secret_key")

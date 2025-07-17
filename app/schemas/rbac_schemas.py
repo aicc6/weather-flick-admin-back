@@ -5,7 +5,7 @@ RBAC 관련 Pydantic 스키마
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 # Role 스키마
@@ -30,8 +30,7 @@ class RoleResponse(RoleBase):
     created_at: datetime
     updated_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Resource 스키마
@@ -43,8 +42,7 @@ class ResourceResponse(BaseModel):
     module: Optional[str]
     created_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Permission 스키마
@@ -56,8 +54,7 @@ class PermissionResponse(BaseModel):
     description: Optional[str]
     created_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # 권한 할당 스키마
@@ -84,5 +81,4 @@ class AuditLogResponse(BaseModel):
     user_agent: Optional[str]
     created_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

@@ -6,7 +6,7 @@
 from datetime import datetime
 from typing import Any, Generic, TypeVar
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 T = TypeVar("T")
 
@@ -46,10 +46,11 @@ class BaseResponse(BaseModel, Generic[T]):
     meta: MetaInfo | None = Field(None, description="메타 정보")
     timestamp: datetime = Field(default_factory=datetime.now, description="응답 시간")
 
-    class Config:
-        json_encoders = {
+    model_config = ConfigDict(
+        json_encoders={
             datetime: lambda v: v.isoformat()
         }
+    )
 
 
 class SuccessResponse(BaseResponse[T], Generic[T]):

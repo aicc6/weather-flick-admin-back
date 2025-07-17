@@ -3,7 +3,7 @@
 """
 
 from typing import Optional, Dict, Any
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, validator, ConfigDict
 from datetime import datetime
 from uuid import UUID
 
@@ -26,8 +26,7 @@ class RegionResponse(BaseModel):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class RegionUpdateRequest(BaseModel):
@@ -135,8 +134,7 @@ class RegionHierarchyNode(BaseModel):
     region_level: int
     children: list['RegionHierarchyNode'] = []
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class RegionHierarchyResponse(BaseModel):

@@ -47,6 +47,16 @@ def create_admin_token(admin_id: int, email: str) -> str:
     }
     return create_access_token(token_data)
 
+def create_refresh_token(admin_id: int, email: str) -> str:
+    """리프레시 토큰 생성"""
+    token_data = {
+        "sub": str(admin_id),
+        "email": email,
+        "type": "refresh"
+    }
+    # 리프레시 토큰은 30일 유효
+    return create_access_token(token_data, expires_delta=timedelta(days=30))
+
 def generate_temporary_password(length: int = 12) -> str:
     """보안 강화된 임시 비밀번호 생성"""
     # 각 문자 유형별로 최소 1개씩 포함

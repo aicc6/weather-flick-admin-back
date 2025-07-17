@@ -5,13 +5,14 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from ..auth.dependencies import get_current_active_admin
-from ..auth.utils import create_admin_token, verify_password
+from ..auth.utils import create_admin_token, create_refresh_token, verify_password, verify_token
 from ..database import get_db
 from ..models_admin import Admin, AdminStatus
 from ..schemas.auth_schemas import (
     AdminLogin,
     AdminResponse,
     LoginResponse,
+    RefreshTokenRequest,
     Token,
 )
 
@@ -42,10 +43,11 @@ async def login(admin_login: AdminLogin, db: Session = Depends(get_db)):
 
     # JWT 토큰 생성
     access_token = create_admin_token(admin.admin_id, admin.email)
+    refresh_token = create_refresh_token(admin.admin_id, admin.email)
 
     return LoginResponse(
         admin=AdminResponse.model_validate(admin),
-        token=Token(access_token=access_token),
+        token=Token(access_token=access_token, refresh_token=refresh_token),
     )
 
 
@@ -56,6 +58,42 @@ async def get_current_admin_profile(
     """현재 관리자 프로필 조회"""
     return AdminResponse.model_validate(current_admin)
 
+
+@router.post("/refresh", response_model=Token)
+async def refresh_token(
+    request: RefreshTokenRequest, 
+    db: Session = Depends(get_db)
+):
+    """리프레시 토큰으로 새로운 액세스 토큰 발급"""
+    # 리프레시 토큰 검증
+    payload = verify_token(request.refresh_token)
+    if not payload or payload.get("type") != "refresh":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="유효하지 않은 리프레시 토큰입니다",
+        )
+    
+    # 관리자 확인
+    admin_id = int(payload.get("sub"))
+    admin = db.query(Admin).filter(Admin.admin_id == admin_id).first()
+    
+    if not admin:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="관리자를 찾을 수 없습니다",
+        )
+    
+    # 계정 상태 확인
+    if admin.status and admin.status in [AdminStatus.INACTIVE, AdminStatus.LOCKED]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="비활성화된 계정입니다"
+        )
+    
+    # 새 액세스 토큰 발급
+    new_access_token = create_admin_token(admin.admin_id, admin.email)
+    
+    return Token(access_token=new_access_token)
 
 @router.post("/logout")
 async def logout():

@@ -39,6 +39,7 @@ role_permissions = Table(
 class Role(Base):
     """역할 정의"""
     __tablename__ = 'roles'
+    __table_args__ = {'extend_existing': True}
     
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(50), unique=True, nullable=False)
@@ -80,6 +81,7 @@ class Role(Base):
 class Resource(Base):
     """보호된 리소스 정의"""
     __tablename__ = 'resources'
+    __table_args__ = {'extend_existing': True}
     
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(50), unique=True, nullable=False)
@@ -97,6 +99,7 @@ class Permission(Base):
     __tablename__ = 'permissions'
     __table_args__ = (
         UniqueConstraint('resource_id', 'action', name='uq_resource_action'),
+        {'extend_existing': True}
     )
     
     id = Column(Integer, primary_key=True, index=True)
@@ -144,7 +147,8 @@ class PermissionDelegation(Base):
         Index('idx_delegation_delegator', 'delegator_id'),
         Index('idx_delegation_delegatee', 'delegatee_id'),
         Index('idx_delegation_dates', 'start_date', 'end_date'),
-        Index('idx_delegation_active', 'is_active')
+        Index('idx_delegation_active', 'is_active'),
+        {'extend_existing': True}
     )
 
 
@@ -169,7 +173,8 @@ class PermissionAuditLog(Base):
         Index('idx_audit_admin', 'admin_id'),
         Index('idx_audit_permission', 'permission_id'),
         Index('idx_audit_created', 'created_at'),
-        Index('idx_audit_success', 'success')
+        Index('idx_audit_success', 'success'),
+        {'extend_existing': True}
     )
 
 

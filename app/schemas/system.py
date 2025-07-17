@@ -4,7 +4,7 @@
 
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class DatabaseStatus(BaseModel):
@@ -25,7 +25,7 @@ class ExternalApisStatus(BaseModel):
     """모든 외부 API 상태"""
 
     weather_api: ExternalApiStatus = Field(..., description="날씨 API 상태")
-    tourism_api: ExternalApiStatus = Field(..., description="관광 API 상태")
+    weather_flick_back: ExternalApiStatus = Field(..., description="Weather Flick 메인 서비스 상태")
     google_places: ExternalApiStatus = Field(..., description="구글 플레이스 API 상태")
 
 
@@ -47,8 +47,7 @@ class SystemLogOut(BaseModel):
     context: dict | None
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class SystemLogTestRequest(BaseModel):

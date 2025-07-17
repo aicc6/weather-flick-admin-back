@@ -1,13 +1,13 @@
 """여행 계획 스키마"""
 from datetime import date, datetime
 from decimal import Decimal
-from enum import Enum
+import enum
 from typing import Optional, Dict, Any
 from uuid import UUID
 from pydantic import BaseModel, ConfigDict
 
 
-class TravelPlanStatus(str, Enum):
+class TravelPlanStatus(enum.Enum):
     """여행 계획 상태"""
     PLANNING = "PLANNING"
     CONFIRMED = "CONFIRMED"

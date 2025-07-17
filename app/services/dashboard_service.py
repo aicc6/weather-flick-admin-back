@@ -43,6 +43,9 @@ class DashboardService:
 
             # 활동 통계
             activity_stats = await self._get_activity_statistics(today)
+            
+            # 콘텐츠 통계
+            content_stats = await self._get_content_statistics()
 
             return {
                 "timestamp": now.isoformat(),
@@ -50,6 +53,7 @@ class DashboardService:
                 "admins": admin_stats,
                 "system": system_stats,
                 "activities": activity_stats,
+                "contents": content_stats,
             }
 
         except Exception as e:
@@ -61,13 +65,13 @@ class DashboardService:
     ) -> dict[str, Any]:
         """사용자 관련 통계"""
         try:
-            # 전체 사용자 수
-            total_users = self.db.query(func.count(User.user_id)).scalar() or 0
+            # 전체 사용자 수 (삭제되지 않은 사용자만)
+            total_users = self.db.query(func.count(User.user_id)).filter(User.is_deleted == False).scalar() or 0
 
             # 오늘 신규 가입자
             new_today = (
                 self.db.query(func.count(User.user_id))
-                .filter(User.created_at >= today)
+                .filter(User.created_at >= today, User.is_deleted == False)
                 .scalar()
                 or 0
             )
@@ -75,7 +79,7 @@ class DashboardService:
             # 주간 신규 가입자
             new_week = (
                 self.db.query(func.count(User.user_id))
-                .filter(User.created_at >= week_ago)
+                .filter(User.created_at >= week_ago, User.is_deleted == False)
                 .scalar()
                 or 0
             )
@@ -83,21 +87,21 @@ class DashboardService:
             # 월간 신규 가입자
             new_month = (
                 self.db.query(func.count(User.user_id))
-                .filter(User.created_at >= month_ago)
+                .filter(User.created_at >= month_ago, User.is_deleted == False)
                 .scalar()
                 or 0
             )
 
             # 활성 사용자 수
             active_users = (
-                self.db.query(func.count(User.user_id)).filter(User.is_active).scalar()
+                self.db.query(func.count(User.user_id)).filter(User.is_active == True, User.is_deleted == False).scalar()
                 or 0
             )
 
             # 인증된 사용자 수
             verified_users = (
                 self.db.query(func.count(User.user_id))
-                .filter(User.is_email_verified)
+                .filter(User.is_email_verified == True, User.is_deleted == False)
                 .scalar()
                 or 0
             )
@@ -207,6 +211,35 @@ class DashboardService:
 
         except Exception as e:
             logger.error(f"활동 통계 조회 실패: {e}")
+            return {}
+    
+    async def _get_content_statistics(self) -> dict[str, Any]:
+        """콘텐츠 관련 통계"""
+        try:
+            from ..models import TravelCourse, Festival, LeisureSport, Attraction
+            
+            # 여행 코스 수
+            travel_courses_count = self.db.query(func.count(TravelCourse.content_id)).scalar() or 0
+            
+            # 축제/이벤트 수
+            festivals_count = self.db.query(func.count(Festival.content_id)).scalar() or 0
+            
+            # 레저 스포츠 수
+            leisure_sports_count = self.db.query(func.count(LeisureSport.content_id)).scalar() or 0
+            
+            # 관광지 수
+            attractions_count = self.db.query(func.count(Attraction.content_id)).scalar() or 0
+            
+            return {
+                "travel_courses": travel_courses_count,
+                "festivals": festivals_count,
+                "leisure_sports": leisure_sports_count,
+                "attractions": attractions_count,
+                "total": travel_courses_count + festivals_count + leisure_sports_count + attractions_count
+            }
+            
+        except Exception as e:
+            logger.error(f"콘텐츠 통계 조회 실패: {e}")
             return {}
 
     async def get_recent_activities(self, limit: int = 20) -> list[dict[str, Any]]:

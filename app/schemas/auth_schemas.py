@@ -1,6 +1,7 @@
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr, computed_field
+from typing import Optional
+from pydantic import BaseModel, EmailStr, computed_field, ConfigDict
 
 
 class AdminLogin(BaseModel):
@@ -23,8 +24,7 @@ class AdminResponse(BaseModel):
     last_login_at: datetime | None
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
     @computed_field
     @property
@@ -61,11 +61,15 @@ class AdminUpdate(BaseModel):
 
 class Token(BaseModel):
     access_token: str
+    refresh_token: Optional[str] = None
     token_type: str = "bearer"
 
 class TokenData(BaseModel):
     admin_id: int | None = None
     email: str | None = None
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
 
 class LoginResponse(BaseModel):
     admin: AdminResponse
