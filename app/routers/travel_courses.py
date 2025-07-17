@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import TravelCourse
+from ..models import TravelCourse, CategoryCode
 
 
 def safe_float(val: Any) -> float | None:
@@ -66,7 +66,12 @@ def get_all_travel_courses(
     course_name: str = Query(None),
     region: str = Query(None)
 ):
-    query = db.query(TravelCourse)
+    query = db.query(
+        TravelCourse,
+        CategoryCode.category_name
+    ).outerjoin(
+        CategoryCode, TravelCourse.category_code == CategoryCode.category_code
+    )
     if course_name:
         query = query.filter(TravelCourse.course_name.ilike(f"%{course_name}%"))
     if region:
@@ -77,41 +82,42 @@ def get_all_travel_courses(
         "total": total,
         "items": [
             {
-                "content_id": c.content_id,
-                "region_code": c.region_code,
-                "sigungu_code": c.sigungu_code,
-                "course_name": c.course_name,
-                "category_code": c.category_code,
-                "sub_category_code": c.sub_category_code,
-                "address": c.address,
-                "detail_address": c.detail_address,
-                "latitude": safe_float(getattr(c, 'latitude', None)),
-                "longitude": safe_float(getattr(c, 'longitude', None)),
-                "zipcode": c.zipcode,
-                "tel": c.tel,
-                "homepage": c.homepage,
-                "overview": c.overview,
-                "first_image": c.first_image,
-                "first_image_small": c.first_image_small,
-                "course_theme": c.course_theme,
-                "course_distance": c.course_distance,
-                "required_time": c.required_time,
-                "difficulty_level": c.difficulty_level,
-                "schedule": c.schedule,
-                "created_at": c.created_at,
-                "updated_at": c.updated_at,
-                "raw_data_id": str(getattr(c, 'raw_data_id', None)) if getattr(c, 'raw_data_id', None) is not None else None,
-                "last_sync_at": c.last_sync_at,
-                "data_quality_score": safe_float(getattr(c, 'data_quality_score', None)),
-                "processing_status": c.processing_status,
-                "booktour": c.booktour,
-                "createdtime": c.createdtime,
-                "modifiedtime": c.modifiedtime,
-                "telname": c.telname,
-                "faxno": c.faxno,
-                "mlevel": c.mlevel,
-                "detail_intro_info": c.detail_intro_info,
-                "detail_additional_info": c.detail_additional_info,
+                "content_id": c[0].content_id,
+                "region_code": c[0].region_code,
+                "sigungu_code": c[0].sigungu_code,
+                "course_name": c[0].course_name,
+                "category_code": c[0].category_code,
+                "category_name": c[1],
+                "sub_category_code": c[0].sub_category_code,
+                "address": c[0].address,
+                "detail_address": c[0].detail_address,
+                "latitude": safe_float(getattr(c[0], 'latitude', None)),
+                "longitude": safe_float(getattr(c[0], 'longitude', None)),
+                "zipcode": c[0].zipcode,
+                "tel": c[0].tel,
+                "homepage": c[0].homepage,
+                "overview": c[0].overview,
+                "first_image": c[0].first_image,
+                "first_image_small": c[0].first_image_small,
+                "course_theme": c[0].course_theme,
+                "course_distance": c[0].course_distance,
+                "required_time": c[0].required_time,
+                "difficulty_level": c[0].difficulty_level,
+                "schedule": c[0].schedule,
+                "created_at": c[0].created_at,
+                "updated_at": c[0].updated_at,
+                "raw_data_id": str(getattr(c[0], 'raw_data_id', None)) if getattr(c[0], 'raw_data_id', None) is not None else None,
+                "last_sync_at": c[0].last_sync_at,
+                "data_quality_score": safe_float(getattr(c[0], 'data_quality_score', None)),
+                "processing_status": c[0].processing_status,
+                "booktour": c[0].booktour,
+                "createdtime": c[0].createdtime,
+                "modifiedtime": c[0].modifiedtime,
+                "telname": c[0].telname,
+                "faxno": c[0].faxno,
+                "mlevel": c[0].mlevel,
+                "detail_intro_info": c[0].detail_intro_info,
+                "detail_additional_info": c[0].detail_additional_info,
             }
             for c in courses
         ]
