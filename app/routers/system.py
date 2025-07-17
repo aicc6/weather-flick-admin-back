@@ -22,13 +22,15 @@ from app.services.system_log import log_system_event
 router = APIRouter(prefix="/system", tags=["system"])
 
 # 외부 API 헬스체크 함수
-def check_external_api_status(url, timeout=3):
+def check_external_api_status(url, timeout=3, method="HEAD", health_endpoint=None):
     """
     외부 API 상태 확인
     
     Args:
         url: 확인할 API URL
         timeout: 타임아웃 시간 (초)
+        method: HTTP 메소드 (HEAD 또는 GET)
+        health_endpoint: 헬스체크 엔드포인트 경로
         
     Returns:
         dict: 상태 정보 (status, response_time)
@@ -36,7 +38,15 @@ def check_external_api_status(url, timeout=3):
     try:
         import time
         start_time = time.time()
-        resp = requests.head(url, timeout=timeout)
+        
+        # 헬스체크 엔드포인트가 지정된 경우 사용
+        check_url = url + health_endpoint if health_endpoint else url
+        
+        if method == "GET":
+            resp = requests.get(check_url, timeout=timeout)
+        else:
+            resp = requests.head(check_url, timeout=timeout)
+            
         response_time = round((time.time() - start_time) * 1000, 2)  # ms
 
         if resp.status_code < 400:
@@ -146,7 +156,11 @@ async def get_service_status():
         # 외부 API 의존성 상태 확인
         external_apis_dict = {
             "weather_api": check_external_api_status(settings.weather_api_url),
-            "tourism_api": check_external_api_status(settings.korea_tourism_api_url),
+            "weather_flick_back": check_external_api_status(
+                settings.weather_flick_back_url, 
+                method="GET", 
+                health_endpoint="/health"
+            ),
             "google_places": check_external_api_status(settings.google_places_url)
         }
 
@@ -160,7 +174,7 @@ async def get_service_status():
         database_status = DatabaseStatus(**db_status_dict)
         external_apis_status = ExternalApisStatus(
             weather_api=ExternalApiStatus(**external_apis_dict["weather_api"]),
-            tourism_api=ExternalApiStatus(**external_apis_dict["tourism_api"]),
+            weather_flick_back=ExternalApiStatus(**external_apis_dict["weather_flick_back"]),
             google_places=ExternalApiStatus(**external_apis_dict["google_places"])
         )
 

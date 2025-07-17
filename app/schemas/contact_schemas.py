@@ -3,7 +3,7 @@
 """
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel, EmailStr, validator
+from pydantic import BaseModel, EmailStr, validator, ConfigDict
 
 
 class ContactBase(BaseModel):
@@ -47,8 +47,7 @@ class ContactListResponse(BaseModel):
     is_private: bool
     has_answer: bool = False
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ContactDetailResponse(BaseModel):
@@ -65,8 +64,7 @@ class ContactDetailResponse(BaseModel):
     is_private: bool
     answer: Optional['ContactAnswerResponse'] = None
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ContactAnswerBase(BaseModel):
@@ -93,8 +91,7 @@ class ContactAnswerResponse(ContactAnswerBase):
     created_at: datetime
     updated_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ContactStatusUpdate(BaseModel):

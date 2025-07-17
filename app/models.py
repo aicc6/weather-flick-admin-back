@@ -5,6 +5,8 @@
 각 모델의 주석에는 다음과 같은 정보가 포함됩니다:
 - 사용처: 해당 모델을 사용하는 서비스 목록
 - 설명: 테이블의 용도와 주요 기능
+
+RBAC 관련 모델들은 app/models_rbac.py에서 별도로 정의됩니다.
 """
 
 from __future__ import annotations
@@ -40,6 +42,7 @@ from sqlalchemy.sql import func
 from app.database import Base
 
 # Admin 모델 임포트
+from app.models_admin import Admin
 
 # RBAC 모델 임포트
 
@@ -188,38 +191,24 @@ class TravelRoute(Base):
 
     __tablename__ = "travel_routes"
 
-    route_id = Column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    travel_plan_id = Column(
+        UUID(as_uuid=True), ForeignKey("travel_plans.plan_id"), nullable=True
     )
-    plan_id = Column(
-        UUID(as_uuid=True), ForeignKey("travel_plans.plan_id"), nullable=False
-    )
-    day = Column(Integer, nullable=False)
-    sequence = Column(Integer, nullable=False)
-
-    # 출발지 정보
-    departure_name = Column(String, nullable=False)
-    departure_lat = Column(Float)
-    departure_lng = Column(Float)
-
-    # 도착지 정보
-    destination_name = Column(String, nullable=False)
-    destination_lat = Column(Float)
-    destination_lng = Column(Float)
-
-    # 교통 정보
-    transport_type = Column(String)  # car, bus, subway, walk, taxi
-    route_data = Column(JSONB)  # 상세 경로 정보
-    duration = Column(Integer)  # 소요 시간 (분)
-    distance = Column(Float)  # 거리 (km)
-    cost = Column(Float)  # 교통비 (원)
+    origin_place_id = Column(String)
+    destination_place_id = Column(String)
+    route_order = Column(Integer)
+    transport_mode = Column(String)
+    duration_minutes = Column(Integer)
+    distance_km = Column(Float)
+    route_data = Column(JSONB)
 
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
     # 관계 설정
     travel_plan = relationship("TravelPlan", back_populates="routes")
-    # transport_details = relationship("TransportationDetail", back_populates="route") # TransportationDetail 테이블이 현재 파일에 없음
+    transport_details = relationship("TransportationDetail", back_populates="route")
 
 
 class TransportationDetail(Base):
@@ -231,36 +220,20 @@ class TransportationDetail(Base):
 
     __tablename__ = "transportation_details"
 
-    detail_id = Column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
-    )
-    route_id = Column(
-        UUID(as_uuid=True), ForeignKey("travel_routes.route_id"), nullable=False
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    travel_route_id = Column(
+        UUID(as_uuid=True), ForeignKey("travel_routes.id"), nullable=True
     )
 
-    # 교통수단 정보
-    transport_name = Column(String)  # 지하철 2호선, 버스 146번 등
-    transport_color = Column(String)  # 노선 색상
-
-    # 정류장/역 정보
-    departure_station = Column(String)
-    arrival_station = Column(String)
-
-    # 시간 정보
     departure_time = Column(DateTime)
     arrival_time = Column(DateTime)
-
-    # 요금 정보
-    fare = Column(Float)
-
-    # 환승 정보
-    transfer_info = Column(JSONB)
-
+    cost = Column(Integer)
+    booking_info = Column(JSONB)
+    notes = Column(Text)
     created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
     # 관계 설정
-    # route = relationship("TravelRoute", back_populates="transport_details") # 관리자 대시보드에서 필요 없음
+    route = relationship("TravelRoute", back_populates="transport_details")
 
 
 # ===========================================
@@ -976,7 +949,7 @@ class Region(Base):
 
     __tablename__ = "regions"
     __table_args__ = {"extend_existing": True}
-    
+
     region_code = Column(String, primary_key=True, index=True)  # 지역 코드
     region_name = Column(String, nullable=False, index=True)  # 지역명
     parent_region_code = Column(String, nullable=True)  # 상위 지역 코드
@@ -984,25 +957,27 @@ class Region(Base):
     region_name_full = Column(String, nullable=True)  # 전체 지역명
     region_name_en = Column(String, nullable=True)  # 영문 지역명
     region_id = Column(String, nullable=True)  # 지역 ID
-    
+
     # 위치 정보
     latitude = Column(Float, nullable=True)
     longitude = Column(Float, nullable=True)
     center_latitude = Column(Float, nullable=True)
     center_longitude = Column(Float, nullable=True)
-    
+
     # 격자 정보
     grid_x = Column(Integer, nullable=True)  # 기상청 격자 X
     grid_y = Column(Integer, nullable=True)  # 기상청 격자 Y
-    
+
     # 기타 정보
     administrative_code = Column(String, nullable=True)  # 행정 코드
     api_mappings = Column(JSONB, nullable=True)  # API 매핑 정보
     coordinate_info = Column(JSONB, nullable=True)  # 좌표 정보
-    
+
     # API 매핑 정보 (콘텐츠 테이블과 JOIN 시 사용)
-    tour_api_area_code = Column(String, nullable=True, index=True)  # 한국관광공사 API 지역 코드
-    
+    tour_api_area_code = Column(
+        String, nullable=True, index=True
+    )  # 한국관광공사 API 지역 코드
+
     # 메타 정보
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())
@@ -1570,7 +1545,7 @@ class Restaurant(Base):
 
     # 기본 정보
     restaurant_name = Column(String, nullable=False)
-    food_type = Column(String)
+    cuisine_type = Column(String)
     address = Column(String, nullable=False)
     tel = Column(String)
 
@@ -1583,13 +1558,27 @@ class Restaurant(Base):
     sub_category_code = Column(String(10))
 
     # 음식점 특성
-    main_menu = Column(String)
-    price_range = Column(String)
+    specialty_dish = Column(String)  # main_menu를 specialty_dish로 변경
     operating_hours = Column(String)
-    parking = Column(String)
+    rest_date = Column(String)  # 휴무일 추가
+
+    # 서비스 옵션
+    parking = Column(Boolean, default=False)
+    credit_card = Column(Boolean, default=False)
+    smoking = Column(Boolean, default=False)
+    takeout = Column(Boolean, default=False)
+    delivery = Column(Boolean, default=False)
+
+    # 추가 정보
+    detail_address = Column(String)
+    zipcode = Column(String)
+    homepage = Column(String)
+    first_image = Column(String)
+    overview = Column(Text)
 
     # 메타데이터
     created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
 
 class Shopping(Base):
@@ -1993,7 +1982,7 @@ class BatchJobLog(Base):
     # 상태 및 결과
     status = Column(String, nullable=False)  # success, failed, timeout
     exit_code = Column(Integer)
-    
+
     # 처리 결과
     records_processed = Column(Integer, default=0)
     records_failed = Column(Integer, default=0)
@@ -2012,36 +2001,7 @@ class BatchJobLog(Base):
     )
 
 
-class AdminRole(Base):
-    """
-    관리자 역할 연결 테이블
-    사용처: weather-flick-admin-back
-    설명: 관리자와 역할의 다대다 관계
-    """
-
-    __tablename__ = "admin_roles"
-
-    admin_id = Column(Integer, ForeignKey("admins.admin_id"), primary_key=True)
-    role_id = Column(Integer, ForeignKey("roles.role_id"), primary_key=True)
-    assigned_at = Column(DateTime, server_default=func.now())
-    assigned_by = Column(Integer)  # 할당한 관리자 ID
-
-
-class RolePermission(Base):
-    """
-    역할 권한 연결 테이블
-    사용처: weather-flick-admin-back
-    설명: 역할과 권한의 다대다 관계
-    """
-
-    __tablename__ = "role_permissions"
-
-    role_id = Column(Integer, ForeignKey("roles.role_id"), primary_key=True)
-    permission_id = Column(
-        Integer, ForeignKey("permissions.permission_id"), primary_key=True
-    )
-    granted_at = Column(DateTime, server_default=func.now())
-    granted_by = Column(Integer)  # 권한을 부여한 관리자 ID
+# AdminRole과 RolePermission 테이블은 app/models_rbac.py에서 정의됨
 
 
 class ApiRawData(Base):
@@ -2137,5 +2097,82 @@ class TouristAttractionResponse(BaseModel):
     data_quality_score: float | None = None
     created_at: datetime | None = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ===========================================
+# 뷰 테이블 모델들
+# ===========================================
+
+
+class AdminPermissionsView(Base):
+    """
+    관리자 권한 뷰 테이블
+    사용처: weather-flick-admin-back
+    설명: 관리자별 권한 정보를 조회하기 위한 뷰
+    """
+
+    __tablename__ = "admin_permissions_view"
+    __table_args__ = {"extend_existing": True, "autoload_replace": False}
+
+    admin_id = Column(Integer, primary_key=True)
+    email = Column(String)
+    admin_name = Column(String)
+    role_name = Column(String)
+    role_display_name = Column(String)
+    permission_name = Column(String, primary_key=True)
+    action = Column(String)
+    resource_name = Column(String)
+    module = Column(String)
+
+
+class CoordinateTransformationsView(Base):
+    """
+    좌표 변환 뷰 테이블
+    사용처: weather-flick-back, weather-flick-batch
+    설명: 지역별 좌표 변환 정보 조회용 뷰
+    """
+
+    __tablename__ = "coordinate_transformations_view"
+    __table_args__ = {"extend_existing": True, "autoload_replace": False}
+
+    region_code = Column(String, primary_key=True)
+    region_name = Column(String)
+    latitude = Column(DECIMAL(10, 8))
+    longitude = Column(DECIMAL(11, 8))
+    x_coordinate = Column(Integer)
+    y_coordinate = Column(Integer)
+
+
+class RegionApiMappingsView(Base):
+    """
+    지역 API 매핑 뷰 테이블
+    사용처: weather-flick-batch
+    설명: 지역별 API 매핑 정보 조회용 뷰
+    """
+
+    __tablename__ = "region_api_mappings_view"
+    __table_args__ = {"extend_existing": True, "autoload_replace": False}
+
+    region_code = Column(String, primary_key=True)
+    region_name = Column(String)
+    area_code = Column(String)
+    sigungu_code = Column(String)
+    kma_region_code = Column(String)
+    kma_x = Column(Integer)
+    kma_y = Column(Integer)
+
+
+# ===========================================
+# RBAC 모델 임포트
+# ===========================================
+
+# RBAC 관련 모델들을 별도 파일에서 임포트
+try:
+    from app.models_rbac import (
+        Role, Permission, Resource, PermissionDelegation,
+        admin_roles, role_permissions
+    )
+except ImportError:
+    # 순환 import 방지를 위한 예외 처리
+    pass

@@ -21,7 +21,27 @@ def list_travel_plans(skip: int = 0, limit: int = 20, db: Session = Depends(get_
                 plan.itinerary = json.loads(plan.itinerary)
             except Exception:
                 plan.itinerary = None
-        result.append(TravelPlanResponse.model_validate(plan))
+        
+        # SQLAlchemy 모델을 딕셔너리로 변환
+        plan_dict = {
+            "plan_id": plan.plan_id,
+            "user_id": plan.user_id,
+            "title": plan.title,
+            "description": plan.description,
+            "start_date": plan.start_date,
+            "end_date": plan.end_date,
+            "budget": plan.budget,
+            "status": plan.status.value if hasattr(plan.status, 'value') else plan.status,
+            "itinerary": plan.itinerary,
+            "participants": plan.participants,
+            "transportation": plan.transportation,
+            "start_location": plan.start_location,
+            "weather_info": plan.weather_info,
+            "plan_type": plan.plan_type,
+            "created_at": plan.created_at,
+            "updated_at": plan.updated_at
+        }
+        result.append(TravelPlanResponse.model_validate(plan_dict))
     return result
 
 @router.get("/{plan_id}", response_model=TravelPlanResponse)

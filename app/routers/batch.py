@@ -11,7 +11,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import require_super_admin
-from app.dependencies import require_permission
+from app.auth.rbac_dependencies import require_permission
 from app.database import get_db
 from app.models_admin import Admin
 from app.schemas.batch import (
@@ -43,8 +43,8 @@ async def get_batch_jobs(
     status: BatchJobStatus | None = None,
     start_date: datetime | None = None,
     end_date: datetime | None = None,
-    page: int = Query(1, ge=1),
-    limit: int = Query(20, ge=1, le=100),
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     db: Session = Depends(get_db),
     _current_admin: Admin = Depends(require_permission("batch_jobs.read")),
 ):
@@ -146,8 +146,8 @@ async def get_batch_job_status(
 async def get_batch_job_logs(
     job_id: str,
     level: str | None = None,
-    page: int = Query(1, ge=1),
-    limit: int = Query(100, ge=1, le=1000),
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=100, ge=1, le=1000),
     db: Session = Depends(get_db),
     _current_admin: Admin = Depends(require_permission("batch_jobs.read")),
 ):

@@ -29,6 +29,8 @@ from app.routers.contact import router as contact_router
 from app.routers.admin_categories import router as admin_categories_router
 from app.routers.leisure_sports_compatibility import router as leisure_sports_compatibility_router
 from app.routers.travel_courses_compatibility import router as travel_courses_compatibility_router
+from app.routers.accommodations import router as accommodations_router
+from app.routers.restaurants import router as restaurants_router
 from app.middleware.rbac_middleware import RBACMiddleware
 
 # 로깅 설정 초기화
@@ -99,6 +101,8 @@ app.include_router(contact_router, prefix="/api")  # 문의사항 API 추가
 app.include_router(admin_categories_router, prefix="/api")  # 카테고리 관리 API 추가
 app.include_router(leisure_sports_compatibility_router, prefix="/api")  # 레저 스포츠 호환성 API 추가
 app.include_router(travel_courses_compatibility_router, prefix="/api")  # 여행 코스 호환성 API 추가
+app.include_router(accommodations_router, prefix="/api")  # 숙박시설 API 추가
+app.include_router(restaurants_router, prefix="/api")  # 음식점 API 추가
 
 
 @app.get("/")

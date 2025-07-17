@@ -6,7 +6,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class BatchJobType(str, Enum):
@@ -75,8 +75,7 @@ class BatchJobResponse(BaseModel):
     error_message: str | None
     result_summary: dict[str, Any] | None
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class BatchJobListResponse(BaseModel):

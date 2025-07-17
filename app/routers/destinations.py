@@ -5,7 +5,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import TouristAttraction, Region
+from ..models import TouristAttraction, Region, PetTourInfo
 from ..dependencies import CurrentAdmin, require_permission
 
 router = APIRouter(prefix="/tourist-attractions", tags=["Tourist Attractions"])
@@ -17,7 +17,8 @@ async def get_all_tourist_attractions(
     db: Session = Depends(get_db),
     limit: int = Query(10, ge=1, le=100),
     offset: int = Query(0, ge=0),
-    region_code: Optional[str] = Query(None, description="지역 코드")  # region_code 파라미터 추가
+    region_code: Optional[str] = Query(None, description="지역 코드"),  # region_code 파라미터 추가
+    pet_friendly: Optional[bool] = Query(None, description="반려동물 동반 가능 여부")
 ):
     query = db.query(TouristAttraction)
     if region_code:
@@ -27,8 +28,24 @@ async def get_all_tourist_attractions(
             query = query.filter(TouristAttraction.region_code == region.tour_api_area_code)
         else:
             query = query.filter(TouristAttraction.region_code == str(region_code))
+    
+    # 반려동물 동반 가능 필터
+    if pet_friendly is True:
+        pet_content_ids = db.query(PetTourInfo.content_id).filter(
+            PetTourInfo.content_id.isnot(None)
+        ).subquery()
+        query = query.filter(TouristAttraction.content_id.in_(pet_content_ids))
+    
     total = query.count()
     attractions = query.order_by(TouristAttraction.created_at.desc()).offset(offset).limit(limit).all()
+    
+    # 반려동물 정보 조회
+    attraction_ids = [a.content_id for a in attractions]
+    pet_info_dict = {}
+    if attraction_ids:
+        pet_infos = db.query(PetTourInfo).filter(PetTourInfo.content_id.in_(attraction_ids)).all()
+        pet_info_dict = {p.content_id: p for p in pet_infos}
+    
     return {
         "count": total,
         "next": None,
@@ -47,6 +64,7 @@ async def get_all_tourist_attractions(
                 "region_code": a.region_code,
                 "created_at": a.created_at,
                 "updated_at": a.updated_at,
+                "is_pet_friendly": a.content_id in pet_info_dict,
             }
             for a in attractions
         ]
@@ -84,6 +102,7 @@ async def search_tourist_attractions(
     name: str = Query(None, description="관광지명"),
     category: str = Query(None, description="카테고리명"),
     region: str = Query(None, description="지역코드"),
+    pet_friendly: Optional[bool] = Query(None, description="반려동물 동반 가능 여부"),
     limit: int = Query(10, ge=1, le=100),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db)
@@ -95,8 +114,24 @@ async def search_tourist_attractions(
         query = query.filter(TouristAttraction.category_name.ilike(f"%{category}%"))
     if region:
         query = query.filter(TouristAttraction.region_code == region)
+    
+    # 반려동물 동반 가능 필터
+    if pet_friendly is True:
+        pet_content_ids = db.query(PetTourInfo.content_id).filter(
+            PetTourInfo.content_id.isnot(None)
+        ).subquery()
+        query = query.filter(TouristAttraction.content_id.in_(pet_content_ids))
+    
     total = query.count()
     results = query.order_by(TouristAttraction.created_at.desc()).offset(offset).limit(limit).all()
+    
+    # 반려동물 정보 조회
+    attraction_ids = [a.content_id for a in results]
+    pet_info_dict = {}
+    if attraction_ids:
+        pet_infos = db.query(PetTourInfo).filter(PetTourInfo.content_id.in_(attraction_ids)).all()
+        pet_info_dict = {p.content_id: p for p in pet_infos}
+    
     return {
         "total": total,
         "items": [
@@ -113,6 +148,7 @@ async def search_tourist_attractions(
                 "region_code": a.region_code,
                 "created_at": a.created_at,
                 "updated_at": a.updated_at,
+                "is_pet_friendly": a.content_id in pet_info_dict,
             }
             for a in results
         ]
