@@ -17,6 +17,7 @@ class BatchJobType(str, Enum):
     DATA_QUALITY_CHECK = "DATA_QUALITY_CHECK"  # 데이터 품질 검사
     ARCHIVE_BACKUP = "ARCHIVE_BACKUP"  # 아카이빙 및 백업
     SYSTEM_HEALTH_CHECK = "SYSTEM_HEALTH_CHECK"  # 시스템 헬스체크
+    WEATHER_CHANGE_NOTIFICATION = "WEATHER_CHANGE_NOTIFICATION"  # 날씨 변경 알림
 
 
 class BatchJobStatus(str, Enum):

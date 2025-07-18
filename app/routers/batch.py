@@ -90,6 +90,7 @@ async def execute_batch_job(
     - DATA_QUALITY_CHECK: 데이터 품질 검사
     - ARCHIVE_BACKUP: 아카이빙 및 백업
     - SYSTEM_HEALTH_CHECK: 시스템 헬스체크
+    - WEATHER_CHANGE_NOTIFICATION: 날씨 변경 알림
     """
     service = BatchJobService(db)
 
