@@ -28,6 +28,7 @@ class BatchJobStatus(str, Enum):
     FAILED = "FAILED"  # 실패
     STOPPED = "STOPPED"  # 중단됨
     STOPPING = "STOPPING"  # 중단 중
+    CANCELLED = "CANCELLED"  # 취소됨
 
 
 class BatchJobLogLevel(str, Enum):
