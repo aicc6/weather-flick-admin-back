@@ -47,30 +47,44 @@ async def get_all_tourist_attractions(
         pet_infos = db.query(PetTourInfo).filter(PetTourInfo.content_id.in_(attraction_ids)).all()
         pet_info_dict = {p.content_id: p for p in pet_infos}
     
+    # 의미있는 데이터만 포함하여 응답 구성
+    items = []
+    for a in attractions:
+        item = {
+            "content_id": a.content_id,
+            "attraction_name": a.attraction_name,
+            "address": a.address,
+            "region_code": a.region_code,
+            "created_at": a.created_at,
+        }
+        
+        # 값이 있는 필드만 추가
+        if a.description:
+            item["description"] = a.description
+        if a.image_url:
+            item["image_url"] = a.image_url
+        if a.latitude:
+            item["latitude"] = float(a.latitude)
+        if a.longitude:
+            item["longitude"] = float(a.longitude)
+        if a.category_code:
+            item["category_code"] = a.category_code
+        if a.category_name:
+            item["category_name"] = a.category_name
+            # 카테고리 정보 정규화
+            item["category_info"] = normalize_category_data(a.category_code, a.category_name)
+        if a.updated_at:
+            item["updated_at"] = a.updated_at
+        
+        # 반려동물 친화 정보
+        if a.content_id in pet_info_dict:
+            item["is_pet_friendly"] = True
+        
+        items.append(item)
+    
     return {
-        "count": total,
-        "next": None,
-        "previous": None,
-        "results": [
-            {
-                "content_id": a.content_id,
-                "attraction_name": a.attraction_name,
-                "description": a.description,
-                "address": a.address,
-                "image_url": a.image_url,
-                "latitude": float(a.latitude) if a.latitude else None,
-                "longitude": float(a.longitude) if a.longitude else None,
-                "category_code": a.category_code,
-                "category_name": a.category_name,
-                "region_code": a.region_code,
-                "created_at": a.created_at,
-                "updated_at": a.updated_at,
-                "is_pet_friendly": a.content_id in pet_info_dict,
-                # 카테고리 정보 정규화
-                "category_info": normalize_category_data(a.category_code, a.category_name),
-            }
-            for a in attractions
-        ]
+        "total": total,
+        "items": items
     }
 
 @router.get("/{content_id}")

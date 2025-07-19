@@ -1,4 +1,5 @@
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Depends
 from fastapi.exceptions import RequestValidationError
@@ -10,7 +11,7 @@ from app.config import settings
 from app.logging_config import setup_logging
 from app.database import get_db
 from sqlalchemy.orm import Session
-from app.routers import festivals_events, travel_plans
+from app.routers import travel_plans
 from app.routers.admins import router as admins_router
 
 # 통합된 라우터들 사용
@@ -25,21 +26,47 @@ from app.routers.travel_courses import router as travel_courses_router
 from app.routers.users import router as users_router
 from app.routers.weather import router as weather_router
 from app.routers.rbac import router as rbac_router
-from app.routers.contact import router as contact_router
+from app.routers.contacts import router as contacts_router  # 간단한 문의 시스템
 from app.routers.admin_categories import router as admin_categories_router
 from app.routers.leisure_sports_compatibility import router as leisure_sports_compatibility_router
 from app.routers.travel_courses_compatibility import router as travel_courses_compatibility_router
 from app.routers.accommodations import router as accommodations_router
 from app.routers.restaurants import router as restaurants_router
+from app.routers.festivals_events import router as festivals_events_router
 from app.middleware.rbac_middleware import RBACMiddleware
 
 # 로깅 설정 초기화
 setup_logging(log_dir="logs", log_level="DEBUG" if settings.debug else "INFO")
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """애플리케이션 생명주기 관리"""
+    # Startup
+    logging.info(f"🚀 {settings.app_name} v{settings.app_version} 시작")
+    logging.info(f"환경: {settings.environment}")
+    logging.info(f"디버그 모드: {settings.debug}")
+    logging.info(f"서버 주소: http://{settings.host}:{settings.port}")
+    
+    # 개발 환경에서만 자동으로 테이블 생성 및 초기 데이터 설정
+    if settings.debug:
+        try:
+            from app.init_data import init_database
+            logging.info("데이터베이스 초기화 시작...")
+            init_database()
+            logging.info("데이터베이스 초기화 완료")
+        except Exception as e:
+            logging.error(f"⚠️  초기화 중 오류 발생: {e}", exc_info=True)
+    
+    yield
+    
+    # Shutdown
+    logging.info(f"🛑 {settings.app_name} 종료")
+
 app = FastAPI(
     title="Weather Flick Admin API",
     description="Weather Flick Admin Backend API",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # CORS 미들웨어 설정
@@ -92,17 +119,17 @@ app.include_router(system_router, prefix="/api")
 app.include_router(dashboard_router, prefix="/api")  # 새로 추가된 대시보드 API
 app.include_router(logs_router, prefix="/api")  # 새로 추가된 로그 관리 API
 app.include_router(travel_courses_router, prefix="/api")
-app.include_router(festivals_events.router, prefix="/api")
 app.include_router(travel_plans.router, prefix="/api")
 app.include_router(batch_router, prefix="/api")  # 배치 작업 API 추가
 app.include_router(regions_router, prefix="/api")  # 지역 관리 API 추가
 app.include_router(rbac_router, prefix="/api")  # RBAC 관리 API 추가
-app.include_router(contact_router, prefix="/api")  # 문의사항 API 추가
+app.include_router(contacts_router, prefix="/api")  # 문의사항 API
 app.include_router(admin_categories_router, prefix="/api")  # 카테고리 관리 API 추가
 app.include_router(leisure_sports_compatibility_router, prefix="/api")  # 레저 스포츠 호환성 API 추가
 app.include_router(travel_courses_compatibility_router, prefix="/api")  # 여행 코스 호환성 API 추가
 app.include_router(accommodations_router, prefix="/api")  # 숙박시설 API 추가
 app.include_router(restaurants_router, prefix="/api")  # 음식점 API 추가
+app.include_router(festivals_events_router, prefix="/api")  # 축제 이벤트 API 추가
 
 
 @app.get("/")
@@ -112,25 +139,6 @@ async def root():
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "version": settings.app_version}
-
-@app.on_event("startup")
-async def startup_event():
-    """애플리케이션 시작 시 실행"""
-    logging.info(f"🚀 {settings.app_name} v{settings.app_version} 시작")
-    logging.info(f"환경: {settings.environment}")
-    logging.info(f"디버그 모드: {settings.debug}")
-    logging.info(f"서버 주소: http://{settings.host}:{settings.port}")
-
-    # 개발 환경에서만 자동으로 테이블 생성 및 초기 데이터 설정
-    if settings.debug:
-        try:
-            from app.init_data import init_database
-            logging.info("데이터베이스 초기화 시작...")
-            init_database()
-            logging.info("데이터베이스 초기화 완료")
-        except Exception as e:
-            logging.error(f"⚠️  초기화 중 오류 발생: {e}", exc_info=True)
-
 
 # 전역 에러 핸들러
 @app.exception_handler(Exception)

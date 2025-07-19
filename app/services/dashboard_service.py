@@ -216,19 +216,19 @@ class DashboardService:
     async def _get_content_statistics(self) -> dict[str, Any]:
         """콘텐츠 관련 통계"""
         try:
-            from ..models import TravelCourse, Festival, LeisureSport, Attraction
+            from ..models import TravelCourse, FestivalEvent, LeisureSport, TouristAttraction
             
             # 여행 코스 수
             travel_courses_count = self.db.query(func.count(TravelCourse.content_id)).scalar() or 0
             
             # 축제/이벤트 수
-            festivals_count = self.db.query(func.count(Festival.content_id)).scalar() or 0
+            festivals_count = self.db.query(func.count(FestivalEvent.content_id)).scalar() or 0
             
             # 레저 스포츠 수
             leisure_sports_count = self.db.query(func.count(LeisureSport.content_id)).scalar() or 0
             
             # 관광지 수
-            attractions_count = self.db.query(func.count(Attraction.content_id)).scalar() or 0
+            attractions_count = self.db.query(func.count(TouristAttraction.content_id)).scalar() or 0
             
             return {
                 "travel_courses": travel_courses_count,

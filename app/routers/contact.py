@@ -1,5 +1,10 @@
 """
 문의사항 관련 라우터
+
+비활성화 날짜: 2025-01-19
+비활성화 이유: 문의/답변 시스템 임시 비활성화 (향후 재사용 가능성 있음)
+"""
+
 """
 from datetime import datetime
 from typing import List, Optional
@@ -134,3 +139,4 @@ async def delete_answer(
     """문의 답변 삭제"""
     ContactService.delete_answer(db, contact_id, current_admin.admin_id)
     return None
+"""

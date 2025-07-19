@@ -55,7 +55,7 @@ class TravelCourseResponse(BaseModel):
     detail_additional_info: dict | None = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 router = APIRouter(prefix="/travel-courses", tags=["Travel Courses"])
 

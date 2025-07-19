@@ -13,8 +13,6 @@ from app.schemas.system import (
     DatabaseStatus,
     ExternalApisStatus,
     ExternalApiStatus,
-    SystemLogTestRequest,
-    SystemLogTestResponse,
     SystemStatusData,
 )
 from app.services.system_log import log_system_event
@@ -101,32 +99,6 @@ def get_system_logs(
         message="시스템 로그를 성공적으로 조회했습니다."
     )
 
-@router.post("/logs/test", response_model=SuccessResponse[SystemLogTestResponse])
-def test_log(
-    request: SystemLogTestRequest,
-    db: Session = Depends(get_db),
-):
-    """시스템 로그 테스트 생성"""
-    log = log_system_event(
-        level=request.level,
-        message=request.message,
-        source=request.source,
-        context=request.context,
-        db=db
-    )
-
-    response_data = SystemLogTestResponse(
-        log_id=log.log_id,
-        level=log.level,
-        source=log.source,
-        message=log.message,
-        created_at=log.created_at
-    )
-
-    return SuccessResponse(
-        data=response_data,
-        message="테스트 로그가 성공적으로 생성되었습니다."
-    )
 
 # 서비스 상태 확인 API (하드웨어 모니터링 제거, 서비스 의존성 중심으로 변경)
 @router.get("/status", response_model=Any)

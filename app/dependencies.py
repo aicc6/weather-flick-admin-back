@@ -257,6 +257,44 @@ def require_all_permissions(*permission_names: str):
     return decorator
 
 
+# 권한 검사를 위한 의존성 함수
+def check_permission(permission_name: str):
+    """특정 권한을 확인하는 의존성 함수"""
+    async def permission_checker(
+        current_admin: Admin = Depends(get_current_admin),
+        db: Session = Depends(get_db)
+    ):
+        if not current_admin.has_permission(permission_name):
+            # 권한 실패 로그 기록
+            audit_log = PermissionAuditLog(
+                admin_id=current_admin.admin_id,
+                action="access_denied",
+                resource_type=permission_name.split(".")[0],
+                success=False,
+                failure_reason=f"Missing permission: {permission_name}",
+            )
+            db.add(audit_log)
+            db.commit()
+            
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Permission denied. Required: {permission_name}",
+            )
+        
+        # 권한 성공 로그 기록
+        audit_log = PermissionAuditLog(
+            admin_id=current_admin.admin_id,
+            action="access_granted",
+            resource_type=permission_name.split(".")[0],
+            success=True,
+        )
+        db.add(audit_log)
+        db.commit()
+        
+        return current_admin
+    
+    return permission_checker
+
 # 자주 사용되는 권한 조합을 위한 헬퍼 데코레이터
 def require_super_admin(func):
     """슈퍼관리자 권한 요구"""

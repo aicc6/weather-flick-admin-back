@@ -48,22 +48,3 @@ class SystemLogOut(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
-
-
-class SystemLogTestRequest(BaseModel):
-    """시스템 로그 테스트 요청"""
-
-    message: str = Field(..., description="로그 메시지")
-    level: str = Field("INFO", description="로그 레벨")
-    source: str | None = Field(None, description="로그 소스")
-    context: dict | None = Field(None, description="로그 컨텍스트")
-
-
-class SystemLogTestResponse(BaseModel):
-    """시스템 로그 테스트 응답"""
-
-    log_id: int
-    level: str
-    source: str
-    message: str
-    created_at: datetime

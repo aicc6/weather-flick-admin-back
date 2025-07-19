@@ -1,175 +1,218 @@
-"""
-음식점 관리 API 라우터
-"""
+from uuid import uuid4
+from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import desc
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from app.auth import get_current_admin
-from app.database import get_db
-from app.models import Restaurant
-from app.schemas.restaurant_schemas import (
-    RestaurantCreate,
-    RestaurantListResponse,
-    RestaurantResponse,
-    RestaurantUpdate,
-)
+from ..database import get_db
+from ..models import Restaurant, Region
+from ..dependencies import CurrentAdmin, require_permission
+from ..utils.category_mapping import normalize_category_data
 
 router = APIRouter(prefix="/restaurants", tags=["Restaurants"])
 
-
-@router.get("/", response_model=RestaurantListResponse)
-async def get_restaurants(
-    skip: int = Query(0, ge=0),
-    limit: int = Query(20, ge=1, le=100),
-    restaurant_name: str | None = None,
-    region_code: str | None = None,
-    cuisine_type: str | None = None,
+@router.get("/")
+@require_permission("destinations.read")
+async def get_all_restaurants(
+    current_admin: CurrentAdmin,
     db: Session = Depends(get_db),
-    current_admin: dict = Depends(get_current_admin),
+    limit: int = Query(10, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    restaurant_name: Optional[str] = Query(None, description="음식점명"),
+    region_code: Optional[str] = Query(None, description="지역 코드")
 ):
-    """음식점 목록 조회"""
     query = db.query(Restaurant)
-
-    # 필터링
+    
     if restaurant_name:
         query = query.filter(Restaurant.restaurant_name.ilike(f"%{restaurant_name}%"))
-    if region_code and region_code != "all":
-        query = query.filter(Restaurant.region_code == region_code)
-    if cuisine_type:
-        query = query.filter(Restaurant.cuisine_type == cuisine_type)
-
-    # 전체 개수
+    
+    if region_code:
+        # region_code 파라미터를 받으면 해당 지역의 tour_api_area_code를 찾아서 필터링
+        region = db.query(Region).filter(Region.region_code == region_code).first()
+        if region and region.tour_api_area_code:
+            query = query.filter(Restaurant.region_code == region.tour_api_area_code)
+        else:
+            query = query.filter(Restaurant.region_code == str(region_code))
+    
     total = query.count()
+    restaurants = query.order_by(Restaurant.created_at.desc()).offset(offset).limit(limit).all()
+    
+    # 의미있는 데이터만 포함하여 응답 구성
+    items = []
+    for r in restaurants:
+        item = {
+            "content_id": r.content_id,
+            "restaurant_name": r.restaurant_name,
+            "address": r.address,
+            "region_code": r.region_code,
+            "created_at": r.created_at,
+        }
+        
+        # 값이 있는 필드만 추가
+        if r.overview:
+            item["description"] = r.overview
+        if r.first_image:
+            item["image_url"] = r.first_image
+        if r.tel:
+            item["tel"] = r.tel
+        if r.specialty_dish:
+            item["menu"] = r.specialty_dish
+        if r.operating_hours:
+            item["business_hours"] = r.operating_hours
+        if r.cuisine_type:
+            item["cuisine_type"] = r.cuisine_type
+        if r.parking:
+            item["parking"] = r.parking
+        if r.latitude:
+            item["latitude"] = float(r.latitude)
+        if r.longitude:
+            item["longitude"] = float(r.longitude)
+        if r.category_code:
+            item["category_code"] = r.category_code
+            # 카테고리 정보 정규화
+            item["category_info"] = normalize_category_data(r.category_code, None)
+        
+        items.append(item)
+    
+    return {
+        "total": total,
+        "items": items
+    }
 
-    # 페이지네이션
-    restaurants = (
-        query.order_by(desc(Restaurant.created_at)).offset(skip).limit(limit).all()
-    )
-
-    return RestaurantListResponse(
-        items=restaurants, total=total, skip=skip, limit=limit
-    )
-
-
-@router.get("/{content_id}", response_model=RestaurantResponse)
+@router.get("/{content_id}")
+@require_permission("destinations.read")
 async def get_restaurant(
     content_id: str,
-    db: Session = Depends(get_db),
-    current_admin: dict = Depends(get_current_admin),
+    current_admin: CurrentAdmin,
+    db: Session = Depends(get_db)
 ):
-    """음식점 상세 조회"""
-    restaurant = (
-        db.query(Restaurant).filter(Restaurant.content_id == content_id).first()
-    )
+    restaurant = db.query(Restaurant).filter(Restaurant.content_id == content_id).first()
     if not restaurant:
         raise HTTPException(status_code=404, detail="음식점을 찾을 수 없습니다.")
-    return restaurant
+    return {
+        "content_id": restaurant.content_id,
+        "restaurant_name": restaurant.restaurant_name,
+        "description": restaurant.description,
+        "address": restaurant.address,
+        "image_url": restaurant.image_url,
+        "latitude": float(restaurant.latitude) if restaurant.latitude else None,
+        "longitude": float(restaurant.longitude) if restaurant.longitude else None,
+        "menu": restaurant.menu,
+        "business_hours": restaurant.business_hours,
+        "tel": restaurant.tel,
+        "price_range": restaurant.price_range,
+        "category_code": restaurant.category_code,
+        "category_name": restaurant.category_name,
+        "region_code": restaurant.region_code,
+        "created_at": restaurant.created_at,
+        "updated_at": restaurant.updated_at,
+    }
 
-
-@router.post("/", response_model=RestaurantResponse)
+@router.post("/", status_code=201)
+@require_permission("destinations.write")
 async def create_restaurant(
-    restaurant: RestaurantCreate,
-    db: Session = Depends(get_db),
-    current_admin: dict = Depends(get_current_admin),
+    current_admin: CurrentAdmin,
+    restaurant_name: str = Body(...),
+    description: str = Body(None),
+    address: str = Body(None),
+    image_url: str = Body(None),
+    latitude: float = Body(None),
+    longitude: float = Body(None),
+    menu: str = Body(None),
+    business_hours: str = Body(None),
+    tel: str = Body(None),
+    price_range: str = Body(None),
+    category_code: str = Body(None),
+    category_name: str = Body(None),
+    region_code: str = Body(None),
+    db: Session = Depends(get_db)
 ):
-    """음식점 생성"""
-    # 중복 확인
-    existing = (
-        db.query(Restaurant)
-        .filter(
-            Restaurant.restaurant_name == restaurant.restaurant_name,
-            Restaurant.region_code == restaurant.region_code,
-        )
-        .first()
+    new_restaurant = Restaurant(
+        content_id=str(uuid4()),
+        restaurant_name=restaurant_name,
+        description=description,
+        address=address,
+        image_url=image_url,
+        latitude=latitude,
+        longitude=longitude,
+        menu=menu,
+        business_hours=business_hours,
+        tel=tel,
+        price_range=price_range,
+        category_code=category_code,
+        category_name=category_name,
+        region_code=region_code,
     )
-
-    if existing:
-        raise HTTPException(
-            status_code=400,
-            detail="동일한 지역에 같은 이름의 음식점이 이미 존재합니다.",
-        )
-
-    # content_id 생성 (임시로 timestamp 기반)
-    import time
-
-    content_id = f"RST{int(time.time())}"
-
-    db_restaurant = Restaurant(content_id=content_id, **restaurant.dict())
-
-    db.add(db_restaurant)
+    db.add(new_restaurant)
     db.commit()
-    db.refresh(db_restaurant)
+    db.refresh(new_restaurant)
+    return {"content_id": new_restaurant.content_id}
 
-    return db_restaurant
-
-
-@router.put("/{content_id}", response_model=RestaurantResponse)
+@router.put("/{content_id}")
+@require_permission("destinations.write")
 async def update_restaurant(
     content_id: str,
-    restaurant: RestaurantUpdate,
-    db: Session = Depends(get_db),
-    current_admin: dict = Depends(get_current_admin),
+    current_admin: CurrentAdmin,
+    restaurant_name: str = Body(None),
+    description: str = Body(None),
+    address: str = Body(None),
+    image_url: str = Body(None),
+    latitude: float = Body(None),
+    longitude: float = Body(None),
+    menu: str = Body(None),
+    business_hours: str = Body(None),
+    tel: str = Body(None),
+    price_range: str = Body(None),
+    category_code: str = Body(None),
+    category_name: str = Body(None),
+    region_code: str = Body(None),
+    db: Session = Depends(get_db)
 ):
-    """음식점 수정"""
-    db_restaurant = (
-        db.query(Restaurant).filter(Restaurant.content_id == content_id).first()
-    )
-    if not db_restaurant:
-        raise HTTPException(status_code=404, detail="음식점을 찾을 수 없습니다.")
-
-    # 업데이트
-    update_data = restaurant.dict(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(db_restaurant, field, value)
-
-    db.commit()
-    db.refresh(db_restaurant)
-
-    return db_restaurant
-
-
-@router.delete("/{content_id}")
-async def delete_restaurant(
-    content_id: str,
-    db: Session = Depends(get_db),
-    current_admin: dict = Depends(get_current_admin),
-):
-    """음식점 삭제"""
-    restaurant = (
-        db.query(Restaurant).filter(Restaurant.content_id == content_id).first()
-    )
+    restaurant = db.query(Restaurant).filter(Restaurant.content_id == content_id).first()
     if not restaurant:
         raise HTTPException(status_code=404, detail="음식점을 찾을 수 없습니다.")
+    
+    if restaurant_name is not None:
+        restaurant.restaurant_name = restaurant_name
+    if description is not None:
+        restaurant.description = description
+    if address is not None:
+        restaurant.address = address
+    if image_url is not None:
+        restaurant.image_url = image_url
+    if latitude is not None:
+        restaurant.latitude = latitude
+    if longitude is not None:
+        restaurant.longitude = longitude
+    if menu is not None:
+        restaurant.menu = menu
+    if business_hours is not None:
+        restaurant.business_hours = business_hours
+    if tel is not None:
+        restaurant.tel = tel
+    if price_range is not None:
+        restaurant.price_range = price_range
+    if category_code is not None:
+        restaurant.category_code = category_code
+    if category_name is not None:
+        restaurant.category_name = category_name
+    if region_code is not None:
+        restaurant.region_code = region_code
+    
+    db.commit()
+    db.refresh(restaurant)
+    return {"content_id": restaurant.content_id}
 
+@router.delete("/{content_id}", status_code=204)
+@require_permission("destinations.delete")
+async def delete_restaurant(
+    content_id: str,
+    current_admin: CurrentAdmin,
+    db: Session = Depends(get_db)
+):
+    restaurant = db.query(Restaurant).filter(Restaurant.content_id == content_id).first()
+    if not restaurant:
+        raise HTTPException(status_code=404, detail="음식점을 찾을 수 없습니다.")
     db.delete(restaurant)
     db.commit()
-
-    return {"message": "음식점이 삭제되었습니다."}
-
-
-@router.get("/cuisine-types/list")
-async def get_cuisine_types(
-    db: Session = Depends(get_db), current_admin: dict = Depends(get_current_admin)  # noqa: ARG001
-):
-    """음식 종류 목록 조회"""
-    # 한국관광공사 표준 음식점 카테고리
-    types = [
-        {"code": "A0502", "name": "음식점"},
-        {"code": "A0503", "name": "카페/디저트"},
-        {"code": "A0504", "name": "술집"},
-        {"code": "A0505", "name": "한식"},
-        {"code": "A0506", "name": "서양식"},
-        {"code": "A0507", "name": "일식"},
-        {"code": "A0508", "name": "중식"},
-        {"code": "A0509", "name": "아시아식"},
-        {"code": "A0510", "name": "패스트푸드"},
-        {"code": "A0511", "name": "간식"},
-        {"code": "A0512", "name": "분식"},
-        {"code": "A0513", "name": "뷔페"},
-        {"code": "A0514", "name": "민속주점"},
-        {"code": "A0515", "name": "이색음식점"},
-    ]
-
-    return types
+    return None
