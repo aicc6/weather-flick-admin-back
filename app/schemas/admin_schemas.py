@@ -55,6 +55,7 @@ class AdminResponse(BaseModel):
     is_superuser: bool = False  # 데이터베이스 필드로부터 직접 가져옴
     last_login_at: datetime | None
     created_at: datetime
+    role_ids: list[int] = []  # 관리자가 가진 역할 ID 목록
 
     @computed_field
     @property

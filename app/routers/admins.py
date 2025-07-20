@@ -61,6 +61,9 @@ async def create_admin(
         db.commit()
         db.refresh(new_admin)
 
+    # 관리자의 역할 ID 목록 가져오기
+    role_ids = [role.id for role in new_admin.roles] if hasattr(new_admin, 'roles') else []
+    
     admin_dict = {
         "admin_id": new_admin.admin_id,
         "email": new_admin.email,
@@ -70,6 +73,7 @@ async def create_admin(
         "is_superuser": new_admin.is_superuser,
         "last_login_at": new_admin.last_login_at,
         "created_at": new_admin.created_at,
+        "role_ids": role_ids,
     }
     return AdminResponse.model_validate(admin_dict)
 
@@ -134,6 +138,9 @@ async def get_admin_list(
 
     admin_responses = []
     for admin in admins:
+        # 관리자의 역할 ID 목록 가져오기
+        role_ids = [role.id for role in admin.roles] if hasattr(admin, 'roles') else []
+        
         admin_dict = {
             "admin_id": admin.admin_id,
             "email": admin.email,
@@ -143,6 +150,7 @@ async def get_admin_list(
             "is_superuser": admin.is_superuser,
             "last_login_at": admin.last_login_at,
             "created_at": admin.created_at,
+            "role_ids": role_ids,
         }
         admin_responses.append(AdminResponse.model_validate(admin_dict))
 
@@ -191,6 +199,9 @@ async def get_admin_detail(
             status_code=status.HTTP_404_NOT_FOUND, detail="관리자를 찾을 수 없습니다"
         )
 
+    # 관리자의 역할 ID 목록 가져오기
+    role_ids = [role.id for role in admin.roles] if hasattr(admin, 'roles') else []
+    
     admin_dict = {
         "admin_id": admin.admin_id,
         "email": admin.email,
@@ -200,6 +211,7 @@ async def get_admin_detail(
         "is_superuser": admin.is_superuser,
         "last_login_at": admin.last_login_at,
         "created_at": admin.created_at,
+        "role_ids": role_ids,
     }
     return AdminResponse.model_validate(admin_dict)
 
@@ -245,6 +257,9 @@ async def update_admin(
     db.commit()
     db.refresh(admin)
 
+    # 관리자의 역할 ID 목록 가져오기
+    role_ids = [role.id for role in admin.roles] if hasattr(admin, 'roles') else []
+    
     admin_dict = {
         "admin_id": admin.admin_id,
         "email": admin.email,
@@ -254,6 +269,7 @@ async def update_admin(
         "is_superuser": admin.is_superuser,
         "last_login_at": admin.last_login_at,
         "created_at": admin.created_at,
+        "role_ids": role_ids,
     }
     return AdminResponse.model_validate(admin_dict)
 
@@ -299,6 +315,9 @@ async def update_admin_status(
     db.commit()
     db.refresh(admin)
 
+    # 관리자의 역할 ID 목록 가져오기
+    role_ids = [role.id for role in admin.roles] if hasattr(admin, 'roles') else []
+    
     admin_dict = {
         "admin_id": admin.admin_id,
         "email": admin.email,
@@ -308,6 +327,7 @@ async def update_admin_status(
         "is_superuser": admin.is_superuser,
         "last_login_at": admin.last_login_at,
         "created_at": admin.created_at,
+        "role_ids": role_ids,
     }
     return AdminResponse.model_validate(admin_dict)
 
