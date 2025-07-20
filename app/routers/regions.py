@@ -298,24 +298,23 @@ async def delete_region(
         
         # 강제 삭제인 경우 하위 지역도 함께 삭제
         if force:
-            # 삭제할 모든 지역 코드 수집 (순환 참조 방지)
-            all_region_codes = []
-            visited = set()
+            # 삭제할 모든 지역 코드 수집 (재귀적으로 하위 지역 찾기)
+            all_region_codes = [region_code]
+            to_check = [region_code]
+            visited = {region_code}
             
-            def collect_children(parent_code):
-                if parent_code in visited:
-                    return  # 순환 참조 방지
-                visited.add(parent_code)
-                all_region_codes.append(parent_code)
-                
+            # 반복적으로 하위 지역 찾기 (스택 오버플로우 방지)
+            while to_check:
+                current_code = to_check.pop(0)
                 children = db.query(Region).filter(
-                    Region.parent_region_code == parent_code
+                    Region.parent_region_code == current_code
                 ).all()
+                
                 for child in children:
                     if child.region_code not in visited:
-                        collect_children(child.region_code)
-            
-            collect_children(region_code)
+                        visited.add(child.region_code)
+                        all_region_codes.append(child.region_code)
+                        to_check.append(child.region_code)
             
             # 관련 데이터 삭제 (외래 키 제약 조건 해결)
             # 각 테이블에서 해당 지역들과 관련된 데이터 삭제
@@ -328,105 +327,34 @@ async def delete_region(
             # 관련 데이터 삭제 카운트
             related_counts = {}
             
-            # festivals_events
-            festivals_count = db.query(FestivalEvent).filter(
-                FestivalEvent.region_code.in_(all_region_codes)
-            ).count()
-            if festivals_count > 0:
-                db.query(FestivalEvent).filter(
-                    FestivalEvent.region_code.in_(all_region_codes)
-                ).delete(synchronize_session=False)
-                related_counts['festivals_events'] = festivals_count
+            # 관련 테이블들과 삭제할 데이터 정의
+            related_models = [
+                (FestivalEvent, 'festivals_events'),
+                (TouristAttraction, 'tourist_attractions'),
+                (CulturalFacility, 'cultural_facilities'),
+                (Accommodation, 'accommodations'),
+                (Restaurant, 'restaurants'),
+                (Shopping, 'shopping'),
+                (WeatherData, 'weather_data'),
+                (WeatherForecast, 'weather_forecasts'),
+                (WeatherInfo, 'weather_info'),
+                (PetTourInfo, 'pet_tour_info')
+            ]
             
-            # tourist_attractions
-            attractions_count = db.query(TouristAttraction).filter(
-                TouristAttraction.region_code.in_(all_region_codes)
-            ).count()
-            if attractions_count > 0:
-                db.query(TouristAttraction).filter(
-                    TouristAttraction.region_code.in_(all_region_codes)
-                ).delete(synchronize_session=False)
-                related_counts['tourist_attractions'] = attractions_count
-            
-            # cultural_facilities
-            cultural_count = db.query(CulturalFacility).filter(
-                CulturalFacility.region_code.in_(all_region_codes)
-            ).count()
-            if cultural_count > 0:
-                db.query(CulturalFacility).filter(
-                    CulturalFacility.region_code.in_(all_region_codes)
-                ).delete(synchronize_session=False)
-                related_counts['cultural_facilities'] = cultural_count
-            
-            # accommodations
-            accommodations_count = db.query(Accommodation).filter(
-                Accommodation.region_code.in_(all_region_codes)
-            ).count()
-            if accommodations_count > 0:
-                db.query(Accommodation).filter(
-                    Accommodation.region_code.in_(all_region_codes)
-                ).delete(synchronize_session=False)
-                related_counts['accommodations'] = accommodations_count
-            
-            # restaurants
-            restaurants_count = db.query(Restaurant).filter(
-                Restaurant.region_code.in_(all_region_codes)
-            ).count()
-            if restaurants_count > 0:
-                db.query(Restaurant).filter(
-                    Restaurant.region_code.in_(all_region_codes)
-                ).delete(synchronize_session=False)
-                related_counts['restaurants'] = restaurants_count
-            
-            # shopping
-            shopping_count = db.query(Shopping).filter(
-                Shopping.region_code.in_(all_region_codes)
-            ).count()
-            if shopping_count > 0:
-                db.query(Shopping).filter(
-                    Shopping.region_code.in_(all_region_codes)
-                ).delete(synchronize_session=False)
-                related_counts['shopping'] = shopping_count
-            
-            # weather_data
-            weather_data_count = db.query(WeatherData).filter(
-                WeatherData.region_code.in_(all_region_codes)
-            ).count()
-            if weather_data_count > 0:
-                db.query(WeatherData).filter(
-                    WeatherData.region_code.in_(all_region_codes)
-                ).delete(synchronize_session=False)
-                related_counts['weather_data'] = weather_data_count
-            
-            # weather_forecasts
-            weather_forecasts_count = db.query(WeatherForecast).filter(
-                WeatherForecast.region_code.in_(all_region_codes)
-            ).count()
-            if weather_forecasts_count > 0:
-                db.query(WeatherForecast).filter(
-                    WeatherForecast.region_code.in_(all_region_codes)
-                ).delete(synchronize_session=False)
-                related_counts['weather_forecasts'] = weather_forecasts_count
-            
-            # weather_info
-            weather_info_count = db.query(WeatherInfo).filter(
-                WeatherInfo.region_code.in_(all_region_codes)
-            ).count()
-            if weather_info_count > 0:
-                db.query(WeatherInfo).filter(
-                    WeatherInfo.region_code.in_(all_region_codes)
-                ).delete(synchronize_session=False)
-                related_counts['weather_info'] = weather_info_count
-            
-            # pet_tour_info
-            pet_tour_count = db.query(PetTourInfo).filter(
-                PetTourInfo.region_code.in_(all_region_codes)
-            ).count()
-            if pet_tour_count > 0:
-                db.query(PetTourInfo).filter(
-                    PetTourInfo.region_code.in_(all_region_codes)
-                ).delete(synchronize_session=False)
-                related_counts['pet_tour_info'] = pet_tour_count
+            # 각 테이블에서 관련 데이터 삭제
+            for model, table_name in related_models:
+                try:
+                    count = db.query(model).filter(
+                        model.region_code.in_(all_region_codes)
+                    ).count()
+                    if count > 0:
+                        db.query(model).filter(
+                            model.region_code.in_(all_region_codes)
+                        ).delete(synchronize_session=False)
+                        related_counts[table_name] = count
+                except Exception as e:
+                    logger.warning(f"Failed to delete {table_name} for regions {all_region_codes}: {str(e)}")
+                    # 삭제에 실패해도 계속 진행
             
             # 이제 지역들 삭제
             db.query(Region).filter(
