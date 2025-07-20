@@ -246,3 +246,43 @@ async def get_batch_job_detail(
         raise HTTPException(status_code=404, detail="작업을 찾을 수 없습니다.")
 
     return job
+
+
+@router.delete("/jobs/{job_id}")
+async def delete_batch_job(
+    job_id: str,
+    db: Session = Depends(get_db),
+    current_admin: Admin = Depends(require_super_admin),  # 슈퍼관리자만 삭제 가능
+):
+    """
+    배치 작업을 삭제합니다.
+
+    - **job_id**: 삭제할 작업 ID
+
+    주의:
+    - 이 기능은 슈퍼관리자만 사용할 수 있습니다.
+    - 삭제된 작업은 복구할 수 없습니다.
+    - 실행 중인 작업은 삭제할 수 없습니다.
+    """
+    service = BatchJobService(db)
+
+    # 작업 상태 먼저 확인
+    job = await service.get_job_async(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="작업을 찾을 수 없습니다.")
+
+    if job.status == BatchJobStatus.RUNNING:
+        raise HTTPException(
+            status_code=400,
+            detail="실행 중인 작업은 삭제할 수 없습니다. 먼저 작업을 중단해주세요.",
+        )
+
+    success = await service.delete_job_async(
+        job_id=job_id,
+        deleted_by=current_admin.admin_id,
+    )
+
+    if not success:
+        raise HTTPException(status_code=500, detail="작업 삭제 중 오류가 발생했습니다.")
+
+    return {"message": "작업이 성공적으로 삭제되었습니다.", "job_id": job_id}
