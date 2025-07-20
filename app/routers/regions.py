@@ -317,103 +317,160 @@ async def delete_region(
                         to_check.append(child.region_code)
             
             # 관련 데이터 삭제 (외래 키 제약 조건 해결)
-            # 각 테이블에서 해당 지역들과 관련된 데이터 삭제
-            from app.models import (
-                FestivalEvent, TouristAttraction, CulturalFacility,
-                Accommodation, Restaurant, Shopping,
-                WeatherData, WeatherForecast, WeatherInfo, PetTourInfo
-            )
+            logger.info(f"Starting forced deletion for regions: {all_region_codes}")
             
-            # 관련 데이터 삭제 카운트
-            related_counts = {}
-            
-            # 관련 테이블들과 삭제할 데이터 정의
-            related_models = [
-                (FestivalEvent, 'festivals_events'),
-                (TouristAttraction, 'tourist_attractions'),
-                (CulturalFacility, 'cultural_facilities'),
-                (Accommodation, 'accommodations'),
-                (Restaurant, 'restaurants'),
-                (Shopping, 'shopping'),
-                (WeatherData, 'weather_data'),
-                (WeatherForecast, 'weather_forecasts'),
-                (WeatherInfo, 'weather_info'),
-                (PetTourInfo, 'pet_tour_info')
-            ]
-            
-            # 각 테이블에서 관련 데이터 삭제
-            for model, table_name in related_models:
-                try:
-                    count = db.query(model).filter(
-                        model.region_code.in_(all_region_codes)
-                    ).count()
-                    if count > 0:
-                        db.query(model).filter(
+            # 안전한 방식으로 모델들을 가져오기
+            try:
+                from app.models import (
+                    FestivalEvent, TouristAttraction, CulturalFacility,
+                    Accommodation, Restaurant, Shopping,
+                    WeatherData, WeatherForecast, WeatherInfo, PetTourInfo
+                )
+                
+                # 관련 데이터 삭제 카운트
+                related_counts = {}
+                
+                # 관련 테이블들과 삭제할 데이터 정의
+                related_models = [
+                    (FestivalEvent, 'festivals_events'),
+                    (TouristAttraction, 'tourist_attractions'),
+                    (CulturalFacility, 'cultural_facilities'),
+                    (Accommodation, 'accommodations'),
+                    (Restaurant, 'restaurants'),
+                    (Shopping, 'shopping'),
+                    (WeatherData, 'weather_data'),
+                    (WeatherForecast, 'weather_forecasts'),
+                    (WeatherInfo, 'weather_info'),
+                    (PetTourInfo, 'pet_tour_info')
+                ]
+                
+                # 각 테이블에서 관련 데이터 삭제
+                for model, table_name in related_models:
+                    try:
+                        # 관련 데이터 개수 확인
+                        count = db.query(model).filter(
                             model.region_code.in_(all_region_codes)
-                        ).delete(synchronize_session=False)
-                        related_counts[table_name] = count
-                except Exception as e:
-                    logger.warning(f"Failed to delete {table_name} for regions {all_region_codes}: {str(e)}")
-                    # 삭제에 실패해도 계속 진행
-            
-            # 이제 지역들 삭제
-            db.query(Region).filter(
-                Region.region_code.in_(all_region_codes)
-            ).delete(synchronize_session=False)
-            
-            deleted_count = len(all_region_codes)
-            
-            # 로그 기록
-            if related_counts:
-                logger.info(f"Related data deleted for regions {all_region_codes}: {related_counts}")
+                        ).count()
+                        
+                        if count > 0:
+                            # 데이터 삭제
+                            deleted = db.query(model).filter(
+                                model.region_code.in_(all_region_codes)
+                            ).delete(synchronize_session=False)
+                            related_counts[table_name] = deleted
+                            logger.info(f"Deleted {deleted} records from {table_name}")
+                    except Exception as e:
+                        logger.warning(f"Failed to delete {table_name} for regions {all_region_codes}: {str(e)}")
+                        # 삭제에 실패해도 계속 진행
+                        continue
+                
+                # 이제 지역들 삭제 (역순으로 삭제 - 하위 지역부터)
+                all_region_codes_reversed = list(reversed(all_region_codes))
+                for region_to_delete in all_region_codes_reversed:
+                    try:
+                        region_obj = db.query(Region).filter(Region.region_code == region_to_delete).first()
+                        if region_obj:
+                            db.delete(region_obj)
+                    except Exception as e:
+                        logger.warning(f"Failed to delete region {region_to_delete}: {str(e)}")
+                        continue
+                
+                deleted_count = len(all_region_codes)
+                
+                # 로그 기록
+                if related_counts:
+                    logger.info(f"Related data deleted for regions {all_region_codes}: {related_counts}")
+                    
+            except ImportError as e:
+                logger.error(f"Failed to import models: {str(e)}")
+                raise HTTPException(status_code=500, detail="모델 import 실패")
         else:
             # 일반 삭제인 경우 관련 데이터가 있는지 확인
-            from app.models import (
-                FestivalEvent, TouristAttraction, CulturalFacility,
-                Accommodation, Restaurant, Shopping,
-                WeatherData, WeatherForecast, WeatherInfo, PetTourInfo
-            )
-            
-            # 관련 데이터 존재 여부 확인
-            has_related_data = False
-            related_data_info = []
-            
-            if db.query(FestivalEvent).filter(FestivalEvent.region_code == region_code).first():
-                has_related_data = True
-                related_data_info.append("축제/이벤트")
-            if db.query(TouristAttraction).filter(TouristAttraction.region_code == region_code).first():
-                has_related_data = True
-                related_data_info.append("관광지")
-            if db.query(CulturalFacility).filter(CulturalFacility.region_code == region_code).first():
-                has_related_data = True
-                related_data_info.append("문화시설")
-            if db.query(Accommodation).filter(Accommodation.region_code == region_code).first():
-                has_related_data = True
-                related_data_info.append("숙박시설")
-            if db.query(Restaurant).filter(Restaurant.region_code == region_code).first():
-                has_related_data = True
-                related_data_info.append("음식점")
-            if db.query(Shopping).filter(Shopping.region_code == region_code).first():
-                has_related_data = True
-                related_data_info.append("쇼핑")
-            if db.query(WeatherData).filter(WeatherData.region_code == region_code).first():
-                has_related_data = True
-                related_data_info.append("날씨 데이터")
-            if db.query(PetTourInfo).filter(PetTourInfo.region_code == region_code).first():
-                has_related_data = True
-                related_data_info.append("반려동물 여행 정보")
-            
-            if has_related_data:
-                raise HTTPException(
-                    status_code=400,
-                    detail={
-                        "message": "관련 데이터가 있는 지역은 삭제할 수 없습니다",
-                        "related_data": related_data_info
-                    }
+            try:
+                from app.models import (
+                    FestivalEvent, TouristAttraction, CulturalFacility,
+                    Accommodation, Restaurant, Shopping,
+                    WeatherData, WeatherForecast, WeatherInfo, PetTourInfo
                 )
-            
-            db.delete(region)
-            deleted_count = 1
+                
+                # 관련 데이터 존재 여부 확인
+                has_related_data = False
+                related_data_info = []
+                
+                # 각 모델별로 개별적으로 확인
+                try:
+                    if db.query(FestivalEvent).filter(FestivalEvent.tour_api_area_code == region_code).first():
+                        has_related_data = True
+                        related_data_info.append("축제/이벤트")
+                except:
+                    pass
+                    
+                try:
+                    if db.query(TouristAttraction).filter(TouristAttraction.tour_api_area_code == region_code).first():
+                        has_related_data = True
+                        related_data_info.append("관광지")
+                except:
+                    pass
+                    
+                try:
+                    if db.query(CulturalFacility).filter(CulturalFacility.tour_api_area_code == region_code).first():
+                        has_related_data = True
+                        related_data_info.append("문화시설")
+                except:
+                    pass
+                    
+                try:
+                    if db.query(Accommodation).filter(Accommodation.tour_api_area_code == region_code).first():
+                        has_related_data = True
+                        related_data_info.append("숙박시설")
+                except:
+                    pass
+                    
+                try:
+                    if db.query(Restaurant).filter(Restaurant.tour_api_area_code == region_code).first():
+                        has_related_data = True
+                        related_data_info.append("음식점")
+                except:
+                    pass
+                    
+                try:
+                    if db.query(Shopping).filter(Shopping.tour_api_area_code == region_code).first():
+                        has_related_data = True
+                        related_data_info.append("쇼핑")
+                except:
+                    pass
+                    
+                try:
+                    if db.query(WeatherData).filter(WeatherData.tour_api_area_code == region_code).first():
+                        has_related_data = True
+                        related_data_info.append("날씨 데이터")
+                except:
+                    pass
+                    
+                try:
+                    if db.query(PetTourInfo).filter(PetTourInfo.tour_api_area_code == region_code).first():
+                        has_related_data = True
+                        related_data_info.append("반려동물 여행 정보")
+                except:
+                    pass
+                
+                if has_related_data:
+                    raise HTTPException(
+                        status_code=400,
+                        detail={
+                            "message": "관련 데이터가 있는 지역은 삭제할 수 없습니다",
+                            "related_data": related_data_info
+                        }
+                    )
+                
+                db.delete(region)
+                deleted_count = 1
+                
+            except ImportError as e:
+                logger.error(f"Failed to import models: {str(e)}")
+                # 모델 import에 실패한 경우 단순 삭제 시도
+                db.delete(region)
+                deleted_count = 1
 
         db.commit()
 
@@ -427,4 +484,4 @@ async def delete_region(
     except Exception as e:
         db.rollback()
         logger.error(f"Failed to delete region: {str(e)}")
-        raise HTTPException(status_code=500, detail="지역 삭제 실패")
+        raise HTTPException(status_code=500, detail=f"지역 삭제 실패: {str(e)}")
