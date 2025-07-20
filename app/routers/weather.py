@@ -271,13 +271,86 @@ async def collect_current_weather_data():
 
 
 @router.get("/collect/stats")
-async def get_collection_stats():
+async def get_collection_stats(db: Session = Depends(get_db)):
     """
     데이터 수집 통계 조회
     """
     try:
-        stats = await weather_collector.get_collection_stats()
-        return stats
+        # 전체 지역 수와 수집된 지역 수 조회
+        total_regions_query = text("""
+            SELECT COUNT(DISTINCT region_code) as total
+            FROM regions
+            WHERE is_active = true
+        """)
+        total_regions = db.execute(total_regions_query).scalar()
+
+        collected_regions_query = text("""
+            SELECT COUNT(DISTINCT region_code) as collected
+            FROM weather_forecast
+            WHERE DATE(created_at) = CURRENT_DATE
+        """)
+        collected_regions = db.execute(collected_regions_query).scalar()
+
+        # 오늘 수집 횟수
+        today_collection_query = text("""
+            SELECT COUNT(*) as count
+            FROM weather_forecast
+            WHERE DATE(created_at) = CURRENT_DATE
+        """)
+        today_collection_count = db.execute(today_collection_query).scalar()
+
+        # 마지막 수집 시간
+        last_collection_query = text("""
+            SELECT MAX(created_at) as last_time
+            FROM weather_forecast
+        """)
+        last_collection_time = db.execute(last_collection_query).scalar()
+
+        # 최근 수집 이력 (예시)
+        collection_history_query = text("""
+            SELECT 
+                wf.region_code,
+                r.region_name,
+                wf.created_at as collected_at,
+                CASE 
+                    WHEN wf.min_temp IS NOT NULL AND wf.max_temp IS NOT NULL 
+                    THEN 'success' 
+                    ELSE 'failed' 
+                END as status
+            FROM weather_forecast wf
+            LEFT JOIN regions r ON wf.region_code = r.region_code
+            WHERE wf.created_at >= NOW() - INTERVAL '24 hours'
+            ORDER BY wf.created_at DESC
+            LIMIT 10
+        """)
+        collection_history = db.execute(collection_history_query).fetchall()
+
+        history_list = [
+            {
+                "region_code": row.region_code,
+                "region_name": row.region_name or f"지역코드_{row.region_code}",
+                "collected_at": row.collected_at.isoformat() if row.collected_at else None,
+                "status": row.status
+            }
+            for row in collection_history
+        ]
+
+        # 실패 횟수 계산
+        failed_collections = sum(1 for h in history_list if h["status"] == "failed")
+        successful_collections = len(history_list) - failed_collections
+        error_rate = round((failed_collections / len(history_list) * 100), 1) if history_list else 0
+
+        return {
+            "total_regions": total_regions or 0,
+            "collected_regions": collected_regions or 0,
+            "today_collection_count": today_collection_count or 0,
+            "last_collection_time": last_collection_time.isoformat() if last_collection_time else None,
+            "collection_history": history_list,
+            "failed_collections": failed_collections,
+            "successful_collections": successful_collections,
+            "error_rate": error_rate,
+            "next_collection_time": None  # 배치 스케줄러와 연동 필요
+        }
     except Exception as e:
         logger.error(f"Get collection stats error: {e}")
         raise HTTPException(status_code=500, detail="수집 통계 조회 중 오류가 발생했습니다.")
@@ -511,4 +584,176 @@ def get_forecast_weather_data(
     except Exception as e:
         logger.error(f"Forecast weather data 조회 실패: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"예보 데이터 조회 중 오류가 발생했습니다: {str(e)}")
+
+
+@router.post("/update-empty-data")
+async def update_empty_weather_data(
+    db: Session = Depends(get_db)
+):
+    """
+    빈 날씨 데이터를 api_raw_data에서 업데이트
+    
+    weather_current 테이블의 빈 필드(precipitation, visibility, uv_index 등)를
+    api_raw_data 테이블에 저장된 이전 수집 데이터를 사용하여 업데이트합니다.
+    """
+    import json
+    from datetime import datetime
+    
+    try:
+        # 빈 필드가 있는 레코드 조회
+        empty_records_query = text("""
+            SELECT id, region_code, region_name, weather_date, 
+                   avg_temp, max_temp, min_temp, humidity, 
+                   precipitation, wind_speed, weather_condition,
+                   visibility, uv_index
+            FROM weather_current
+            WHERE precipitation IS NULL
+               OR visibility IS NULL
+               OR uv_index IS NULL
+            ORDER BY weather_date DESC, region_code
+            LIMIT 100
+        """)
+        
+        empty_records = db.execute(empty_records_query).fetchall()
+        
+        if not empty_records:
+            return {
+                "success": True,
+                "message": "빈 필드가 있는 레코드가 없습니다.",
+                "updated_count": 0
+            }
+        
+        updated_count = 0
+        failed_count = 0
+        
+        for record in empty_records:
+            # api_raw_data에서 해당 날짜와 지역의 데이터 검색
+            raw_data_query = text("""
+                SELECT id, raw_response
+                FROM api_raw_data
+                WHERE api_provider = 'WEATHER'
+                  AND response_status = 200
+                  AND raw_response IS NOT NULL
+                  AND created_at::date = :weather_date
+                  AND (
+                    request_params->>'region' = :region_name
+                    OR request_params->>'city' = :region_name
+                    OR raw_response::text LIKE :region_pattern
+                  )
+                ORDER BY created_at DESC
+                LIMIT 5
+            """)
+            
+            raw_data_results = db.execute(
+                raw_data_query,
+                {
+                    'weather_date': record.weather_date,
+                    'region_name': record.region_name,
+                    'region_pattern': f'%{record.region_name}%'
+                }
+            ).fetchall()
+            
+            if not raw_data_results:
+                continue
+                
+            # raw_response에서 날씨 데이터 추출
+            weather_info = None
+            api_raw_data_id = None
+            
+            for raw_data in raw_data_results:
+                try:
+                    response_data = raw_data.raw_response
+                    
+                    # API 응답 구조에 따라 파싱
+                    if 'response' in response_data and 'body' in response_data['response']:
+                        items = response_data.get('response', {}).get('body', {}).get('items', {}).get('item', [])
+                        if items:
+                            item = items[0] if isinstance(items, list) else items
+                            
+                            weather_info = {}
+                            # 강수량
+                            if record.precipitation is None and 'rn1' in item:
+                                weather_info['precipitation'] = float(item.get('rn1', 0))
+                            
+                            # 가시거리
+                            if record.visibility is None and 'visibility' in item:
+                                weather_info['visibility'] = float(item.get('visibility', 10000)) / 1000
+                            
+                            # UV 지수
+                            if record.uv_index is None and 'uv' in item:
+                                weather_info['uv_index'] = float(item.get('uv', 0))
+                                
+                            if weather_info:
+                                api_raw_data_id = str(raw_data.id)
+                                break
+                                
+                except Exception as e:
+                    logger.warning(f"Failed to parse raw_response: {e}")
+                    continue
+            
+            # 업데이트 수행
+            if weather_info:
+                update_fields = []
+                params = {'id': record.id}
+                
+                if 'precipitation' in weather_info:
+                    update_fields.append("precipitation = :precipitation")
+                    params['precipitation'] = weather_info['precipitation']
+                    
+                if 'visibility' in weather_info:
+                    update_fields.append("visibility = :visibility")
+                    params['visibility'] = weather_info['visibility']
+                    
+                if 'uv_index' in weather_info:
+                    update_fields.append("uv_index = :uv_index")
+                    params['uv_index'] = weather_info['uv_index']
+                    
+                if api_raw_data_id:
+                    update_fields.append("raw_data_id = :raw_data_id")
+                    params['raw_data_id'] = api_raw_data_id
+                    
+                if update_fields:
+                    update_fields.append("updated_at = :updated_at")
+                    params['updated_at'] = datetime.now()
+                    
+                    update_query = text(f"""
+                        UPDATE weather_current
+                        SET {', '.join(update_fields)}
+                        WHERE id = :id
+                    """)
+                    
+                    db.execute(update_query, params)
+                    updated_count += 1
+                    
+        db.commit()
+        
+        # 업데이트 후 상태 확인
+        check_query = text("""
+            SELECT 
+                COUNT(*) as total,
+                SUM(CASE WHEN precipitation IS NULL THEN 1 ELSE 0 END) as null_precipitation,
+                SUM(CASE WHEN visibility IS NULL THEN 1 ELSE 0 END) as null_visibility,
+                SUM(CASE WHEN uv_index IS NULL THEN 1 ELSE 0 END) as null_uv_index
+            FROM weather_current
+        """)
+        
+        result = db.execute(check_query).fetchone()
+        
+        return {
+            "success": True,
+            "message": "빈 날씨 데이터 업데이트가 완료되었습니다.",
+            "processed_count": len(empty_records),
+            "updated_count": updated_count,
+            "current_status": {
+                "total_records": result.total,
+                "null_precipitation": result.null_precipitation,
+                "null_visibility": result.null_visibility,
+                "null_uv_index": result.null_uv_index
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Update empty weather data error: {e}", exc_info=True)
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"빈 데이터 업데이트 중 오류가 발생했습니다: {str(e)}")
 

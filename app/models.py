@@ -124,6 +124,15 @@ class User(Base):
     chat_messages = relationship(
         "ChatMessage", back_populates="user", cascade="all, delete-orphan"
     )
+    notification_settings = relationship(
+        "UserNotificationSettings", back_populates="user", uselist=False
+    )
+    device_tokens = relationship(
+        "UserDeviceToken", back_populates="user", cascade="all, delete-orphan"
+    )
+    fcm_notification_logs = relationship(
+        "FCMNotificationLog", back_populates="user", cascade="all, delete-orphan"
+    )
 
 
 class EmailVerification(Base):
@@ -2224,6 +2233,132 @@ class RegionApiMappingsView(Base):
     kma_region_code = Column(String)
     kma_x = Column(Integer)
     kma_y = Column(Integer)
+
+
+# ===========================================
+# 알림 관련 모델 (사용자 백엔드와 공유)
+# ===========================================
+
+class NotificationStatus(enum.Enum):
+    """알림 상태"""
+    PENDING = "PENDING"
+    SENT = "SENT"
+    DELIVERED = "DELIVERED"
+    READ = "READ"
+    FAILED = "FAILED"
+
+
+class NotificationType(enum.Enum):
+    """알림 유형"""
+    WEATHER_ALERT = "WEATHER_ALERT"  # 날씨 변화 알림
+    TRAVEL_PLAN_UPDATE = "TRAVEL_PLAN_UPDATE"  # 여행 계획 업데이트
+    RECOMMENDATION = "RECOMMENDATION"  # 추천 알림
+    MARKETING = "MARKETING"  # 마케팅 알림
+    SYSTEM = "SYSTEM"  # 시스템 알림
+    EMERGENCY = "EMERGENCY"  # 긴급 알림
+    CONTACT_ANSWER = "CONTACT_ANSWER"  # 문의 답변 알림
+
+
+class NotificationChannel(enum.Enum):
+    """알림 채널"""
+    PUSH = "PUSH"  # FCM 푸시 알림
+    EMAIL = "EMAIL"  # 이메일 알림
+    SMS = "SMS"  # SMS 알림
+    IN_APP = "IN_APP"  # 인앱 알림
+
+
+class UserNotificationSettings(Base):
+    """
+    사용자 알림 설정 테이블
+    사용처: weather-flick-back, weather-flick-admin-back
+    설명: 사용자별 알림 설정 관리
+    """
+    __tablename__ = "user_notification_settings"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    user_id = Column(
+        UUID(as_uuid=True), ForeignKey("users.user_id"), nullable=False, index=True
+    )
+    
+    # 알림 채널별 설정
+    push_enabled = Column(Boolean, default=True)
+    email_enabled = Column(Boolean, default=False)
+    sms_enabled = Column(Boolean, default=False)
+    in_app_enabled = Column(Boolean, default=True)
+    
+    # 알림 유형별 설정
+    weather_alerts = Column(Boolean, default=True)
+    travel_plan_updates = Column(Boolean, default=True)
+    recommendation_updates = Column(Boolean, default=True)
+    marketing_messages = Column(Boolean, default=False)
+    system_messages = Column(Boolean, default=True)
+    emergency_alerts = Column(Boolean, default=True)
+    
+    # 방해 금지 시간 설정
+    quiet_hours_enabled = Column(Boolean, default=False)
+    quiet_hours_start = Column(String(5))  # HH:MM 형식
+    quiet_hours_end = Column(String(5))  # HH:MM 형식
+    
+    # 타임스탬프
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    
+    # 관계 설정
+    user = relationship("User", back_populates="notification_settings")
+
+
+class UserDeviceToken(Base):
+    """
+    사용자 디바이스 토큰 테이블
+    사용처: weather-flick-back, weather-flick-admin-back
+    설명: FCM 푸시 알림을 위한 디바이스 토큰 관리
+    """
+    __tablename__ = "user_device_tokens"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    user_id = Column(
+        UUID(as_uuid=True), ForeignKey("users.user_id"), nullable=False, index=True
+    )
+    device_token = Column(String, nullable=False, index=True)
+    device_type = Column(String)  # ios, android, web
+    device_name = Column(String)
+    app_version = Column(String)
+    created_at = Column(DateTime, server_default=func.now())
+    last_used = Column(DateTime, server_default=func.now())
+    is_active = Column(Boolean, default=True)
+    
+    # 관계 설정
+    user = relationship("User", back_populates="device_tokens")
+
+
+class FCMNotificationLog(Base):
+    """
+    FCM 알림 로그 테이블
+    사용처: weather-flick-back, weather-flick-admin-back
+    설명: FCM 푸시 알림 전송 이력 관리
+    """
+    __tablename__ = "fcm_notification_logs"
+    
+    log_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    user_id = Column(
+        UUID(as_uuid=True), ForeignKey("users.user_id"), nullable=False, index=True
+    )
+    token_id = Column(UUID(as_uuid=True), nullable=True)
+    notification_type = Column(String, nullable=False)
+    title = Column(Text, nullable=False)
+    body = Column(Text, nullable=False)
+    data = Column(JSONB, nullable=True)
+    status = Column(String, nullable=False, default='pending')
+    error_message = Column(Text, nullable=True)
+    sent_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    
+    # 관계 설정
+    user = relationship("User", back_populates="fcm_notification_logs")
+
+
+# notifications 테이블 대신 fcm_notification_logs를 사용하도록 별칭 설정
+Notification = FCMNotificationLog
 
 
 # ===========================================

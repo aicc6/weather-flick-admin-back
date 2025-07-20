@@ -16,3 +16,4 @@ python-dotenv>=1.0.0
 requests
 fastapi-mail==1.4.1
 jinja2==3.1.4
+firebase-admin>=6.5.0

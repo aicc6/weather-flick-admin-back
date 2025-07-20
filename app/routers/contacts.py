@@ -7,11 +7,14 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
+import uuid
+import asyncio
 
 from ..database import get_db
-from ..models import Contact, ContactAnswer
+from ..models import Contact, ContactAnswer, User, UserNotificationSettings
 from ..models_admin import Admin
 from ..dependencies import get_current_admin, check_permission
+from ..services.notification_service import NotificationService
 
 router = APIRouter(prefix="/contacts", tags=["contacts"])
 
@@ -163,7 +166,7 @@ async def get_contact_detail(
 @router.post("/{contact_id}/answer")
 async def create_answer(
     contact_id: int,
-    content: str,
+    answer_data: dict,
     db: Session = Depends(get_db),
     current_admin: Admin = Depends(check_permission("contact.answer"))
 ):
@@ -177,6 +180,11 @@ async def create_answer(
     if existing_answer:
         raise HTTPException(status_code=400, detail="이미 답변이 있습니다.")
     
+    # content 필드 확인
+    content = answer_data.get("content")
+    if not content:
+        raise HTTPException(status_code=400, detail="답변 내용을 입력해주세요.")
+    
     # 답변 생성
     answer = ContactAnswer(
         contact_id=contact_id,
@@ -188,6 +196,29 @@ async def create_answer(
     # 문의 상태 업데이트
     contact.approval_status = "COMPLETE"
     
+    # 문의 작성자에게 알림 생성
+    # 이메일로 사용자 찾기
+    user = db.query(User).filter(User.email == contact.email).first()
+    if user:
+        # 알림 서비스 초기화
+        notification_service = NotificationService(db)
+        
+        # 사용자의 알림 설정 확인
+        user_settings = db.query(UserNotificationSettings).filter(
+            UserNotificationSettings.user_id == user.user_id
+        ).first()
+        
+        # 문의 답변 알림 전송 (모든 활성 채널로)
+        asyncio.create_task(
+            notification_service.send_contact_answer_notification(
+                user=user,
+                contact_title=contact.title,
+                answer_content=content,
+                contact_id=contact.id,
+                user_settings=user_settings
+            )
+        )
+    
     db.commit()
     db.refresh(answer)
     
@@ -198,10 +229,10 @@ async def create_answer(
     }
 
 
-@router.put("/{contact_id}/status")
+@router.patch("/{contact_id}/status")
 async def update_contact_status(
     contact_id: int,
-    status: str,
+    status_data: dict,
     db: Session = Depends(get_db),
     current_admin: Admin = Depends(check_permission("contact.update"))
 ):
@@ -209,6 +240,10 @@ async def update_contact_status(
     contact = db.query(Contact).filter(Contact.id == contact_id).first()
     if not contact:
         raise HTTPException(status_code=404, detail="문의를 찾을 수 없습니다.")
+    
+    status = status_data.get("approval_status") or status_data.get("status")
+    if not status:
+        raise HTTPException(status_code=400, detail="상태값을 입력해주세요.")
     
     if status not in ["PENDING", "PROCESSING", "COMPLETE"]:
         raise HTTPException(status_code=400, detail="잘못된 상태값입니다.")
@@ -218,3 +253,73 @@ async def update_contact_status(
     db.commit()
     
     return {"status": status}
+
+
+@router.put("/{contact_id}/answer")
+async def update_answer(
+    contact_id: int,
+    answer_data: dict,
+    db: Session = Depends(get_db),
+    current_admin: Admin = Depends(check_permission("contact.answer"))
+):
+    """문의 답변 수정"""
+    contact = db.query(Contact).filter(Contact.id == contact_id).first()
+    if not contact:
+        raise HTTPException(status_code=404, detail="문의를 찾을 수 없습니다.")
+    
+    # 답변 확인
+    answer = db.query(ContactAnswer).filter(ContactAnswer.contact_id == contact_id).first()
+    if not answer:
+        raise HTTPException(status_code=404, detail="답변을 찾을 수 없습니다.")
+    
+    # content 필드 확인
+    content = answer_data.get("content")
+    if not content:
+        raise HTTPException(status_code=400, detail="답변 내용을 입력해주세요.")
+    
+    # 답변 수정
+    answer.content = content
+    if hasattr(answer, 'updated_at'):
+        answer.updated_at = datetime.now()
+    
+    db.commit()
+    db.refresh(answer)
+    
+    # 관리자 정보 추가
+    admin = db.query(Admin).filter(Admin.admin_id == answer.admin_id).first()
+    
+    return {
+        "id": answer.id,
+        "content": answer.content,
+        "admin_id": answer.admin_id,
+        "admin_name": admin.name if admin else "알 수 없음",
+        "created_at": answer.created_at.isoformat() if answer.created_at else None,
+        "updated_at": answer.updated_at.isoformat() if hasattr(answer, 'updated_at') and answer.updated_at else None
+    }
+
+
+@router.delete("/{contact_id}/answer")
+async def delete_answer(
+    contact_id: int,
+    db: Session = Depends(get_db),
+    current_admin: Admin = Depends(check_permission("contact.answer"))
+):
+    """문의 답변 삭제"""
+    contact = db.query(Contact).filter(Contact.id == contact_id).first()
+    if not contact:
+        raise HTTPException(status_code=404, detail="문의를 찾을 수 없습니다.")
+    
+    # 답변 확인
+    answer = db.query(ContactAnswer).filter(ContactAnswer.contact_id == contact_id).first()
+    if not answer:
+        raise HTTPException(status_code=404, detail="답변을 찾을 수 없습니다.")
+    
+    # 답변 삭제
+    db.delete(answer)
+    
+    # 문의 상태를 PENDING으로 변경
+    contact.approval_status = "PENDING"
+    
+    db.commit()
+    
+    return {"message": "답변이 삭제되었습니다."}
