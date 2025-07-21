@@ -418,7 +418,8 @@ def get_weather_summary_from_forecasts(db: Session = Depends(get_db)):
                    FIRST_VALUE(max_temp::numeric) OVER (PARTITION BY region_code ORDER BY forecast_date DESC, created_at DESC) as max_temp,
                    FIRST_VALUE(weather_condition) OVER (PARTITION BY region_code ORDER BY forecast_date DESC, created_at DESC) as weather_condition,
                    FIRST_VALUE(precipitation_prob) OVER (PARTITION BY region_code ORDER BY forecast_date DESC, created_at DESC) as precipitation_prob,
-                   FIRST_VALUE(forecast_date) OVER (PARTITION BY region_code ORDER BY forecast_date DESC, created_at DESC) as latest_forecast_date
+                   FIRST_VALUE(forecast_date) OVER (PARTITION BY region_code ORDER BY forecast_date DESC, created_at DESC) as latest_forecast_date,
+                   FIRST_VALUE(created_at) OVER (PARTITION BY region_code ORDER BY forecast_date DESC, created_at DESC) as latest_created_at
             FROM weather_forecast 
             WHERE min_temp IS NOT NULL 
             AND max_temp IS NOT NULL 
@@ -470,7 +471,7 @@ def get_weather_summary_from_forecasts(db: Session = Depends(get_db)):
                 "max_temp": float(row.max_temp),
                 "weather_condition": row.weather_condition,
                 "precipitation_prob": row.precipitation_prob,
-                "last_updated": row.latest_forecast_date.isoformat() if row.latest_forecast_date else None
+                "last_updated": row.latest_created_at.isoformat() if row.latest_created_at else None
             })
 
         # 통계 계산
@@ -584,6 +585,90 @@ def get_forecast_weather_data(
     except Exception as e:
         logger.error(f"Forecast weather data 조회 실패: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"예보 데이터 조회 중 오류가 발생했습니다: {str(e)}")
+
+
+@router.get("/database/current-data")
+def get_current_weather_data(
+    limit: int = Query(20, description="반환할 데이터 수"),
+    db: Session = Depends(get_db)
+):
+    """
+    weather_current 테이블에서 지역별 최신 실시간 날씨 데이터를 반환합니다.
+    습도, 풍속, 가시거리, UV지수 등 상세한 날씨 정보를 제공합니다.
+    """
+    try:
+        # 지역별 최신 실시간 날씨 데이터 조회
+        query = text("""
+            WITH latest_current AS (
+                SELECT DISTINCT region_code,
+                       FIRST_VALUE(avg_temp::numeric) OVER (PARTITION BY region_code ORDER BY weather_date DESC, created_at DESC) as avg_temp,
+                       FIRST_VALUE(max_temp::numeric) OVER (PARTITION BY region_code ORDER BY weather_date DESC, created_at DESC) as max_temp,
+                       FIRST_VALUE(min_temp::numeric) OVER (PARTITION BY region_code ORDER BY weather_date DESC, created_at DESC) as min_temp,
+                       FIRST_VALUE(humidity) OVER (PARTITION BY region_code ORDER BY weather_date DESC, created_at DESC) as humidity,
+                       FIRST_VALUE(wind_speed) OVER (PARTITION BY region_code ORDER BY weather_date DESC, created_at DESC) as wind_speed,
+                       FIRST_VALUE(visibility) OVER (PARTITION BY region_code ORDER BY weather_date DESC, created_at DESC) as visibility,
+                       FIRST_VALUE(uv_index) OVER (PARTITION BY region_code ORDER BY weather_date DESC, created_at DESC) as uv_index,
+                       FIRST_VALUE(precipitation) OVER (PARTITION BY region_code ORDER BY weather_date DESC, created_at DESC) as precipitation,
+                       FIRST_VALUE(weather_condition) OVER (PARTITION BY region_code ORDER BY weather_date DESC, created_at DESC) as weather_condition,
+                       FIRST_VALUE(weather_date) OVER (PARTITION BY region_code ORDER BY weather_date DESC, created_at DESC) as weather_date,
+                       FIRST_VALUE(created_at) OVER (PARTITION BY region_code ORDER BY weather_date DESC, created_at DESC) as created_at,
+                       ROW_NUMBER() OVER (PARTITION BY region_code ORDER BY weather_date DESC, created_at DESC) as rn
+                FROM weather_current 
+                WHERE avg_temp IS NOT NULL 
+                AND weather_date >= CURRENT_DATE - INTERVAL '7 days'
+            )
+            SELECT lc.*, r.region_name, r.region_name_full
+            FROM latest_current lc
+            LEFT JOIN regions r ON lc.region_code = r.region_code
+            WHERE lc.rn = 1
+            ORDER BY lc.created_at DESC
+            LIMIT :limit
+        """)
+
+        result = db.execute(query, {"limit": limit}).fetchall()
+
+        if not result:
+            return {
+                "success": True,
+                "data": [],
+                "message": "weather_current 테이블에 최근 데이터가 없습니다."
+            }
+
+        # 응답 데이터 구성
+        weather_data = []
+        for row in result:
+            city_name = row.region_name_full or row.region_name or f"지역코드_{row.region_code}"
+            
+            weather_data.append({
+                "id": f"current_{row.region_code}",
+                "city_name": city_name,
+                "region_code": row.region_code,
+                "temperature": round(float(row.avg_temp), 1) if row.avg_temp else None,
+                "min_temp": float(row.min_temp) if row.min_temp else None,
+                "max_temp": float(row.max_temp) if row.max_temp else None,
+                "humidity": row.humidity,
+                "wind_speed": row.wind_speed,
+                "visibility": row.visibility,
+                "uv_index": row.uv_index,
+                "precipitation": row.precipitation,
+                "weather_description": row.weather_condition,
+                "weather_condition": row.weather_condition,
+                "sky_condition": row.weather_condition,
+                "weather_date": row.weather_date.isoformat() if row.weather_date else None,
+                "last_updated": row.created_at.isoformat() if row.created_at else None,
+                "data_source": "weather_current"
+            })
+
+        return {
+            "success": True,
+            "data": weather_data,
+            "count": len(weather_data),
+            "message": f"weather_current 테이블에서 {len(weather_data)}개 지역의 실시간 날씨 데이터를 조회했습니다."
+        }
+
+    except Exception as e:
+        logger.error(f"Current weather data 조회 실패: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"실시간 날씨 데이터 조회 중 오류가 발생했습니다: {str(e)}")
 
 
 @router.post("/update-empty-data")

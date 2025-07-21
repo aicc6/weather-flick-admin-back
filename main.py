@@ -12,6 +12,10 @@ from app.logging_config import setup_logging
 from app.database import get_db
 from sqlalchemy.orm import Session
 from app.routers import travel_plans
+from app.middleware.security import AdminSecurityHeadersMiddleware, AdminRateLimitMiddleware
+from app.middleware.error_handling import AdminErrorHandlingMiddleware, AdminTimeoutMiddleware, AdminHealthCheckMiddleware
+from app.middleware.json_encoder import setup_admin_json_encoding
+from app.middleware.timezone_middleware import setup_admin_timezone_middleware
 from app.routers.admins import router as admins_router
 
 # 통합된 라우터들 사용
@@ -69,17 +73,33 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS 미들웨어 설정
+# 관리자용 미들웨어 추가 (순서 중요: 외부 → 내부)
+app.add_middleware(AdminErrorHandlingMiddleware)  # 최상위 에러 처리 (상세 로깅)
+app.add_middleware(AdminTimeoutMiddleware, timeout_seconds=60)  # 관리자용 긴 타임아웃
+app.add_middleware(AdminHealthCheckMiddleware)  # 관리자용 헬스체크
+app.add_middleware(AdminSecurityHeadersMiddleware)  # 관리자용 엄격한 보안
+app.add_middleware(AdminRateLimitMiddleware, max_requests=60, window_seconds=60)  # 관리자용 Rate limiting
+
+# CORS 미들웨어 설정 (관리자용 제한적 설정)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:5174",
+        "http://127.0.0.1:5174"
+    ],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
 )
 
 # RBAC 미들웨어 추가 (임시 비활성화)
 # app.add_middleware(RBACMiddleware)
+
+# JSON 직렬화 설정 적용
+setup_admin_json_encoding(app)
+
+# 관리자용 타임존 미들웨어 추가
+setup_admin_timezone_middleware(app)
 
 # 요청 로깅 미들웨어
 @app.middleware("http")
@@ -140,6 +160,61 @@ async def root():
 async def health_check():
     return {"status": "healthy", "version": settings.app_version}
 
+# 한국어 필드명 매핑
+FIELD_NAME_MAPPING = {
+    "email": "이메일",
+    "password": "비밀번호",
+    "name": "이름",
+    "phone": "전화번호",
+    "username": "사용자명",
+    "title": "제목",
+    "content": "내용",
+    "status": "상태"
+}
+
+# 한국어 오류 메시지 매핑
+ERROR_MESSAGE_MAPPING = {
+    "missing": "을(를) 입력해주세요",
+    "string_too_short": "이(가) 너무 짧습니다",
+    "string_too_long": "이(가) 너무 깁니다",
+    "value_error": "형식이 올바르지 않습니다",
+    "type_error": "형식이 올바르지 않습니다"
+}
+
+def get_korean_field_name(field: str) -> str:
+    """필드명을 한국어로 변환"""
+    return FIELD_NAME_MAPPING.get(field, field)
+
+def get_korean_validation_message(field: str, error_type: str, msg: str) -> str:
+    """검증 오류를 한국어 메시지로 변환"""
+    korean_field = get_korean_field_name(field)
+    
+    # 받침에 따른 조사 선택
+    def get_object_particle(word: str) -> str:
+        """받침에 따라 을/를 선택"""
+        if not word:
+            return "을"
+        last_char = word[-1]
+        # 한글 완성형인지 확인
+        if '가' <= last_char <= '힣':
+            # 받침이 있는지 확인 (유니코드 계산)
+            code = ord(last_char) - ord('가')
+            final_consonant = code % 28
+            return "을" if final_consonant != 0 else "를"
+        else:
+            # 한글이 아닌 경우 기본값
+            return "을"
+    
+    if error_type == "missing":
+        particle = get_object_particle(korean_field)
+        return f"{korean_field}{particle} 입력해주세요"
+    elif error_type in ["string_too_short", "string_too_long"]:
+        return f"{korean_field}{ERROR_MESSAGE_MAPPING.get(error_type, '이(가) 올바르지 않습니다')}"
+    elif "email" in msg.lower():
+        return f"{korean_field} 형식이 올바르지 않습니다"
+    else:
+        return f"{korean_field} {ERROR_MESSAGE_MAPPING.get(error_type, '형식이 올바르지 않습니다')}"
+
 # 전역 에러 핸들러
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
@@ -149,7 +224,25 @@ async def global_exception_handler(request: Request, exc: Exception):
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     logging.error(f"[ValidationError] {request.url}: {exc}")
-    return JSONResponse(status_code=422, content={"detail": exc.errors()})
+    
+    # 검증 에러를 한국어로 변환
+    error_messages = []
+    for error in exc.errors():
+        field = error["loc"][-1] if error["loc"] else "unknown"
+        error_type = error["type"]
+        msg = error["msg"]
+        
+        korean_message = get_korean_validation_message(field, error_type, msg)
+        error_messages.append(korean_message)
+    
+    # 중복 제거하고 결합
+    unique_messages = list(dict.fromkeys(error_messages))
+    combined_message = " ".join(unique_messages)
+    
+    return JSONResponse(
+        status_code=422, 
+        content={"detail": combined_message}
+    )
 
 if __name__ == "__main__":
     import uvicorn

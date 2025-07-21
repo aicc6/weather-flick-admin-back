@@ -20,12 +20,18 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
 @router.post("/login", response_model=LoginResponse)
-async def login(admin_login: AdminLogin, db: Session = Depends(get_db)):
-    """관리자 로그인"""
+async def login(
+    admin_login: AdminLogin,
+    db: Session = Depends(get_db)
+):
+    """관리자 로그인 (JSON 요청)"""
+    email = admin_login.email
+    password = admin_login.password
+    
     # 이메일로 관리자 조회
-    admin = db.query(Admin).filter(Admin.email == admin_login.email).first()
+    admin = db.query(Admin).filter(Admin.email == email).first()
 
-    if not admin or not verify_password(admin_login.password, admin.password_hash):
+    if not admin or not verify_password(password, admin.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="이메일 또는 비밀번호가 올바르지 않습니다",
