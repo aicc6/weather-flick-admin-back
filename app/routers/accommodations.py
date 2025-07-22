@@ -27,24 +27,36 @@ async def get_all_accommodations(
         query = query.filter(Accommodation.accommodation_name.ilike(f"%{accommodation_name}%"))
     
     if region_code:
-        # region_code 파라미터를 받으면 해당 지역의 tour_api_area_code를 찾아서 필터링
-        region = db.query(Region).filter(Region.region_code == region_code).first()
-        if region and region.tour_api_area_code:
-            query = query.filter(Accommodation.region_code == region.tour_api_area_code)
+        # region_code 파라미터를 받으면 해당 지역의 숙박시설 필터링
+        # 프론트엔드에서 '1', '2', '3' 등을 보내면 DB의 '01', '02', '03' 형식과 매칭
+        if len(region_code) == 1 and region_code.isdigit():
+            # 한 자리 숫자인 경우 앞에 0을 붙여서 검색
+            padded_code = region_code.zfill(2)
+            # 시도 레벨과 시군구 레벨 모두 검색 (예: '01'로 시작하는 모든 region_code)
+            query = query.filter(Accommodation.region_code.like(f"{padded_code}%"))
         else:
-            query = query.filter(Accommodation.region_code == str(region_code))
+            # 그 외의 경우 그대로 검색
+            query = query.filter(Accommodation.region_code == region_code)
     
     total = query.count()
     accommodations = query.order_by(Accommodation.created_at.desc()).offset(offset).limit(limit).all()
     
     # 의미있는 데이터만 포함하여 응답 구성
     items = []
+    # 지역명 조회를 위한 region_codes 수집
+    region_codes = list(set([item.region_code for item in accommodations if item.region_code]))
+    region_names = {}
+    if region_codes:
+        regions = db.query(Region).filter(Region.region_code.in_(region_codes)).all()
+        region_names = {r.region_code: r.region_name for r in regions}
+
     for a in accommodations:
         item = {
             "content_id": a.content_id,
             "accommodation_name": a.accommodation_name,
             "address": a.address,
             "region_code": a.region_code,
+            "region_name": region_names.get(a.region_code, ""),
             "created_at": a.created_at,
         }
         

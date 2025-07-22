@@ -14,7 +14,7 @@ from app.schemas.leisure_sport_schemas import (
 router = APIRouter(prefix="/leisure-sports", tags=["leisure_sports"])
 
 
-@router.get("/", response_model=LeisureSportListResponse)
+@router.get("/")
 @require_permission("content.read")
 async def list_leisure_sports(
     current_admin: CurrentAdmin,
@@ -26,17 +26,52 @@ async def list_leisure_sports(
 ):
     query = db.query(LeisureSport)
     if region_code:
-        # region_code 파라미터를 받으면 해당 지역의 tour_api_area_code를 찾아서 필터링
-        region = db.query(Region).filter(Region.region_code == region_code).first()
-        if region and region.tour_api_area_code:
-            query = query.filter(LeisureSport.region_code == region.tour_api_area_code)
+        # region_code 파라미터를 받으면 해당 지역의 레저스포츠 필터링
+        # 프론트엔드에서 '1', '2', '3' 등을 보내면 DB의 '01', '02', '03' 형식과 매칭
+        if len(region_code) == 1 and region_code.isdigit():
+            # 한 자리 숫자인 경우 앞에 0을 붙여서 검색
+            padded_code = region_code.zfill(2)
+            # 시도 레벨과 시군구 레벨 모두 검색 (예: '01'로 시작하는 모든 region_code)
+            query = query.filter(LeisureSport.region_code.like(f"{padded_code}%"))
         else:
+            # 그 외의 경우 그대로 검색
             query = query.filter(LeisureSport.region_code == region_code)
     if facility_name:
         query = query.filter(LeisureSport.facility_name.ilike(f"%{facility_name}%"))
     total = query.count()
     items = query.offset(skip).limit(limit).all()
-    return {"items": items, "total": total}
+    
+    # 지역명 조회를 위한 region_codes 수집
+    region_codes = list(set([item.region_code for item in items if item.region_code]))
+    region_names = {}
+    if region_codes:
+        regions = db.query(Region).filter(Region.region_code.in_(region_codes)).all()
+        region_names = {r.region_code: r.region_name for r in regions}
+    
+    # 각 아이템을 딕셔너리로 변환하고 region_name 추가
+    result_items = []
+    for item in items:
+        item_dict = {
+            "content_id": item.content_id,
+            "facility_name": item.facility_name,
+            "facility_type": item.facility_type,
+            "region_code": item.region_code,
+            "region_name": region_names.get(item.region_code, ""),
+            "address": item.address,
+            "tel": item.tel,
+            "latitude": item.latitude,
+            "longitude": item.longitude,
+            "available_sports": item.available_sports,
+            "parking": item.parking,
+            "rental_fee": item.rental_fee,
+            "operating_hours": item.operating_hours,
+            "closed_days": item.closed_days,
+            "created_at": item.created_at,
+            "updated_at": item.updated_at
+        }
+        result_items.append(item_dict)
+    
+    return {"items": result_items, "total": total}
 
 
 @router.get("/{content_id}", response_model=LeisureSportResponse)

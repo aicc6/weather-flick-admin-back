@@ -23,12 +23,16 @@ async def get_all_tourist_attractions(
 ):
     query = db.query(TouristAttraction)
     if region_code:
-        # region_code 파라미터를 받으면 해당 지역의 tour_api_area_code를 찾아서 필터링
-        region = db.query(Region).filter(Region.region_code == region_code).first()
-        if region and region.tour_api_area_code:
-            query = query.filter(TouristAttraction.region_code == region.tour_api_area_code)
+        # region_code 파라미터를 받으면 해당 지역의 관광지 필터링
+        # 프론트엔드에서 '1', '2', '3' 등을 보내면 DB의 '01', '02', '03' 형식과 매칭
+        if len(region_code) == 1 and region_code.isdigit():
+            # 한 자리 숫자인 경우 앞에 0을 붙여서 검색
+            padded_code = region_code.zfill(2)
+            # 시도 레벨과 시군구 레벨 모두 검색 (예: '01'로 시작하는 모든 region_code)
+            query = query.filter(TouristAttraction.region_code.like(f"{padded_code}%"))
         else:
-            query = query.filter(TouristAttraction.region_code == str(region_code))
+            # 그 외의 경우 그대로 검색
+            query = query.filter(TouristAttraction.region_code == region_code)
     
     # 반려동물 동반 가능 필터
     if pet_friendly is True:
@@ -49,12 +53,20 @@ async def get_all_tourist_attractions(
     
     # 의미있는 데이터만 포함하여 응답 구성
     items = []
+    # 지역명 조회를 위한 region_codes 수집
+    region_codes = list(set([item.region_code for item in attractions if item.region_code]))
+    region_names = {}
+    if region_codes:
+        regions = db.query(Region).filter(Region.region_code.in_(region_codes)).all()
+        region_names = {r.region_code: r.region_name for r in regions}
+
     for a in attractions:
         item = {
             "content_id": a.content_id,
             "attraction_name": a.attraction_name,
             "address": a.address,
             "region_code": a.region_code,
+            "region_name": region_names.get(a.region_code, ""),
             "created_at": a.created_at,
         }
         
@@ -97,6 +109,14 @@ async def get_tourist_attraction(
     attraction = db.query(TouristAttraction).filter(TouristAttraction.content_id == content_id).first()
     if not attraction:
         raise HTTPException(status_code=404, detail="관광지를 찾을 수 없습니다.")
+    
+    # 지역명 조회
+    region_name = ""
+    if attraction.region_code:
+        region = db.query(Region).filter(Region.region_code == attraction.region_code).first()
+        if region:
+            region_name = region.region_name
+    
     return {
         "content_id": attraction.content_id,
         "attraction_name": attraction.attraction_name,
@@ -108,6 +128,7 @@ async def get_tourist_attraction(
         "category_code": attraction.category_code,
         "category_name": attraction.category_name,
         "region_code": attraction.region_code,
+        "region_name": region_name,
         "created_at": attraction.created_at,
         "updated_at": attraction.updated_at,
     }
@@ -130,7 +151,14 @@ async def search_tourist_attractions(
     if category:
         query = query.filter(TouristAttraction.category_name.ilike(f"%{category}%"))
     if region:
-        query = query.filter(TouristAttraction.region_code == region)
+        # 프론트엔드에서 '1', '2', '3' 등을 보내면 DB의 '01', '02', '03' 형식과 매칭
+        if len(region) == 1 and region.isdigit():
+            # 한 자리 숫자인 경우 앞에 0을 붙여서 검색
+            padded_code = region.zfill(2)
+            query = query.filter(TouristAttraction.region_code == padded_code)
+        else:
+            # 그 외의 경우 그대로 검색
+            query = query.filter(TouristAttraction.region_code == region)
     
     # 반려동물 동반 가능 필터
     if pet_friendly is True:
@@ -149,6 +177,13 @@ async def search_tourist_attractions(
         pet_infos = db.query(PetTourInfo).filter(PetTourInfo.content_id.in_(attraction_ids)).all()
         pet_info_dict = {p.content_id: p for p in pet_infos}
     
+    # 지역명 조회를 위한 region_codes 수집
+    region_codes = list(set([item.region_code for item in results if item.region_code]))
+    region_names = {}
+    if region_codes:
+        regions = db.query(Region).filter(Region.region_code.in_(region_codes)).all()
+        region_names = {r.region_code: r.region_name for r in regions}
+    
     return {
         "total": total,
         "items": [
@@ -163,6 +198,7 @@ async def search_tourist_attractions(
                 "category_code": a.category_code,
                 "category_name": a.category_name,
                 "region_code": a.region_code,
+                "region_name": region_names.get(a.region_code, ""),
                 "created_at": a.created_at,
                 "updated_at": a.updated_at,
                 "is_pet_friendly": a.content_id in pet_info_dict,
