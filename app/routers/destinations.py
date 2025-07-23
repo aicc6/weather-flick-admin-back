@@ -84,10 +84,10 @@ async def get_all_tourist_attractions(
             item["longitude"] = float(a.longitude)
         if a.category_code:
             item["category_code"] = a.category_code
+            # 카테고리 정보 정규화 - category_name이 없어도 category_code만으로 정규화
+            item["category_info"] = normalize_category_data(a.category_code, a.category_name)
         if a.category_name:
             item["category_name"] = a.category_name
-            # 카테고리 정보 정규화
-            item["category_info"] = normalize_category_data(a.category_code, a.category_name)
         if a.updated_at:
             item["updated_at"] = a.updated_at
         
