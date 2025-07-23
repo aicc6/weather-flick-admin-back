@@ -2038,37 +2038,28 @@ class BatchJobLog(Base):
 
     __tablename__ = "batch_job_logs"
 
-    log_id = Column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
-    )
-    job_id = Column(Integer, ForeignKey("batch_jobs.job_id"), nullable=False)
-    schedule_id = Column(
-        Integer, ForeignKey("batch_job_schedules.schedule_id"), nullable=True
-    )
-
+    id = Column(Integer, primary_key=True, index=True)
+    job_id = Column(String, nullable=False)  # String 타입으로 변경
+    job_name = Column(String)
+    job_type = Column(String)
+    
     # 실행 정보
-    started_at = Column(DateTime, nullable=False)
-    completed_at = Column(DateTime)
-    execution_time = Column(Float)  # 실행 시간 (초)
-
+    start_time = Column(DateTime)
+    end_time = Column(DateTime)
+    duration = Column(Float)  # 실행 시간 (초)
+    
     # 상태 및 결과
     status = Column(String, nullable=False)  # success, failed, timeout
-    exit_code = Column(Integer)
-
-    # 처리 결과
-    records_processed = Column(Integer, default=0)
-    records_failed = Column(Integer, default=0)
-    output_summary = Column(JSONB)
-
-    # 로그 및 에러
-    log_output = Column(Text)  # 표준 출력
-    error_output = Column(Text)  # 에러 출력
-
+    error_message = Column(Text)
+    parameters = Column(JSONB)
+    result = Column(JSONB)
+    
     created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime)
 
     # 인덱스
     __table_args__ = (
-        Index("idx_batch_log_job", "job_id", "started_at"),
+        Index("idx_batch_log_job", "job_id", "start_time"),
         Index("idx_batch_log_status", "status"),
     )
 

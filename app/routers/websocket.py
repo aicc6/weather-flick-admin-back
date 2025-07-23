@@ -96,15 +96,21 @@ async def websocket_endpoint(
         try:
             existing_logs = db.query(BatchJobLog).filter(
                 BatchJobLog.job_id == job_id
-            ).order_by(BatchJobLog.timestamp).all()
+            ).order_by(BatchJobLog.start_time).all()
             
             for log in existing_logs:
                 await websocket.send_json({
                     "type": "log",
-                    "timestamp": log.timestamp.isoformat() if log.timestamp else datetime.now().isoformat(),
-                    "level": log.level or "INFO",
-                    "message": log.message or "",
-                    "details": log.details,
+                    "timestamp": log.start_time.isoformat() if log.start_time else datetime.now().isoformat(),
+                    "level": "ERROR" if log.status == "failed" else "INFO",
+                    "message": log.error_message or f"{log.job_name} - {log.status}",
+                    "details": {
+                        "status": log.status,
+                        "job_name": log.job_name,
+                        "job_type": log.job_type,
+                        "duration": log.duration,
+                        "result": log.result
+                    },
                     "historical": True
                 })
         except Exception as e:
@@ -115,7 +121,7 @@ async def websocket_endpoint(
             await websocket.send_json({
                 "type": "job_update",
                 "data": {
-                    "status": job.status.value if job.status else "UNKNOWN",
+                    "status": job.status if job.status else "UNKNOWN",
                     "progress": float(job.progress) if job.progress else 0.0,
                     "current_step": job.current_step,
                     "total_steps": job.total_steps
@@ -147,7 +153,7 @@ async def websocket_endpoint(
                     await websocket.send_json({
                         "type": "job_update",
                         "data": {
-                            "status": job.status.value if job.status else "UNKNOWN",
+                            "status": job.status if job.status else "UNKNOWN",
                             "progress": float(job.progress) if job.progress else 0.0,
                             "current_step": job.current_step,
                             "total_steps": job.total_steps
