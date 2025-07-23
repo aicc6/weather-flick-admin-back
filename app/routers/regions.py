@@ -399,56 +399,56 @@ async def delete_region(
                 
                 # 각 모델별로 개별적으로 확인
                 try:
-                    if db.query(FestivalEvent).filter(FestivalEvent.tour_api_area_code == region_code).first():
+                    if db.query(FestivalEvent).filter(FestivalEvent.region_code == region_code).first():
                         has_related_data = True
                         related_data_info.append("축제/이벤트")
                 except:
                     pass
                     
                 try:
-                    if db.query(TouristAttraction).filter(TouristAttraction.tour_api_area_code == region_code).first():
+                    if db.query(TouristAttraction).filter(TouristAttraction.region_code == region_code).first():
                         has_related_data = True
                         related_data_info.append("관광지")
                 except:
                     pass
                     
                 try:
-                    if db.query(CulturalFacility).filter(CulturalFacility.tour_api_area_code == region_code).first():
+                    if db.query(CulturalFacility).filter(CulturalFacility.region_code == region_code).first():
                         has_related_data = True
                         related_data_info.append("문화시설")
                 except:
                     pass
                     
                 try:
-                    if db.query(Accommodation).filter(Accommodation.tour_api_area_code == region_code).first():
+                    if db.query(Accommodation).filter(Accommodation.region_code == region_code).first():
                         has_related_data = True
                         related_data_info.append("숙박시설")
                 except:
                     pass
                     
                 try:
-                    if db.query(Restaurant).filter(Restaurant.tour_api_area_code == region_code).first():
+                    if db.query(Restaurant).filter(Restaurant.region_code == region_code).first():
                         has_related_data = True
                         related_data_info.append("음식점")
                 except:
                     pass
                     
                 try:
-                    if db.query(Shopping).filter(Shopping.tour_api_area_code == region_code).first():
+                    if db.query(Shopping).filter(Shopping.region_code == region_code).first():
                         has_related_data = True
                         related_data_info.append("쇼핑")
                 except:
                     pass
                     
                 try:
-                    if db.query(WeatherData).filter(WeatherData.tour_api_area_code == region_code).first():
+                    if db.query(WeatherData).filter(WeatherData.region_code == region_code).first():
                         has_related_data = True
                         related_data_info.append("날씨 데이터")
                 except:
                     pass
                     
                 try:
-                    if db.query(PetTourInfo).filter(PetTourInfo.tour_api_area_code == region_code).first():
+                    if db.query(PetTourInfo).filter(PetTourInfo.region_code == region_code).first():
                         has_related_data = True
                         related_data_info.append("반려동물 여행 정보")
                 except:

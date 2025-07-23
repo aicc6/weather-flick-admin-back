@@ -46,6 +46,7 @@ from app.routers.travel_courses_compatibility import (
 )
 from app.routers.users import router as users_router
 from app.routers.weather import router as weather_router
+from app.routers.websocket import router as websocket_router
 
 # 로깅 설정 초기화
 setup_logging(log_dir="logs", log_level="DEBUG" if settings.debug else "INFO")
@@ -172,6 +173,7 @@ app.include_router(
 app.include_router(accommodations_router, prefix="/api")  # 숙박시설 API 추가
 app.include_router(restaurants_router, prefix="/api")  # 음식점 API 추가
 app.include_router(festivals_events_router, prefix="/api")  # 축제 이벤트 API 추가
+app.include_router(websocket_router, prefix="/api")  # WebSocket API 추가
 
 
 @app.get("/")

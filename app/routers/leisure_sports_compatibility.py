@@ -126,6 +126,79 @@ async def get_leisure_sport_detail(
         return {"error": "상세 정보를 불러올 수 없습니다"}
 
 
+@router.post("/")
+async def create_leisure_sport(
+    data: Dict[str, Any],
+    db: Session = Depends(get_db)
+):
+    """레저 스포츠 시설 생성"""
+    try:
+        # content_id 생성
+        import uuid
+        content_id = str(uuid.uuid4())[:20]  # 20자리로 제한
+        
+        # 새 레저 스포츠 시설 생성
+        new_item = LeisureSport(
+            content_id=content_id,
+            facility_name=data.get('facility_name', '미상'),
+            region_code=data.get('region_code', ''),
+            sports_type=data.get('sports_type', ''),
+            admission_fee=data.get('admission_fee', ''),
+            parking_info=data.get('parking_info', ''),
+            tel=data.get('tel', ''),
+            homepage=data.get('homepage', ''),
+            overview=data.get('overview', ''),
+            first_image=data.get('first_image', ''),
+            first_image_small=data.get('first_image_small', ''),
+            operating_hours=data.get('operating_hours', ''),
+            reservation_info=data.get('reservation_info', ''),
+            rental_info=data.get('rental_info', ''),
+            capacity=data.get('capacity', ''),
+            address=data.get('address', ''),
+            detail_address=data.get('detail_address', ''),
+            zipcode=data.get('zipcode', ''),
+            latitude=data.get('latitude', 0.0),
+            longitude=data.get('longitude', 0.0),
+        )
+        
+        db.add(new_item)
+        db.commit()
+        db.refresh(new_item)
+        
+        # 직렬화 가능한 형태로 변환
+        item_dict = {
+            "content_id": new_item.content_id,
+            "facility_name": new_item.facility_name or "미상",
+            "region_code": new_item.region_code,
+            "address": new_item.address or "",
+            "detail_address": new_item.detail_address or "",
+            "tel": new_item.tel or "",
+            "homepage": new_item.homepage or "",
+            "overview": new_item.overview or "",
+            "first_image": new_item.first_image or "",
+            "first_image_small": new_item.first_image_small or "",
+            "latitude": float(new_item.latitude) if new_item.latitude else 0.0,
+            "longitude": float(new_item.longitude) if new_item.longitude else 0.0,
+            "zipcode": new_item.zipcode or "",
+            "sports_type": getattr(new_item, 'sports_type', None) or "",
+            "category_code": getattr(new_item, 'category_code', None) or "",
+            "operating_hours": getattr(new_item, 'operating_hours', None) or "",
+            "reservation_info": getattr(new_item, 'reservation_info', None) or "",
+            "admission_fee": getattr(new_item, 'admission_fee', None) or "",
+            "parking_info": getattr(new_item, 'parking_info', None) or "",
+            "rental_info": getattr(new_item, 'rental_info', None) or "",
+            "capacity": getattr(new_item, 'capacity', None) or "",
+            "created_at": new_item.created_at.isoformat() if new_item.created_at else "",
+            "updated_at": new_item.updated_at.isoformat() if new_item.updated_at else "",
+            "last_sync_at": getattr(new_item, 'last_sync_at', None) and new_item.last_sync_at.isoformat() if getattr(new_item, 'last_sync_at', None) else ""
+        }
+        
+        return item_dict
+    except Exception as e:
+        logging.error(f"레저 스포츠 생성 오류: {e}")
+        raise HTTPException(status_code=500, detail="생성 중 오류가 발생했습니다")
+
+
 @router.put("/{content_id}")
 async def update_leisure_sport(
     content_id: str,
@@ -186,6 +259,26 @@ async def update_leisure_sport(
     except Exception as e:
         logging.error(f"레저 스포츠 수정 오류: {e}")
         raise HTTPException(status_code=500, detail="수정 중 오류가 발생했습니다")
+
+
+@router.delete("/{content_id}")
+async def delete_leisure_sport(
+    content_id: str,
+    db: Session = Depends(get_db)
+):
+    """레저 스포츠 시설 삭제"""
+    try:
+        item = db.query(LeisureSport).filter(LeisureSport.content_id == content_id).first()
+        if not item:
+            raise HTTPException(status_code=404, detail="레저 스포츠 시설을 찾을 수 없습니다")
+        
+        db.delete(item)
+        db.commit()
+        
+        return {"message": "레저 스포츠 시설이 삭제되었습니다"}
+    except Exception as e:
+        logging.error(f"레저 스포츠 삭제 오류: {e}")
+        raise HTTPException(status_code=500, detail="삭제 중 오류가 발생했습니다")
 
 
 @router.get("/autocomplete/")

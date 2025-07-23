@@ -291,7 +291,7 @@ class TouristAttraction(Base):
     __tablename__ = "tourist_attractions"
 
     # Primary Key
-    content_id = Column(String(20), primary_key=True, index=True)
+    content_id = Column(String(50), primary_key=True, index=True)
 
     # Foreign Keys
     region_code = Column(

@@ -112,6 +112,7 @@ class UserStats(BaseModel):
     admin_users: int
     recent_registrations: int  # 최근 30일
     recent_logins: int  # 최근 7일
+    deleted_users: int  # 탈퇴한 사용자
 
 
 class UserSearchParams(BaseModel):

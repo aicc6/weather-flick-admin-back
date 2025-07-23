@@ -1,5 +1,8 @@
 from uuid import uuid4
 from typing import Optional
+import time
+import random
+import string
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -213,71 +216,78 @@ async def search_tourist_attractions(
 @require_permission("destinations.write")
 async def create_tourist_attraction(
     current_admin: CurrentAdmin,
-    attraction_name: str = Body(...),
-    description: str = Body(None),
-    address: str = Body(None),
-    image_url: str = Body(None),
-    latitude: float = Body(None),
-    longitude: float = Body(None),
-    category_code: str = Body(None),
-    category_name: str = Body(None),
-    region_code: str = Body(None),
+    data: dict = Body(...),
     db: Session = Depends(get_db)
 ):
-    new_attraction = TouristAttraction(
-        content_id=str(uuid4()),
-        attraction_name=attraction_name,
-        description=description,
-        address=address,
-        image_url=image_url,
-        latitude=latitude,
-        longitude=longitude,
-        category_code=category_code,
-        category_name=category_name,
-        region_code=region_code,
-    )
-    db.add(new_attraction)
-    db.commit()
-    db.refresh(new_attraction)
-    return {"content_id": new_attraction.content_id}
+    try:
+        # region_code 처리: 한 자리 숫자인 경우 앞에 0을 붙임
+        region_code = data.get('region_code')
+        if region_code is not None:
+            # region_code를 문자열로 변환하고 숫자인 경우 처리
+            region_code_str = str(region_code)
+            if region_code_str.isdigit():
+                if len(region_code_str) == 1:
+                    region_code = region_code_str.zfill(2)
+                else:
+                    region_code = region_code_str
+            else:
+                region_code = region_code_str
+        
+        # 20자 제한에 맞는 고유 ID 생성 (타임스탬프 + 랜덤 문자열)
+        timestamp = str(int(time.time()))[-10:]  # 마지막 10자리
+        random_str = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
+        content_id = f"{timestamp}{random_str}"[:20]  # 20자로 제한
+        
+        new_attraction = TouristAttraction(
+            content_id=content_id,
+            attraction_name=data.get('attraction_name'),
+            description=data.get('description'),
+            address=data.get('address'),
+            image_url=data.get('image_url'),
+            latitude=data.get('latitude'),
+            longitude=data.get('longitude'),
+            category_code=data.get('category_code'),
+            category_name=data.get('category_name'),
+            region_code=region_code,
+        )
+        db.add(new_attraction)
+        db.commit()
+        db.refresh(new_attraction)
+        return {"content_id": new_attraction.content_id}
+    except Exception as e:
+        db.rollback()
+        print(f"Error creating tourist attraction: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"관광지 생성 중 오류가 발생했습니다: {str(e)}")
 
 @router.put("/{content_id}")
 @require_permission("destinations.write")
 async def update_tourist_attraction(
     content_id: str,
     current_admin: CurrentAdmin,
-    attraction_name: str = Body(None),
-    description: str = Body(None),
-    address: str = Body(None),
-    image_url: str = Body(None),
-    latitude: float = Body(None),
-    longitude: float = Body(None),
-    category_code: str = Body(None),
-    category_name: str = Body(None),
-    region_code: str = Body(None),
+    data: dict = Body(...),
     db: Session = Depends(get_db)
 ):
     attraction = db.query(TouristAttraction).filter(TouristAttraction.content_id == content_id).first()
     if not attraction:
         raise HTTPException(status_code=404, detail="관광지를 찾을 수 없습니다.")
-    if attraction_name is not None:
-        attraction.attraction_name = attraction_name
-    if description is not None:
-        attraction.description = description
-    if address is not None:
-        attraction.address = address
-    if image_url is not None:
-        attraction.image_url = image_url
-    if latitude is not None:
-        attraction.latitude = latitude
-    if longitude is not None:
-        attraction.longitude = longitude
-    if category_code is not None:
-        attraction.category_code = category_code
-    if category_name is not None:
-        attraction.category_name = category_name
-    if region_code is not None:
-        attraction.region_code = region_code
+    if data.get('attraction_name') is not None:
+        attraction.attraction_name = data.get('attraction_name')
+    if data.get('description') is not None:
+        attraction.description = data.get('description')
+    if data.get('address') is not None:
+        attraction.address = data.get('address')
+    if data.get('image_url') is not None:
+        attraction.image_url = data.get('image_url')
+    if data.get('latitude') is not None:
+        attraction.latitude = data.get('latitude')
+    if data.get('longitude') is not None:
+        attraction.longitude = data.get('longitude')
+    if data.get('category_code') is not None:
+        attraction.category_code = data.get('category_code')
+    if data.get('category_name') is not None:
+        attraction.category_name = data.get('category_name')
+    if data.get('region_code') is not None:
+        attraction.region_code = data.get('region_code')
     db.commit()
     db.refresh(attraction)
     return {"content_id": attraction.content_id}

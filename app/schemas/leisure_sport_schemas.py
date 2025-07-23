@@ -30,7 +30,7 @@ class LeisureSportCreate(BaseModel):
     category_code: str | None = None
     sub_category_code: str | None = None
     raw_data_id: str | None = None
-    # sports_type: str | None = None
+    sports_type: str | None = None
     reservation_info: str | None = None
     admission_fee: str | None = None
     parking_info: str | None = None
@@ -67,13 +67,28 @@ class LeisureSportUpdate(LeisureSportCreate):
     pass
 
 
-class LeisureSportResponse(LeisureSportBase):
+class LeisureSportResponse(BaseModel):
     """레저/스포츠 시설 응답 스키마"""
 
+    content_id: str
+    region_code: str
+    facility_name: str
+    sports_type: str | None = None
+    category_code: str | None = None
+    address: str | None = None
+    zipcode: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    tel: str | None = None
+    homepage: str | None = None
+    operating_hours: str | None = None
+    reservation_info: str | None = None
+    admission_fee: str | None = None
+    parking_info: str | None = None
+    first_image: str | None = None
     raw_data_id: UUID | None = None
     created_at: datetime
     updated_at: datetime
-    last_sync_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
 

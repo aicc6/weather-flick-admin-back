@@ -1,5 +1,8 @@
 from uuid import uuid4
 from typing import Optional
+import time
+import random
+import string
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -104,17 +107,16 @@ async def get_restaurant(
     return {
         "content_id": restaurant.content_id,
         "restaurant_name": restaurant.restaurant_name,
-        "description": restaurant.description,
+        "description": restaurant.overview,
         "address": restaurant.address,
-        "image_url": restaurant.image_url,
+        "image_url": restaurant.first_image,
         "latitude": float(restaurant.latitude) if restaurant.latitude else None,
         "longitude": float(restaurant.longitude) if restaurant.longitude else None,
-        "menu": restaurant.menu,
-        "business_hours": restaurant.business_hours,
+        "menu": restaurant.specialty_dish,
+        "business_hours": restaurant.operating_hours,
         "tel": restaurant.tel,
-        "price_range": restaurant.price_range,
+        "cuisine_type": restaurant.cuisine_type,
         "category_code": restaurant.category_code,
-        "category_name": restaurant.category_name,
         "region_code": restaurant.region_code,
         "created_at": restaurant.created_at,
         "updated_at": restaurant.updated_at,
@@ -124,92 +126,96 @@ async def get_restaurant(
 @require_permission("destinations.write")
 async def create_restaurant(
     current_admin: CurrentAdmin,
-    restaurant_name: str = Body(...),
-    description: str = Body(None),
-    address: str = Body(None),
-    image_url: str = Body(None),
-    latitude: float = Body(None),
-    longitude: float = Body(None),
-    menu: str = Body(None),
-    business_hours: str = Body(None),
-    tel: str = Body(None),
-    price_range: str = Body(None),
-    category_code: str = Body(None),
-    category_name: str = Body(None),
-    region_code: str = Body(None),
+    data: dict = Body(...),
     db: Session = Depends(get_db)
 ):
-    new_restaurant = Restaurant(
-        content_id=str(uuid4()),
-        restaurant_name=restaurant_name,
-        description=description,
-        address=address,
-        image_url=image_url,
-        latitude=latitude,
-        longitude=longitude,
-        menu=menu,
-        business_hours=business_hours,
-        tel=tel,
-        price_range=price_range,
-        category_code=category_code,
-        category_name=category_name,
-        region_code=region_code,
-    )
-    db.add(new_restaurant)
-    db.commit()
-    db.refresh(new_restaurant)
-    return {"content_id": new_restaurant.content_id}
+    try:
+        # 필수 필드 확인
+        if not data.get('restaurant_name'):
+            raise HTTPException(status_code=400, detail="음식점명은 필수입니다.")
+        if not data.get('address'):
+            raise HTTPException(status_code=400, detail="주소는 필수입니다.")
+        if not data.get('region_code'):
+            raise HTTPException(status_code=400, detail="지역 코드는 필수입니다.")
+        
+        # region_code 처리: 한 자리 숫자인 경우 앞에 0을 붙임
+        region_code = data.get('region_code')
+        if region_code is not None:
+            # region_code를 문자열로 변환하고 숫자인 경우 처리
+            region_code_str = str(region_code)
+            if region_code_str.isdigit():
+                if len(region_code_str) == 1:
+                    region_code = region_code_str.zfill(2)
+                else:
+                    region_code = region_code_str
+            else:
+                region_code = region_code_str
+        
+        # 20자 제한에 맞는 고유 ID 생성 (타임스탬프 + 랜덤 문자열)
+        timestamp = str(int(time.time()))[-10:]  # 마지막 10자리
+        random_str = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
+        content_id = f"{timestamp}{random_str}"[:20]  # 20자로 제한
+        
+        new_restaurant = Restaurant(
+            content_id=content_id,
+            restaurant_name=data.get('restaurant_name'),
+            overview=data.get('description'),
+            address=data.get('address'),
+            first_image=data.get('image_url'),
+            latitude=data.get('latitude'),
+            longitude=data.get('longitude'),
+            specialty_dish=data.get('menu'),
+            operating_hours=data.get('business_hours'),
+            tel=data.get('tel'),
+            cuisine_type=data.get('cuisine_type'),
+            category_code=data.get('category_code'),
+            region_code=region_code,
+        )
+        db.add(new_restaurant)
+        db.commit()
+        db.refresh(new_restaurant)
+        return {"content_id": new_restaurant.content_id}
+    except Exception as e:
+        db.rollback()
+        print(f"Error creating restaurant: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"음식점 생성 중 오류가 발생했습니다: {str(e)}")
 
 @router.put("/{content_id}")
 @require_permission("destinations.write")
 async def update_restaurant(
     content_id: str,
     current_admin: CurrentAdmin,
-    restaurant_name: str = Body(None),
-    description: str = Body(None),
-    address: str = Body(None),
-    image_url: str = Body(None),
-    latitude: float = Body(None),
-    longitude: float = Body(None),
-    menu: str = Body(None),
-    business_hours: str = Body(None),
-    tel: str = Body(None),
-    price_range: str = Body(None),
-    category_code: str = Body(None),
-    category_name: str = Body(None),
-    region_code: str = Body(None),
+    data: dict = Body(...),
     db: Session = Depends(get_db)
 ):
     restaurant = db.query(Restaurant).filter(Restaurant.content_id == content_id).first()
     if not restaurant:
         raise HTTPException(status_code=404, detail="음식점을 찾을 수 없습니다.")
     
-    if restaurant_name is not None:
-        restaurant.restaurant_name = restaurant_name
-    if description is not None:
-        restaurant.description = description
-    if address is not None:
-        restaurant.address = address
-    if image_url is not None:
-        restaurant.image_url = image_url
-    if latitude is not None:
-        restaurant.latitude = latitude
-    if longitude is not None:
-        restaurant.longitude = longitude
-    if menu is not None:
-        restaurant.menu = menu
-    if business_hours is not None:
-        restaurant.business_hours = business_hours
-    if tel is not None:
-        restaurant.tel = tel
-    if price_range is not None:
-        restaurant.price_range = price_range
-    if category_code is not None:
-        restaurant.category_code = category_code
-    if category_name is not None:
-        restaurant.category_name = category_name
-    if region_code is not None:
-        restaurant.region_code = region_code
+    if data.get('restaurant_name') is not None:
+        restaurant.restaurant_name = data.get('restaurant_name')
+    if data.get('description') is not None:
+        restaurant.overview = data.get('description')
+    if data.get('address') is not None:
+        restaurant.address = data.get('address')
+    if data.get('image_url') is not None:
+        restaurant.first_image = data.get('image_url')
+    if data.get('latitude') is not None:
+        restaurant.latitude = data.get('latitude')
+    if data.get('longitude') is not None:
+        restaurant.longitude = data.get('longitude')
+    if data.get('menu') is not None:
+        restaurant.specialty_dish = data.get('menu')
+    if data.get('business_hours') is not None:
+        restaurant.operating_hours = data.get('business_hours')
+    if data.get('tel') is not None:
+        restaurant.tel = data.get('tel')
+    if data.get('cuisine_type') is not None:
+        restaurant.cuisine_type = data.get('cuisine_type')
+    if data.get('category_code') is not None:
+        restaurant.category_code = data.get('category_code')
+    if data.get('region_code') is not None:
+        restaurant.region_code = data.get('region_code')
     
     db.commit()
     db.refresh(restaurant)

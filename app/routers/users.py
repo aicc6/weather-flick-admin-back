@@ -429,6 +429,7 @@ async def hard_delete_user(
     user_id: str,
     admin_user: CurrentAdmin,  # 슈퍼관리자 권한 필수
     user_service: UserService = Depends(get_user_service),
+    db: Session = Depends(get_db),
 ):
     """
     탈퇴 회원(이메일이 deleted_로 시작) 영구 삭제 (DB에서 완전 삭제)
@@ -443,9 +444,10 @@ async def hard_delete_user(
 
         # 관리자 활동 로그
         await log_admin_activity(
-            admin_user.admin.admin_id,
+            admin_user.admin_id,
             "USER_HARD_DELETE",
             f"탈퇴 회원 영구 삭제 (ID: {user_id})",
+            db=db,
         )
 
         return {"message": "탈퇴 회원이 영구 삭제되었습니다.", "user_id": user_id}

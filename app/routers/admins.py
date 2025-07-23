@@ -232,10 +232,29 @@ async def update_admin(
         )
 
     # 업데이트할 필드들 적용
+    if admin_update.email is not None:
+        # 이메일 중복 확인
+        existing_admin = db.query(Admin).filter(
+            Admin.email == admin_update.email,
+            Admin.admin_id != admin_id
+        ).first()
+        if existing_admin:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="이미 사용 중인 이메일입니다"
+            )
+        admin.email = admin_update.email
+    
     if admin_update.name is not None:
         admin.name = admin_update.name
+    
     if admin_update.phone is not None:
         admin.phone = admin_update.phone
+    
+    if admin_update.password is not None and admin_update.password:
+        # 비밀번호 해싱
+        admin.password_hash = get_password_hash(admin_update.password)
+    
     if admin_update.status is not None:
         # 자기 자신의 상태는 변경할 수 없음
         if (

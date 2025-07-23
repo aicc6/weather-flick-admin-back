@@ -54,18 +54,17 @@ async def list_leisure_sports(
         item_dict = {
             "content_id": item.content_id,
             "facility_name": item.facility_name,
-            "facility_type": item.facility_type,
+            "facility_type": getattr(item, 'facility_type', None),
             "region_code": item.region_code,
             "region_name": region_names.get(item.region_code, ""),
             "address": item.address,
             "tel": item.tel,
             "latitude": item.latitude,
             "longitude": item.longitude,
-            "available_sports": item.available_sports,
-            "parking": item.parking,
-            "rental_fee": item.rental_fee,
+            "sports_type": item.sports_type,
+            "admission_fee": item.admission_fee,
+            "parking_info": item.parking_info,
             "operating_hours": item.operating_hours,
-            "closed_days": item.closed_days,
             "created_at": item.created_at,
             "updated_at": item.updated_at
         }
@@ -92,7 +91,11 @@ async def get_leisure_sports(
 async def create_leisure_sports(
     item: LeisureSportCreate, current_admin: CurrentAdmin, db: Session = Depends(get_db)
 ):
-    db_item = LeisureSport(**item.model_dump())
+    # content_id 생성
+    import uuid
+    content_id = str(uuid.uuid4())[:20]  # 20자리로 제한
+    
+    db_item = LeisureSport(content_id=content_id, **item.model_dump())
     db.add(db_item)
     db.commit()
     db.refresh(db_item)

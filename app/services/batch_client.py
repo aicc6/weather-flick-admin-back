@@ -116,6 +116,18 @@ class BatchAPIClient:
             logger.error(f"Failed to get job info for {job_id}: {e}")
             raise
 
+    async def get_job_status(self, job_id: str) -> dict[str, Any]:
+        """작업 상태 조회"""
+        try:
+            response = await self.client.get(f"/api/batch/jobs/{job_id}/status")
+            response.raise_for_status()
+
+            return response.json()
+
+        except httpx.HTTPError as e:
+            logger.error(f"Failed to get job status for {job_id}: {e}")
+            raise
+
     async def get_job_logs(
         self,
         job_id: str,

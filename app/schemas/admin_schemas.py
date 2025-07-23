@@ -73,7 +73,8 @@ class AdminResponse(BaseModel):
     @property
     def is_active(self) -> bool:
         """프론트엔드 호환을 위한 is_active 필드"""
-        return self.status == AdminStatus.ACTIVE
+        # use_enum_values=True로 인해 status가 문자열로 변환되므로 문자열 비교
+        return self.status == "ACTIVE"
 
     model_config = ConfigDict(from_attributes=True, use_enum_values=True)
 
@@ -93,6 +94,8 @@ class AdminStatusUpdate(BaseModel):
 
 
 class AdminUpdate(BaseModel):
+    email: EmailStr | None = None
     name: str | None = None
     phone: str | None = None
+    password: str | None = None
     status: str | None = None

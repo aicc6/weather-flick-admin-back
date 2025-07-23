@@ -4,9 +4,10 @@ admin-back에서 배치 작업 실행 내역을 관리하기 위한 별도 모�
 """
 
 from datetime import datetime
-from sqlalchemy import Column, String, Float, Integer, DateTime, Text
+from sqlalchemy import Column, String, Float, Integer, DateTime, Text, ForeignKey
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 from app.database import Base
 
 
